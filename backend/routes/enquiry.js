@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Enquiry = require('../models/Enquiry');
 const { requireAuth } = require('../middleware/auth');
+const { buildSearchRegex } = require('../utils/regexSafe');
 
 // Protect routes
 router.use(requireAuth);
@@ -16,7 +17,7 @@ router.get('/', async (req, res) => {
 
   let filter = {};
   if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search, 'i');
+    const searchRegex = buildSearchRegex(req.query.search);
     filter.$or = [
       { name: searchRegex },
       { phone: searchRegex },
@@ -27,6 +28,9 @@ router.get('/', async (req, res) => {
   }
 
   if (req.query.status) {
+    if (typeof req.query.status !== 'string') {
+      return res.status(400).json({ error: 'Invalid status filter' });
+    }
     filter.status = req.query.status;
   }
 

@@ -13,8 +13,9 @@ const CourseDetail = require('../models/CourseDetail');
 const Certificate = require('../models/Certificate');
 const CertificateTemplate = require('../models/CertificateTemplate');
 const CertificateBatch = require('../models/CertificateBatch');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
+const { buildSearchRegex } = require('../utils/regexSafe');
 
 // Ensure upload/certificates directory exists
 const certsDir = path.join(__dirname, '../uploads/certificates');
@@ -467,7 +468,7 @@ router.get('/download-all-zip', requireAuth, async (req, res) => {
 // @route   POST /api/certificates/bulk-toggle
 // @desc    Bulk toggle status (Active/Revoked) for certificates
 // @access  Private (Admin & Staff)
-router.post('/bulk-toggle', requireAuth, async (req, res) => {
+router.post('/bulk-toggle', requireAuth, requireRole(['Admin']), async (req, res) => {
   const { ids, status, search } = req.body;
   if (!status || !['Active', 'Revoked'].includes(status)) {
     return res.status(400).json({ error: 'Invalid or missing target status' });
@@ -482,7 +483,7 @@ router.post('/bulk-toggle', requireAuth, async (req, res) => {
     } else {
       let filter = {};
       if (search) {
-        const searchRegex = new RegExp(search, 'i');
+        const searchRegex = buildSearchRegex(search);
         const students = await Student.find({
           $or: [
             { name: searchRegex },
@@ -507,7 +508,7 @@ router.post('/bulk-toggle', requireAuth, async (req, res) => {
 // @route   POST /api/certificates/bulk-delete
 // @desc    Delete multiple certificates and clean up PDF files from disk
 // @access  Private (Admin & Staff)
-router.post('/bulk-delete', requireAuth, async (req, res) => {
+router.post('/bulk-delete', requireAuth, requireRole(['Admin']), async (req, res) => {
   const { ids } = req.body;
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'No certificate records selected for deletion' });
@@ -546,7 +547,7 @@ router.get('/', requireAuth, async (req, res) => {
 
   let filter = {};
   if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search, 'i');
+    const searchRegex = buildSearchRegex(req.query.search);
     
     // Find students matching search to filter certificates
     const students = await Student.find({
@@ -564,6 +565,10 @@ router.get('/', requireAuth, async (req, res) => {
   }
 
   if (req.query.status) {
+    const allowedStatuses = ['Active', 'Revoked'];
+    if (typeof req.query.status !== 'string' || !allowedStatuses.includes(req.query.status)) {
+      return res.status(400).json({ error: 'Invalid status filter' });
+    }
     filter.status = req.query.status;
   }
 

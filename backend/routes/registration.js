@@ -13,7 +13,8 @@ const Certificate = require('../models/Certificate');
 const Branch = require('../models/Branch');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/env');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { buildSearchRegex } = require('../utils/regexSafe');
 
 // Photo Upload Configuration
 const photoDir = path.join(__dirname, '../uploads/photos');
@@ -74,7 +75,7 @@ router.get('/students', requireAuth, async (req, res) => {
 
   let filter = {};
   if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search, 'i');
+    const searchRegex = buildSearchRegex(req.query.search);
     filter.$or = [
       { name: searchRegex },
       { registrationNo: searchRegex },
@@ -97,7 +98,8 @@ router.get('/students', requireAuth, async (req, res) => {
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       })
-      .sort({ createdAt: -1, _id: -1 });
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
 
     if (req.query.all !== 'true') {
       dbQuery = dbQuery.skip(skip).limit(limit);
@@ -146,7 +148,12 @@ router.post('/register', upload.single('photo'), async (req, res) => {
       return res.status(401).json({ error: 'Authorization required to register a student without a course link' });
     }
     try {
-      jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      const User = require('../models/User');
+      const user = await User.findById(decoded.id);
+      if (!user || !user.isActive) {
+        return res.status(401).json({ error: 'Invalid or expired session' });
+      }
     } catch (e) {
       return res.status(401).json({ error: 'Invalid or expired session' });
     }
@@ -426,7 +433,7 @@ router.post('/students/bulk-toggle', requireAuth, async (req, res) => {
 // @route   POST /api/registration/students/bulk-delete
 // @desc    Delete multiple students and associated records (payments, discounts, certificates, files)
 // @access  Private (Admin & Staff)
-router.post('/students/bulk-delete', requireAuth, async (req, res) => {
+router.post('/students/bulk-delete', requireAuth, requireRole(['Admin']), async (req, res) => {
   const { ids } = req.body;
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'No student records selected for deletion' });
@@ -478,12 +485,12 @@ router.post('/students/bulk-delete', requireAuth, async (req, res) => {
 // @route   POST /api/registration/students/toggle-all
 // @desc    Toggle status for all students matching current filters (search, active status)
 // @access  Private (Admin & Staff)
-router.post('/students/toggle-all', requireAuth, async (req, res) => {
+router.post('/students/toggle-all', requireAuth, requireRole(['Admin']), async (req, res) => {
   const { search, isActive } = req.body;
 
   let filter = {};
   if (search) {
-    const searchRegex = new RegExp(search, 'i');
+    const searchRegex = buildSearchRegex(search);
     filter.$or = [
       { name: searchRegex },
       { registrationNo: searchRegex },
@@ -507,12 +514,12 @@ router.post('/students/toggle-all', requireAuth, async (req, res) => {
 // @route   POST /api/registration/students/delete-all
 // @desc    Delete ALL students matching current filters (search, active status)
 // @access  Private (Admin & Staff)
-router.post('/students/delete-all', requireAuth, async (req, res) => {
+router.post('/students/delete-all', requireAuth, requireRole(['Admin']), async (req, res) => {
   const { search, isActive } = req.body;
 
   let filter = {};
   if (search) {
-    const searchRegex = new RegExp(search, 'i');
+    const searchRegex = buildSearchRegex(search);
     filter.$or = [
       { name: searchRegex },
       { registrationNo: searchRegex },

@@ -83,6 +83,8 @@ app.use('/api/enquiry', require('./routes/enquiry'));
 app.use('/api/certificates', require('./routes/certificates'));
 app.use('/api/backup', require('./routes/backup').router);
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/reports', require('./routes/reports'));
+
 
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {

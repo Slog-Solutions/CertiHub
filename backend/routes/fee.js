@@ -36,7 +36,18 @@ router.get('/students', async (req, res) => {
       filter.isActive = req.query.isActive === 'true';
     }
 
-    const matchedStudents = await Student.find(filter).select('_id');
+    const total = await Student.countDocuments(filter);
+
+    let studentIdsQuery = Student.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .select('_id')
+      .lean();
+
+    if (req.query.all !== 'true') {
+      studentIdsQuery = studentIdsQuery.skip(skip).limit(limit);
+    }
+
+    const matchedStudents = await studentIdsQuery;
     const studentIds = matchedStudents.map(s => s._id);
 
     // 2. Perform Mongoose aggregation to sum payments and attach discounts
@@ -118,9 +129,7 @@ router.get('/students', async (req, res) => {
           createdAt: 1
         }
       },
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: limit }
+      { $sort: { createdAt: -1 } }
     ]);
 
     // Populate course details technology & duration details manually (since $lookup nested is verbose)
@@ -128,15 +137,14 @@ router.get('/students', async (req, res) => {
       if (agg.courseDetail) {
         const fullDetail = await CourseDetail.findById(agg.courseDetail._id)
           .populate('technologyId')
-          .populate('durationId');
+          .populate('durationId')
+          .lean();
         if (fullDetail) {
           agg.courseName = fullDetail.technologyId ? fullDetail.technologyId.name : 'Unknown';
           agg.duration = fullDetail.durationId ? `${fullDetail.durationId.value} ${fullDetail.durationId.unit}(s)` : 'Unknown';
         }
       }
     }
-
-    const total = await Student.countDocuments(filter);
 
     res.json({
       data: aggregatedFees,

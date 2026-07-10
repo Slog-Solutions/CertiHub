@@ -82,15 +82,19 @@ const Registration = () => {
       });
       setStudents(res.data.data);
       setTotal(res.data.total);
+      setLoading(false); // Unblock loading spinner immediately!
 
-      // Unpaginated list for full excel/pdf/print export
-      const allRes = await api.get('/registration/students', {
+      // Fetch unpaginated list in the background for exports
+      api.get('/registration/students', {
         params: { search, all: 'true' }
+      }).then(allRes => {
+        setAllStudents(allRes.data.data);
+      }).catch(err => {
+        console.error('Background fetch of all students failed:', err);
       });
-      setAllStudents(allRes.data.data);
+      
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch student list');
-    } finally {
       setLoading(false);
     }
   };

@@ -71,7 +71,11 @@ const DashboardLayout = () => {
             <Route path="/discounts" element={<Discounts />} />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/fee-collection" element={<Reports type="fee-collection" />} />
+            <Route path="/reports/date-wise-fee" element={<Reports type="date-wise" />} />
+            <Route path="/reports/course" element={<Reports type="courses" />} />
+            <Route path="/reports/course-students" element={<Reports type="course-students" />} />
+            <Route path="/reports" element={<Navigate to="/reports/fee-collection" replace />} />
             
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

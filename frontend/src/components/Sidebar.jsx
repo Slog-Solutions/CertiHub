@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard,
@@ -14,12 +14,26 @@ import {
   BarChart3,
   Database,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  FileText
 } from 'lucide-react';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isReportsActive = location.pathname.startsWith('/reports');
+  const [reportsOpen, setReportsOpen] = useState(isReportsActive);
+
+  // Auto-expand Reports menu if navigating directly to a reports page
+  useEffect(() => {
+    if (isReportsActive) {
+      setReportsOpen(true);
+    }
+  }, [location.pathname, isReportsActive]);
 
   const handleLogout = () => {
     logout();
@@ -36,7 +50,16 @@ const Sidebar = () => {
     { name: 'Fee Discount',    path: '/discounts',   icon: Percent },
     { name: 'Enquiry CRM',     path: '/enquiries',   icon: MessageSquare },
     { name: 'Certificates',    path: '/certificates',icon: Award },
-    { name: 'Reports',         path: '/reports',     icon: BarChart3 },
+    {
+      name: 'Reports',
+      icon: BarChart3,
+      subItems: [
+        { name: 'Fee Collection Report', path: '/reports/fee-collection' },
+        { name: 'Date wise Fee Collection Report', path: '/reports/date-wise-fee' },
+        { name: 'Course Report', path: '/reports/course' },
+        { name: 'Course wise total student Report', path: '/reports/course-students' }
+      ]
+    },
     { name: 'Daily Backup',    path: '/backup',      icon: Database },
   ];
 
@@ -48,7 +71,16 @@ const Sidebar = () => {
     { name: 'Fee Discount',    path: '/discounts',   icon: Percent },
     { name: 'Enquiry CRM',     path: '/enquiries',   icon: MessageSquare },
     { name: 'Certificates',    path: '/certificates',icon: Award },
-    { name: 'Reports',         path: '/reports',     icon: BarChart3 },
+    {
+      name: 'Reports',
+      icon: BarChart3,
+      subItems: [
+        { name: 'Fee Collection Report', path: '/reports/fee-collection' },
+        { name: 'Date wise Fee Collection Report', path: '/reports/date-wise-fee' },
+        { name: 'Course Report', path: '/reports/course' },
+        { name: 'Course wise total student Report', path: '/reports/course-students' }
+      ]
+    },
   ];
 
   const menuItems = user?.role === 'Admin' ? adminMenu : staffMenu;
@@ -94,19 +126,67 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.path}
-            end={item.path === '/'}
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`
-            }
-          >
-            <item.icon size={16} style={{ flexShrink: 0 }} />
-            <span>{item.name}</span>
-          </NavLink>
-        ))}
+        {menuItems.map((item) => {
+          if (item.subItems) {
+            const isActive = location.pathname.startsWith('/reports');
+            return (
+              <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <button
+                  onClick={() => setReportsOpen(!reportsOpen)}
+                  className={`sidebar-link ${isActive ? 'sidebar-link--active' : ''}`}
+                  style={{
+                    width: '100%',
+                    background: 'none',
+                    border: 'none',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    outline: 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <item.icon size={16} style={{ flexShrink: 0 }} />
+                    <span>{item.name}</span>
+                  </div>
+                  {reportsOpen ? <ChevronUp size={14} style={{ opacity: 0.8 }} /> : <ChevronDown size={14} style={{ opacity: 0.8 }} />}
+                </button>
+                
+                {reportsOpen && (
+                  <div className="sidebar-submenu">
+                    {item.subItems.map((sub) => (
+                      <NavLink
+                        key={sub.name}
+                        to={sub.path}
+                        className={({ isActive }) =>
+                          `sidebar-submenu-item ${isActive ? 'sidebar-submenu-item--active' : ''}`
+                        }
+                      >
+                        <FileText size={13} style={{ flexShrink: 0 }} />
+                        <span>{sub.name}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <NavLink
+              key={item.name}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`
+              }
+            >
+              <item.icon size={16} style={{ flexShrink: 0 }} />
+              <span>{item.name}</span>
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Logout */}

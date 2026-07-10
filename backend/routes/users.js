@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { buildSearchRegex } = require('../utils/regexSafe');
 
 // Apply Admin restriction to all routes in this file
 router.use(requireAuth, requireRole(['Admin']));
@@ -17,7 +18,7 @@ router.get('/', async (req, res) => {
 
   let filter = {};
   if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search, 'i');
+    const searchRegex = buildSearchRegex(req.query.search);
     filter.$or = [
       { name: searchRegex },
       { username: searchRegex },

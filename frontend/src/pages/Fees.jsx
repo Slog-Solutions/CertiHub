@@ -7,6 +7,7 @@ import ExportButtons from '../components/ExportButtons';
 const Fees = () => {
   const { api } = useAuth();
   const [students, setStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -37,9 +38,19 @@ const Fees = () => {
       });
       setStudents(res.data.data);
       setTotal(res.data.total);
+      setLoading(false); // Unblock loading spinner immediately!
+
+      // Fetch all students for exports in the background
+      api.get('/fee/students', {
+        params: { search, all: 'true' }
+      }).then(allRes => {
+        setAllStudents(allRes.data.data);
+      }).catch(err => {
+        console.error('Background fetch of all fee summaries failed:', err);
+      });
+
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch student fee summaries');
-    } finally {
       setLoading(false);
     }
   };
@@ -185,7 +196,7 @@ const Fees = () => {
           </button>
         </form>
 
-        <ExportButtons data={students} columns={exportColumns} filename="student_fees_report" />
+        <ExportButtons data={allStudents} columns={exportColumns} filename="student_fees_report" />
       </div>
 
       {/* Fee Table view */}

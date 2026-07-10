@@ -613,7 +613,7 @@ select.themed {
 .animate-in { animation: fadeInUp 0.4s ease-out both; }
 .animate-in > *:nth-child(1) { animation-delay: 0.04s; }
 .animate-in > *:nth-child(2) { animation-delay: 0.08s; }
-.animate-in > *:*:nth-child(3) { animation-delay: 0.12s; }
+.animate-in > *:nth-child(3) { animation-delay: 0.12s; }
 .animate-in > *:nth-child(4) { animation-delay: 0.16s; }
 .animate-in > *:nth-child(5) { animation-delay: 0.20s; }
 .animate-in > *:nth-child(6) { animation-delay: 0.24s; }
@@ -636,4 +636,95 @@ select.themed {
 }
 @media (max-width: 480px) {
   .page-content { padding: var(--space-sm); gap: var(--space-sm); }
+}
+
+/* ─── Sidebar Nested Submenu ────────────────────────────────── */
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 28px;
+  margin-top: 2px;
+  overflow: hidden;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: var(--transition-smooth);
+}
+.sidebar-submenu-item:hover {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  text-decoration: none;
+}
+.sidebar-submenu-item--active {
+  background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(16,185,129,0.04) 100%);
+  color: var(--primary) !important;
+  font-weight: 600;
+}
+
+/* ─── Print Layout Styles ───────────────────────────────────── */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .sidebar-certyhub,
+  .navbar-certyhub,
+  .no-print,
+  button,
+  select,
+  input,
+  form,
+  .reports-filter-container,
+  .export-buttons-container,
+  nav,
+  aside,
+  header {
+    display: none !important;
+  }
+  .app-shell {
+    display: block !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+  }
+  .page-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  main {
+    overflow: visible !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+  }
+  .page-content {
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+  .table-card {
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th, td {
+    padding: 8px 12px !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    color: #111827 !important;
+  }
 }
