@@ -240,6 +240,49 @@ select.themed {
   transition: var(--transition-smooth);
 }
 
+.sidebar-certyhub.collapsed {
+  width: 0;
+  border-right-color: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--transition-smooth);
+}
+
+.sidebar-close-btn:hover {
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+@media (max-width: 1024px) {
+  .sidebar-certyhub {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 999;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar-certyhub.collapsed {
+    transform: translateX(-100%);
+    width: var(--sidebar-width);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 /* ─── Sidebar Brand ─────────────────────────────────────────── */
 .sidebar-brand {
   display: flex;

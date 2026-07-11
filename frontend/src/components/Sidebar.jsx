@@ -17,10 +17,11 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -86,26 +87,36 @@ const Sidebar = () => {
   const menuItems = user?.role === 'Admin' ? adminMenu : staffMenu;
 
   return (
-    <aside className="sidebar-certyhub">
+    <aside className={`sidebar-certyhub ${!isOpen ? 'collapsed' : ''}`}>
       {/* Brand */}
-      <div className="sidebar-brand">
-        <div style={{
-          width: 34, height: 34, borderRadius: 10,
-          background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0,
-          boxShadow: '0 4px 12px rgba(5,150,105,0.3)'
-        }}>
-          SS
-        </div>
-        <div>
-          <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-dark)', lineHeight: 1.2 }}>
-            Slog Solutions
+      <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontWeight: 800, fontSize: 14, flexShrink: 0,
+            boxShadow: '0 4px 12px rgba(5,150,105,0.3)'
+          }}>
+            SS
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>
-            Management Portal
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-dark)', lineHeight: 1.2 }}>
+              Slog Solutions
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>
+              Management Portal
+            </div>
           </div>
         </div>
+
+        <button 
+          onClick={onClose}
+          className="sidebar-close-btn"
+          title="Close Sidebar"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* User Card */}

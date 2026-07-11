@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon, Clock, User } from 'lucide-react';
+import { Sun, Moon, Clock, User, Menu } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const PAGE_LABELS = {
@@ -18,7 +18,7 @@ const PAGE_LABELS = {
   '/backup':       { title: 'Daily Backup', subtitle: 'Database backup and restore management' },
 };
 
-const Header = () => {
+const Header = ({ onMenuClick, sidebarOpen }) => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
@@ -31,15 +31,27 @@ const Header = () => {
   return (
     <header className="navbar-certyhub">
       {/* Left: Page Title */}
-      <div style={{ minWidth: 0 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {page.title}
-        </h2>
-        {page.subtitle && (
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 400 }}>
-            {page.subtitle}
-          </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        {!sidebarOpen && (
+          <button
+            className="nav-icon-btn"
+            onClick={onMenuClick}
+            title="Open Sidebar"
+            style={{ marginRight: 4 }}
+          >
+            <Menu size={18} />
+          </button>
         )}
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dark)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {page.title}
+          </h2>
+          {page.subtitle && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontWeight: 400 }}>
+              {page.subtitle}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Right: Actions */}

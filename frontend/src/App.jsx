@@ -71,11 +71,25 @@ const AdminRoute = ({ children }) => {
 
 // Standard Admin/Staff panel dashboard layout
 const DashboardLayout = () => {
+  const [sidebarOpen, setSidebarOpen] = React.useState(window.innerWidth > 1024);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 1024) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="app-shell" style={{ fontFamily: 'var(--font-outfit)', overflowX: 'hidden' }}>
-      <Sidebar />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="page-wrapper">
-        <Header />
+        <Header onMenuClick={() => setSidebarOpen(true)} sidebarOpen={sidebarOpen} />
         <main style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: 'var(--bg-cream)' }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
