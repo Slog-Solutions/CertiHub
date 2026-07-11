@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Certificate Preview - Fixed</title>
+
+  <style>
+    @page { size: A4 landscape; margin: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f7f9fb;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Outer responsive container (acts as the preview box) */
+    #preview-container {
+      width: 100%;
+      max-width: 1100px; /* adjust to fit your layout */
+      margin: 0 auto;
+      padding: 0;
+    }
+
+    /* Maintains A4 landscape ratio responsively */
+    #preview-viewport {
+      width: 100%;
+      position: relative;
+      padding-bottom: 70.7%; /* 210 / 297 = 0.707 (A4 landscape ratio) */
+      background: #fff;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Certificate container that will be scaled */
+    #certificate-root {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: top left;
+    }
+
+    /* ---------------- CERTIFICATE DESIGN ---------------- */
+
+    /*
+      Use pixel base dimensions derived from A4 at 96 DPI:
+        width_px = 297mm * (96 / 25.4) ≈ 1122px
+        height_px = 210mm * (96 / 25.4) ≈ 794px
+      This ensures consistent scaling math in JS and sizing in CSS.
+      
+      For high-DPI PDF rendering, the page will be rendered at 300 DPI
+      (3508x2480px viewport), so all elements will be scaled proportionally.
+    */
+    .page {
+      position: relative;
+      width: 1122px;     /* base pixel width at 96 DPI */
+      height: 794px;     /* base pixel height at 96 DPI */
+      background-image: url('{{{bgUrl}}}');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-position: center center;
+      color: #0e5f67;
+      box-sizing: border-box;
+      /* Ensure crisp rendering at high DPI */
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .content {
+      position: absolute;
+      /* convert mm positions roughly to px for the new base (30mm ≈ 113px at 96dpi) */
+      left: 113px;   /* ~30mm */
+      top: 170px;    /* ~60mm */
+      right: 340px;  /* space for right decoration (~90mm) */
+      z-index: 10;
+      line-height: 1.4;
+      padding-bottom: 88px; /* ~26mm */
+      box-sizing: border-box;
+    }
+
+    .label { font-size: 18px; color: #1a454b; margin-bottom: 8px; }
+    .name {
+      font-size: 32px;
+      font-weight: 700;
+      color: #0a4348;
+      border-bottom: 1px solid #0a4348;
+      display: inline-block;
+      padding-bottom: 4px;
+      min-width: 360px;
+      margin: 8px 0;
+    }
+
+    .line { font-size: 18px; color: #1a454b; margin: 10px 0; }
+    .course {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0d6e76;
+      margin: 10px 0 20px 0;
+    }
+
+    .line.date { margin-bottom: 42px; } /* spacing between date and signatures */
+
+    .footer {
+      position: absolute;
+      left: 50px;
+      right:500px;
+      bottom: 90px; /* moved up slightly relative to base */
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      color: #0a4348;
+      z-index: 10;
+    }
+   
+
+
+    .sign {
+      text-align: center;
+      width: 246px; /* ~65mm at 96dpi */
+      box-sizing: border-box;
+    }
+
+    .sign img {
+      width: 152px; /* ~40mm at 96dpi */
+      height: auto;
+      display: block;
+      margin: 23px auto 0; /* pushes image down so it doesn't overlap date */
+      /* Ensure signature images render at high quality */
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: auto;
+    }
+
+    .sign .cap {
+      font-size: 14px;
+      margin-top: 6px;
+      line-height: 1.4;
+      color: #0a4348;
+    }
+    .line.date {
+  margin-top: 40px;   /* increases space ONLY between these two lines */
+  /* keeps space before signatures */
+}
+    .meta {
+      position: absolute;
+      left: 45px;   /* a little inset from left */
+      bottom: 8px;
+      font-size: 15px;
+      color: #ffffff; /* white text for teal footer */
+      z-index: 10;
+      font-weight: 500;
+      letter-spacing: 0.4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Preview container -->
+  <div id="preview-container">
+    <div id="preview-viewport">
+      <div id="certificate-root">
+        <!-- Certificate Content -->
+        <div class="page">
+          <div class="content">
+            <div class="label">This is to certify that</div>
+            <div class="name">{{student_name}}</div>
+
+            <div class="line">has successfully completed</div>
+            <div class="line"><strong>{{duration_label}}</strong> Training Program on</div>
+            <div class="course">"{{course_name}}"</div>
+
+            <div class="line">conducted by {{company_name}}</div>
+            <div class="line date">Completion Date: {{issue_date}}</div>
+          </div>
+
+          <div class="footer">
+            <div class="sign">
+              {{#include_signatures}}
+                {{#left_signature_url}}
+                <img src="{{{left_signature_url}}}" alt="Left Signature" />
+                {{/left_signature_url}}
+              {{/include_signatures}}
+              <div class="cap">{{left_sign_name}}<br/>Director<br/>{{company_name}}</div>
+            </div>
+
+            <div class="sign">
+              {{#include_signatures}}
+                {{#right_signature_url}}
+                <img src="{{{right_signature_url}}}" alt="Right Signature" />
+                {{/right_signature_url}}
+              {{/include_signatures}}
+              <div class="cap">{{right_sign_name}}<br/>Director<br/>{{company_name}}</div>
+            </div>
+          </div>
+
+          <div class="meta">
+            Registered No.: {{registration_id}} &nbsp;&nbsp;&nbsp; {{website_url}}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script to scale certificate automatically (uses pixel base) -->
+  <script>
+    (function () {
+      const viewport = document.getElementById('preview-viewport');
+      const certRoot = document.getElementById('certificate-root');
+
+      // Base pixel size (A4 at 96 DPI)
+      const CERT_W = 1122; // px
+      const CERT_H = 794;  // px
+
+      function resize() {
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        const scale = Math.min(vw / CERT_W, vh / CERT_H);
+
+        // set explicit px size and scale
+        certRoot.style.width = CERT_W + 'px';
+        certRoot.style.height = CERT_H + 'px';
+        certRoot.style.transform = 'scale(' + scale + ')';
+      }
+
+      function initHeight() {
+        if (viewport.clientHeight === 0) {
+          const w = viewport.clientWidth;
+          const targetH = Math.round(w * (CERT_H / CERT_W));
+          viewport.style.height = targetH + 'px';
+        }
+      }
+
+      window.addEventListener('load', () => {
+        initHeight();
+        resize();
+      });
+      window.addEventListener('resize', resize);
+    })();
+  </script>
+</body>
+</html>

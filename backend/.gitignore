@@ -1,0 +1,22 @@
+# Environment variables (NEVER commit real secrets)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Uploaded/generated files (user content, not source)
+uploads/*
+!uploads/.gitkeep
+
+# Backups
+backups/
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
