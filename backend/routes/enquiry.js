@@ -4,6 +4,33 @@ const Enquiry = require('../models/Enquiry');
 const { requireAuth } = require('../middleware/auth');
 const { buildSearchRegex } = require('../utils/regexSafe');
 
+// @route   POST /api/enquiry/public
+// @desc    Create a new enquiry from the public website
+// @access  Public
+router.post('/public', async (req, res) => {
+  const { name, phone, email, courseInterested, message } = req.body;
+
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Name and Phone are required' });
+  }
+
+  try {
+    const enquiry = new Enquiry({
+      name,
+      phone,
+      email: email || '',
+      courseInterested: courseInterested || '',
+      message: message || '',
+      status: 'New'
+    });
+
+    await enquiry.save();
+    res.status(201).json(enquiry);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Protect routes
 router.use(requireAuth);
 

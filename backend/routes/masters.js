@@ -257,6 +257,53 @@ router.get('/branch/public', async (req, res) => {
   }
 });
 
+// @route   GET /api/masters/technology/public
+// @desc    Get active technologies for public view
+// @access  Public
+router.get('/technology/public', async (req, res) => {
+  try {
+    const technologies = await Technology.find({ isActive: true }).select('name note').sort({ name: 1 });
+    res.json(technologies);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   GET /api/masters/coursedetail/public
+// @desc    Get active course details for public view
+// @access  Public
+router.get('/coursedetail/public', async (req, res) => {
+  try {
+    const courses = await CourseDetail.find({ isActive: true })
+      .populate({
+        path: 'technologyId',
+        match: { isActive: true },
+        select: 'name note'
+      })
+      .populate({
+        path: 'durationId',
+        match: { isActive: true },
+        select: 'value unit'
+      });
+    const activeCourses = courses.filter(c => c.technologyId && c.durationId);
+    res.json(activeCourses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   GET /api/masters/college/public
+// @desc    Get active colleges/locations for public view
+// @access  Public
+router.get('/college/public', async (req, res) => {
+  try {
+    const colleges = await College.find({ isActive: true }).select('collegeName shortForm cityName logoImageUrl').sort({ collegeName: 1 });
+    res.json(colleges);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/branch', requireAuth, async (req, res) => {
   try {
     const results = await getPaginatedResults(Branch, req.query, ['name', 'note'], req.query.page, req.query.limit);

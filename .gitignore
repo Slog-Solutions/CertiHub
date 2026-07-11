@@ -35,6 +35,7 @@ Thumbs.db
 
 # Database dumps
 *.sql
+u949813839_slog_tree.sql
 
 # Project-specific paths
 backend/uploads/

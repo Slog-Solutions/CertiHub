@@ -1,10 +1,18 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Components
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import WebNavbar from './components/WebNavbar';
+import WebFooter from './components/WebFooter';
+
+// Public Pages
+import Home from './pages/Home';
+import AboutUs from './pages/AboutUs';
+import ContactUs from './pages/ContactUs';
+import Courses from './pages/Courses';
 
 // Pages
 import Login from './pages/Login';
@@ -21,6 +29,19 @@ import Reports from './pages/Reports';
 import Backup from './pages/Backup';
 import VerifyCertificate from './pages/VerifyCertificate';
 import PublicRegistration from './pages/PublicRegistration';
+
+// Public Layout Wrapper
+const PublicLayout = ({ children }) => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', fontFamily: 'var(--font-outfit)', background: 'var(--bg-cream)' }}>
+      <WebNavbar />
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </main>
+      <WebFooter />
+    </div>
+  );
+};
 
 // Auth Guard: Directs unauthenticated traffic to /login
 const ProtectedRoute = ({ children }) => {
@@ -45,7 +66,7 @@ const AdminRoute = ({ children }) => {
       </div>
     );
   }
-  return user && user.role === 'Admin' ? children : <Navigate to="/" replace />;
+  return user && user.role === 'Admin' ? children : <Navigate to="/dashboard" replace />;
 };
 
 // Standard Admin/Staff panel dashboard layout
@@ -86,25 +107,39 @@ const DashboardLayout = () => {
   );
 };
 
+// Wrapper to force remount of verification page on URL param changes
+const VerifyCertificateWrapper = () => {
+  const { id } = useParams();
+  return <VerifyCertificate key={id || 'search'} />;
+};
+
 const App = () => {
   return (
     <AuthProvider>
       <Router>
         <Routes>
           {/* Public Views */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/verify/:id" element={<VerifyCertificate />} />
-          <Route path="/register" element={<PublicRegistration />} />
+          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+          <Route path="/about" element={<PublicLayout><AboutUs /></PublicLayout>} />
+          <Route path="/contact" element={<PublicLayout><ContactUs /></PublicLayout>} />
+          <Route path="/courses" element={<PublicLayout><Courses /></PublicLayout>} />
+          <Route path="/verify" element={<PublicLayout><VerifyCertificateWrapper /></PublicLayout>} />
+          <Route path="/verify/:id" element={<PublicLayout><VerifyCertificateWrapper /></PublicLayout>} />
+          <Route path="/register" element={<PublicLayout><PublicRegistration /></PublicLayout>} />
 
           {/* Secure Portal Dashboard layout (Contains subroutes) */}
+          <Route path="/login" element={<Login />} />
           <Route
-            path="/*"
+            path="/dashboard/*"
             element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }
           />
+          
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

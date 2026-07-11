@@ -41,44 +41,44 @@ const Sidebar = () => {
   };
 
   const adminMenu = [
-    { name: 'Dashboard',       path: '/',            icon: LayoutDashboard },
-    { name: 'Masters',         path: '/masters',     icon: Settings },
-    { name: 'Users',           path: '/users',       icon: Users },
-    { name: 'Registration',    path: '/registration',icon: UserPlus },
-    { name: 'Course Links',    path: '/course-links',icon: Link },
-    { name: "Student's Fee",   path: '/fees',        icon: CreditCard },
-    { name: 'Fee Discount',    path: '/discounts',   icon: Percent },
-    { name: 'Enquiry CRM',     path: '/enquiries',   icon: MessageSquare },
-    { name: 'Certificates',    path: '/certificates',icon: Award },
+    { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
+    { name: 'Masters',         path: '/dashboard/masters', icon: Settings },
+    { name: 'Users',           path: '/dashboard/users', icon: Users },
+    { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
+    { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
+    { name: "Student's Fee",   path: '/dashboard/fees', icon: CreditCard },
+    { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
+    { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
+    { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     {
       name: 'Reports',
       icon: BarChart3,
       subItems: [
-        { name: 'Fee Collection Report', path: '/reports/fee-collection' },
-        { name: 'Date wise Fee Collection Report', path: '/reports/date-wise-fee' },
-        { name: 'Course Report', path: '/reports/course' },
-        { name: 'Course wise total student Report', path: '/reports/course-students' }
+        { name: 'Fee Collection Report', path: '/dashboard/reports/fee-collection' },
+        { name: 'Date wise Fee Collection Report', path: '/dashboard/reports/date-wise-fee' },
+        { name: 'Course Report', path: '/dashboard/reports/course' },
+        { name: 'Course wise total student Report', path: '/dashboard/reports/course-students' }
       ]
     },
-    { name: 'Daily Backup',    path: '/backup',      icon: Database },
+    { name: 'Daily Backup',    path: '/dashboard/backup', icon: Database },
   ];
 
   const staffMenu = [
-    { name: 'Dashboard',       path: '/',            icon: LayoutDashboard },
-    { name: 'Registration',    path: '/registration',icon: UserPlus },
-    { name: 'Course Links',    path: '/course-links',icon: Link },
-    { name: "Student's Fee",   path: '/fees',        icon: CreditCard },
-    { name: 'Fee Discount',    path: '/discounts',   icon: Percent },
-    { name: 'Enquiry CRM',     path: '/enquiries',   icon: MessageSquare },
-    { name: 'Certificates',    path: '/certificates',icon: Award },
+    { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
+    { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
+    { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
+    { name: "Student's Fee",   path: '/dashboard/fees', icon: CreditCard },
+    { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
+    { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
+    { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     {
       name: 'Reports',
       icon: BarChart3,
       subItems: [
-        { name: 'Fee Collection Report', path: '/reports/fee-collection' },
-        { name: 'Date wise Fee Collection Report', path: '/reports/date-wise-fee' },
-        { name: 'Course Report', path: '/reports/course' },
-        { name: 'Course wise total student Report', path: '/reports/course-students' }
+        { name: 'Fee Collection Report', path: '/dashboard/reports/fee-collection' },
+        { name: 'Date wise Fee Collection Report', path: '/dashboard/reports/date-wise-fee' },
+        { name: 'Course Report', path: '/dashboard/reports/course' },
+        { name: 'Course wise total student Report', path: '/dashboard/reports/course-students' }
       ]
     },
   ];
@@ -128,7 +128,7 @@ const Sidebar = () => {
       <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {menuItems.map((item) => {
           if (item.subItems) {
-            const isActive = location.pathname.startsWith('/reports');
+            const isActive = location.pathname.startsWith('/dashboard/reports');
             return (
               <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <button
@@ -177,7 +177,7 @@ const Sidebar = () => {
             <NavLink
               key={item.name}
               to={item.path}
-              end={item.path === '/'}
+              end={item.path === '/dashboard'}
               className={({ isActive }) =>
                 `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`
               }
