@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ShieldAlert, Award, LogIn, Sun, Moon } from 'lucide-react';
+import { Menu, X, ShieldAlert, Award, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 const WebNavbar = () => {
@@ -68,13 +68,6 @@ const WebNavbar = () => {
             >
               {theme === 'light' ? <Moon className="h-4.5 w-4.5" /> : <Sun className="h-4.5 w-4.5" />}
             </button>
-            <Link
-              to="/login"
-              className="btn-primary py-2 px-4 text-xs flex items-center gap-1.5"
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              Portal Login
-            </Link>
           </div>
 
           {/* Mobile Actions Panel */}
@@ -113,16 +106,6 @@ const WebNavbar = () => {
               {link.name}
             </Link>
           ))}
-          <div className="pt-2 border-t border-[var(--border-color)]">
-            <Link
-              to="/login"
-              onClick={() => setIsOpen(false)}
-              className="w-full btn-primary justify-center py-2 text-xs flex items-center gap-1.5"
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              Portal Login
-            </Link>
-          </div>
         </div>
       )}
     </nav>

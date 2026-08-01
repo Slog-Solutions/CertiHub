@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Loader, AlertCircle, CheckCircle2, UserPlus, X, Calendar, ClipboardCheck, DollarSign, BookOpen, Upload, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Search, Loader, AlertCircle, CheckCircle2, UserPlus, X, Calendar, ClipboardCheck, DollarSign, BookOpen, Upload, Download, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 import ExportButtons from '../components/ExportButtons';
@@ -16,6 +16,8 @@ const Registration = () => {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [filterCollege, setFilterCollege] = useState('');
+  const [filterCourse, setFilterCourse] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Form references
@@ -78,7 +80,13 @@ const Registration = () => {
       
       // Paginated list for table view
       const res = await api.get('/registration/students', {
-        params: { page, search, limit: 10 }
+        params: { 
+          page, 
+          search, 
+          limit: 10,
+          collegeId: filterCollege,
+          courseDetailId: filterCourse
+        }
       });
       setStudents(res.data.data);
       setTotal(res.data.total);
@@ -86,7 +94,12 @@ const Registration = () => {
 
       // Fetch unpaginated list in the background for exports
       api.get('/registration/students', {
-        params: { search, all: 'true' }
+        params: { 
+          search, 
+          all: 'true',
+          collegeId: filterCollege,
+          courseDetailId: filterCourse
+        }
       }).then(allRes => {
         setAllStudents(allRes.data.data);
       }).catch(err => {
@@ -113,8 +126,12 @@ const Registration = () => {
   };
 
   useEffect(() => {
+    fetchDropdowns();
+  }, []);
+
+  useEffect(() => {
     fetchStudents();
-  }, [page]);
+  }, [page, filterCollege, filterCourse]);
 
   useEffect(() => {
     if (isFormOpen) {
@@ -129,8 +146,8 @@ const Registration = () => {
       setFormData(prev => ({
         ...prev,
         courseDetailId,
-        durationId: selectedCourse.durationId?._id || '',
-        totalFee: selectedCourse.price || ''
+        durationId: selectedCourse.durationId?._id || selectedCourse.durationId || '',
+        totalFee: selectedCourse.price !== undefined ? selectedCourse.price : ''
       }));
     } else {
       setFormData(prev => ({
@@ -146,6 +163,16 @@ const Registration = () => {
     e.preventDefault();
     setPage(1);
     fetchStudents();
+  };
+
+  const handleCollegeFilterChange = (e) => {
+    setFilterCollege(e.target.value);
+    setPage(1);
+  };
+
+  const handleCourseFilterChange = (e) => {
+    setFilterCourse(e.target.value);
+    setPage(1);
   };
 
   const handleOpenAddForm = () => {
@@ -273,6 +300,23 @@ const Registration = () => {
     }
   };
 
+  const handleDownloadExcelTemplate = async () => {
+    try {
+      setError('');
+      // Request file buffer and save it client side
+      const response = await api.get('/registration/template-excel', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Student_Registration_Template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setError('Failed to download Excel template file.');
+    }
+  };
+
   const handleBulkUploadSubmit = async (e) => {
     e.preventDefault();
     setUploadError('');
@@ -375,7 +419,9 @@ const Registration = () => {
         setMessage('');
         await api.post('/registration/students/toggle-all', {
           search,
-          isActive: targetActive
+          isActive: targetActive,
+          collegeId: filterCollege,
+          courseDetailId: filterCourse
         });
         setMessage(`Successfully updated status for all matching student records.`);
         fetchStudents();
@@ -428,6 +474,15 @@ const Registration = () => {
 
             <button
               type="button"
+              onClick={handleDownloadExcelTemplate}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] text-[var(--text-dark)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-cream)] transition"
+            >
+              <Download className="h-4 w-4 text-emerald-400" />
+              Download Template
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setUploadError('');
                 setUploadResult(null);
@@ -471,21 +526,49 @@ const Registration = () => {
         )}
 
         {/* Table controls */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
-            <input
-              type="text"
-              placeholder="Search by name, email, reg no..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-colors duration-300 py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
-            />
-            <button type="submit" className="absolute left-3 top-2 text-[var(--text-muted)] hover:text-[var(--text-dark)]">
-              <Search className="h-3.5 w-3.5" />
-            </button>
-          </form>
+        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between bg-[var(--bg-card)] p-4 border border-[var(--border-color)] rounded-2xl shadow-sm transition-colors duration-300">
+          <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-center">
+            <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Search by name, email, reg no..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
+              />
+              <button type="submit" className="absolute left-3 top-2 text-[var(--text-muted)] hover:text-[var(--text-dark)]">
+                <Search className="h-3.5 w-3.5" />
+              </button>
+            </form>
 
-          <div className="flex items-center gap-2">
+            {/* College Filter */}
+            <select
+              value={filterCollege}
+              onChange={handleCollegeFilterChange}
+              className="w-full sm:w-48 rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] py-1.5 px-3 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none transition cursor-pointer"
+            >
+              <option value="">All Colleges</option>
+              {colleges.map(c => (
+                <option key={c._id} value={c._id}>{c.collegeName}</option>
+              ))}
+            </select>
+
+            {/* Course Filter */}
+            <select
+              value={filterCourse}
+              onChange={handleCourseFilterChange}
+              className="w-full sm:w-48 rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] py-1.5 px-3 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none transition cursor-pointer"
+            >
+              <option value="">All Courses</option>
+              {courses.map(c => (
+                <option key={c._id} value={c._id}>
+                  {c.technologyId?.name || 'Unnamed Course'} - {c.durationId?.value} {c.durationId?.unit || 'Month'}(s)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center w-full xl:w-auto justify-end">
             <button
               onClick={() => handleBulkToggle(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-500/10 cursor-pointer"
@@ -730,26 +813,16 @@ const Registration = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="md:col-span-3 space-y-1">
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Permanent Address</label>
                   <input
                     type="text"
                     required
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
                     placeholder="Street, locality, country..."
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Upload Candidate Photo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPhotoFile(e.target.files[0])}
-                    className="w-full text-[var(--text-muted)] text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-semibold file:bg-[var(--bg-cream)] file:text-emerald-450 hover:file:bg-[var(--bg-cream)]"
                   />
                 </div>
               </div>
@@ -907,8 +980,20 @@ const Registration = () => {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                     placeholder="Training Center City"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Total Course Fee (INR)</label>
+                  <input
+                    type="number"
+                    required
+                    readOnly
+                    value={formData.totalFee}
+                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-muted)] cursor-not-allowed focus:outline-none"
+                    placeholder="Total course fee"
                   />
                 </div>
               </div>
@@ -922,25 +1007,14 @@ const Registration = () => {
                   <span>4. INITIAL PAYMENT LOG</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Total Course Fee (INR)</label>
-                    <input
-                      type="number"
-                      required
-                      readOnly // derived from selected course detailed price
-                      value={formData.totalFee}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-muted)] cursor-not-allowed focus:outline-none"
-                    />
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Submitted Installment Amount (INR)</label>
                     <input
                       type="number"
                       value={formData.amountSubmitted}
                       onChange={(e) => setFormData({ ...formData, amountSubmitted: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                       placeholder="0"
                     />
                   </div>
@@ -950,7 +1024,7 @@ const Registration = () => {
                     <select
                       value={formData.paymentType}
                       onChange={(e) => setFormData({ ...formData, paymentType: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                     >
                       <option value="offline">Offline / Cash / Bank</option>
                       <option value="online">Online / UPI / Card</option>
@@ -1091,7 +1165,17 @@ const Registration = () => {
               </div>
 
               <div className="space-y-1.5 p-4 border border-[var(--border-color)] rounded-xl bg-[var(--bg-cream)]">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Excel File Spreadsheet</label>
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Excel File Spreadsheet</label>
+                  <button
+                    type="button"
+                    onClick={handleDownloadExcelTemplate}
+                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:text-emerald-400 transition"
+                  >
+                    <Download className="h-3 w-3" />
+                    Download Sample Template
+                  </button>
+                </div>
                 <input
                   type="file"
                   required

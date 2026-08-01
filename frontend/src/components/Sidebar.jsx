@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -51,6 +52,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
     {
       name: 'Reports',
       icon: BarChart3,
@@ -72,6 +74,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
     {
       name: 'Reports',
       icon: BarChart3,

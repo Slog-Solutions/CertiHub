@@ -29,6 +29,7 @@ import Reports from './pages/Reports';
 import Backup from './pages/Backup';
 import VerifyCertificate from './pages/VerifyCertificate';
 import PublicRegistration from './pages/PublicRegistration';
+import Notifications from './pages/Notifications';
 
 // Public Layout Wrapper
 const PublicLayout = ({ children }) => {
@@ -106,6 +107,7 @@ const DashboardLayout = () => {
             <Route path="/discounts" element={<Discounts />} />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/reports/fee-collection" element={<Reports type="fee-collection" />} />
             <Route path="/reports/date-wise-fee" element={<Reports type="date-wise" />} />
             <Route path="/reports/course" element={<Reports type="courses" />} />

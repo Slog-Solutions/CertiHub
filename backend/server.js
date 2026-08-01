@@ -28,6 +28,63 @@ if (!fs.existsSync(uploadsRoot)) {
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Lazy PDF generation fallback for certificates
+app.get('/uploads/certificates/:filename', async (req, res, next) => {
+  const filename = req.params.filename;
+  if (!filename.endsWith('.pdf')) {
+    return next();
+  }
+
+  const certificateId = filename.slice(0, -4); // Remove .pdf
+
+  try {
+    const Certificate = require('./models/Certificate');
+    const cert = await Certificate.findOne({ certificateId });
+    if (!cert) {
+      return next(); // Fall through to 404 or other static paths if not in DB
+    }
+
+    const Student = require('./models/Student');
+    const CourseDetail = require('./models/CourseDetail');
+    
+    const student = await Student.findById(cert.studentId)
+      .populate('collegeId')
+      .populate('branchId');
+      
+    const courseDetail = await CourseDetail.findById(cert.courseDetailId)
+      .populate('technologyId')
+      .populate('durationId');
+
+    if (!student || !courseDetail) {
+      return res.status(404).send('Student or course details not found');
+    }
+
+    const { generateCertificatePDF } = require('./utils/pdfGenerator');
+    const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
+
+    // Ensure certsDir exists
+    const certsDir = path.dirname(pdfPath);
+    if (!fs.existsSync(certsDir)) {
+      fs.mkdirSync(certsDir, { recursive: true });
+    }
+
+    console.log(`Lazy generating certificate PDF for: ${certificateId}`);
+    await generateCertificatePDF(
+      student,
+      courseDetail,
+      certificateId,
+      cert.qrCodeUrl,
+      pdfPath,
+      cert.issueDate
+    );
+
+    res.sendFile(pdfPath);
+  } catch (error) {
+    console.error('Lazy PDF generation failed:', error);
+    res.status(500).send('Error generating certificate PDF');
+  }
+});
+
 // Connect to MongoDB
 connectDB().then(() => {
   // Seed admin user
@@ -81,6 +138,7 @@ app.use('/api/registration', require('./routes/registration'));
 app.use('/api/fee', require('./routes/fee'));
 app.use('/api/enquiry', require('./routes/enquiry'));
 app.use('/api/certificates', require('./routes/certificates'));
+app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/backup', require('./routes/backup').router);
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));

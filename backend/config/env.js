@@ -23,5 +23,22 @@ if (!jwtSecret) {
 }
 
 module.exports = {
-  JWT_SECRET: jwtSecret
+  PORT: process.env.PORT || 5001,
+  MONGODB_URI: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/slogsolutions',
+  JWT_SECRET: jwtSecret,
+  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  BACKUP_RETENTION: parseInt(process.env.BACKUP_RETENTION, 10) || 7,
+  
+  // Email configuration
+  EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.mailtrap.io',
+  EMAIL_PORT: parseInt(process.env.EMAIL_PORT, 10) || 2525,
+  EMAIL_USER: process.env.EMAIL_USER || '',
+  EMAIL_PASS: process.env.EMAIL_PASS || '',
+  EMAIL_FROM: process.env.EMAIL_FROM || '"Slog Solutions Platform" <noreply@slogsolutions.com>',
+
+  // Certificate template defaults
+  COMPANY_NAME: process.env.COMPANY_NAME || 'SLOG Solutions Private Limited',
+  WEBSITE_URL: process.env.WEBSITE_URL || 'www.slogsolutions.com',
+  LEFT_SIGN_NAME: process.env.LEFT_SIGN_NAME || 'Suraj Prasad Singh',
+  RIGHT_SIGN_NAME: process.env.RIGHT_SIGN_NAME || 'Kiran Bisht'
 };

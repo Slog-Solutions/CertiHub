@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Award, CheckCircle, AlertTriangle, XCircle, Calendar, BookOpen, ShieldCheck, Download, Loader, Search } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const VerifyCertificate = () => {
   const { id } = useParams();
@@ -184,7 +185,7 @@ const VerifyCertificate = () => {
                 </button>
                 {data.status === 'Active' && data.pdfUrl && (
                   <a
-                    href={data.pdfUrl}
+                    href={`${API_BASE_URL}${data.pdfUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-400 transition"

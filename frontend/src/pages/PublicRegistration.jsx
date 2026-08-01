@@ -303,8 +303,8 @@ const PublicRegistration = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-1">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1">
                     <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Permanent Address</label>
                     <input
                       type="text"
@@ -313,15 +313,6 @@ const PublicRegistration = () => {
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                       className="w-full rounded-lg border border-slate-850 bg-[var(--bg-cream)] transition-colors duration-300 p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                       placeholder="Street, house no, state, pincode"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Passport Photo</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setPhotoFile(e.target.files[0])}
-                      className="w-full text-[var(--text-muted)] text-[10px] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[9px] file:font-semibold file:bg-[var(--bg-cream)] file:text-emerald-400 hover:file:bg-[var(--bg-cream)]"
                     />
                   </div>
                 </div>
