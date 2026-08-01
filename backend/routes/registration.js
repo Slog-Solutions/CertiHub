@@ -89,6 +89,14 @@ router.get('/students', requireAuth, async (req, res) => {
     filter.isActive = req.query.isActive === 'true';
   }
 
+  if (req.query.collegeId) {
+    filter.collegeId = req.query.collegeId;
+  }
+
+  if (req.query.courseDetailId) {
+    filter.courseDetailId = req.query.courseDetailId;
+  }
+
   try {
     const total = await Student.countDocuments(filter);
     let dbQuery = Student.find(filter)
@@ -196,7 +204,24 @@ router.post('/register', upload.single('photo'), async (req, res) => {
   if (!name || !fatherName || !dob || !gender || !email || !phone || !address ||
       !collegeId || !branchId || !courseDetailId || !durationId || !startDate ||
       totalFee === undefined || isNaN(totalFee)) {
-    return res.status(400).json({ error: 'Please fill in all required candidate registration fields' });
+    return res.status(400).json({ 
+      error: 'Please fill in all required candidate registration fields',
+      details: {
+        name: !name,
+        fatherName: !fatherName,
+        dob: !dob,
+        gender: !gender,
+        email: !email,
+        phone: !phone,
+        address: !address,
+        collegeId: !collegeId,
+        branchId: !branchId,
+        courseDetailId: !courseDetailId,
+        durationId: !durationId,
+        startDate: !startDate,
+        totalFee: totalFee === undefined || isNaN(totalFee)
+      }
+    });
   }
 
   if (!/^\d{10}$/.test(phone.trim())) {
@@ -486,7 +511,7 @@ router.post('/students/bulk-delete', requireAuth, requireRole(['Admin']), async 
 // @desc    Toggle status for all students matching current filters (search, active status)
 // @access  Private (Admin & Staff)
 router.post('/students/toggle-all', requireAuth, requireRole(['Admin']), async (req, res) => {
-  const { search, isActive } = req.body;
+  const { search, isActive, collegeId, courseDetailId } = req.body;
 
   let filter = {};
   if (search) {
@@ -498,6 +523,14 @@ router.post('/students/toggle-all', requireAuth, requireRole(['Admin']), async (
       { phone: searchRegex },
       { location: searchRegex }
     ];
+  }
+
+  if (collegeId) {
+    filter.collegeId = collegeId;
+  }
+
+  if (courseDetailId) {
+    filter.courseDetailId = courseDetailId;
   }
 
   try {
@@ -515,7 +548,7 @@ router.post('/students/toggle-all', requireAuth, requireRole(['Admin']), async (
 // @desc    Delete ALL students matching current filters (search, active status)
 // @access  Private (Admin & Staff)
 router.post('/students/delete-all', requireAuth, requireRole(['Admin']), async (req, res) => {
-  const { search, isActive } = req.body;
+  const { search, isActive, collegeId, courseDetailId } = req.body;
 
   let filter = {};
   if (search) {
@@ -531,6 +564,14 @@ router.post('/students/delete-all', requireAuth, requireRole(['Admin']), async (
 
   if (isActive !== undefined) {
     filter.isActive = isActive === 'true' || isActive === true;
+  }
+
+  if (collegeId) {
+    filter.collegeId = collegeId;
+  }
+
+  if (courseDetailId) {
+    filter.courseDetailId = courseDetailId;
   }
 
   try {
@@ -755,6 +796,42 @@ router.delete('/links/:id', requireAuth, async (req, res) => {
     }
     await GeneratedCourseLink.deleteOne({ _id: req.params.id });
     res.json({ message: 'Course link deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   GET /api/registration/template-excel
+// @desc    Download the Excel sample template for bulk registration
+// @access  Private (Admin & Staff)
+router.get('/template-excel', requireAuth, (req, res) => {
+  try {
+    const xlsx = require('xlsx');
+    // Generate simple excel with xlsx using required headers
+    const data = [
+      {
+        'FullName': 'John Doe',
+        'DateOfBirth': '2000-01-01',
+        'Gender': 'Male',
+        'Email': 'johndoe@example.com',
+        'PhoneNumber': '1234567890',
+        'PermanentAddress': '123 Street Name, City',
+        'WorkingStatus': 'student',
+        'Branch/Department': 'Computer Science',
+        'YearOfStudy': '3rd Year',
+        'TrainingTerm': 'Summer Training',
+        'PaymentTerm': 0
+      }
+    ];
+    const ws = xlsx.utils.json_to_sheet(data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Registration_Template");
+    
+    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Student_Registration_Template.xlsx');
+    res.send(buffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
