@@ -4,6 +4,7 @@ import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Ar
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 import ExportButtons from '../components/ExportButtons';
+import { API_BASE_URL } from '../config';
 
 const Certificates = () => {
   const { api } = useAuth();
@@ -443,7 +444,7 @@ const Certificates = () => {
                       <div className="flex justify-end gap-2 items-center">
                         {item.status === 'Active' && item.pdfUrl && (
                           <a
-                            href={item.pdfUrl}
+                            href={`${API_BASE_URL}${item.pdfUrl}`}
                             target="_blank"
                             rel="noreferrer"
                             className="p-1.5 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] transition"

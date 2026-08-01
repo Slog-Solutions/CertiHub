@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext();
 
@@ -11,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   // Stable Axios instance: only recreated (with a fresh interceptor) when the
   // token actually changes, instead of on every render.
   const api = useMemo(() => {
-    const instance = axios.create({ baseURL: '/api' });
+    const instance = axios.create({ baseURL: `${API_BASE_URL}/api` });
     instance.interceptors.request.use(
       (config) => {
         if (token) {
