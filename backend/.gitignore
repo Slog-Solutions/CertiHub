@@ -9,6 +9,8 @@ node_modules/
 # Uploaded/generated files (user content, not source)
 uploads/*
 !uploads/.gitkeep
+!uploads/signatures/
+!uploads/signatures/*
 
 # Backups
 backups/
