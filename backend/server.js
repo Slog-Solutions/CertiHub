@@ -14,8 +14,24 @@ const initBackupScheduler = require('./utils/backupScheduler');
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:9002',
+  process.env.CLIENT_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    // Allow any local host development origin
+    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -146,9 +162,44 @@ app.use('/api/reports', require('./routes/reports'));
 
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  // Serve Next.js static files
+  app.use(express.static(path.join(__dirname, '../frontend/out')));
+
+  // Route /login to Next.js login page
+  app.get('/login', (req, res) => {
+    const loginHtml = path.resolve(__dirname, '../frontend/out/login.html');
+    const loginIndex = path.resolve(__dirname, '../frontend/out/login/index.html');
+    if (fs.existsSync(loginHtml)) {
+      res.sendFile(loginHtml);
+    } else {
+      res.sendFile(loginIndex);
+    }
+  });
+
+  // Route /dashboard* to Next.js dashboard SPA page
+  app.get('/dashboard*', (req, res) => {
+    const dashboardHtml = path.resolve(__dirname, '../frontend/out/dashboard.html');
+    const dashboardIndex = path.resolve(__dirname, '../frontend/out/dashboard/index.html');
+    if (fs.existsSync(dashboardHtml)) {
+      res.sendFile(dashboardHtml);
+    } else {
+      res.sendFile(dashboardIndex);
+    }
+  });
+
+  // Serve Next.js verification fallback (e.g. /verify/STP-XXXX) to the verify index page so client JS can hydrate
+  app.get('/verify/*', (req, res) => {
+    const verifyHtml = path.resolve(__dirname, '../frontend/out/verify.html');
+    const verifyIndex = path.resolve(__dirname, '../frontend/out/verify/index.html');
+    if (fs.existsSync(verifyHtml)) {
+      res.sendFile(verifyHtml);
+    } else {
+      res.sendFile(verifyIndex);
+    }
+  });
+
   app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../frontend', 'dist', 'index.html'));
+    res.sendFile(path.resolve(__dirname, '../frontend/out/index.html'));
   });
 } else {
   // Test root route

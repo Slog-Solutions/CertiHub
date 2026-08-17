@@ -1,0 +1,928 @@
+[
+{
+  "model": "admin.logentry",
+  "pk": 1,
+  "fields": {
+    "action_time": "2025-08-14T06:39:17.108Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "1",
+    "object_repr": "Python",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 2,
+  "fields": {
+    "action_time": "2025-08-14T06:50:57.250Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "2",
+    "object_repr": "Java",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 3,
+  "fields": {
+    "action_time": "2025-08-14T07:34:42.542Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "1",
+    "object_repr": "Er. Narendra K. Yadav",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 4,
+  "fields": {
+    "action_time": "2025-08-14T07:35:29.047Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "2",
+    "object_repr": "Dr. Prashant Agarwal",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 5,
+  "fields": {
+    "action_time": "2025-08-14T07:35:55.760Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "3",
+    "object_repr": "Mrs. Neeraja Sisodia",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 6,
+  "fields": {
+    "action_time": "2025-08-14T07:36:24.148Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "4",
+    "object_repr": "Brigadier Govinnd Singh Sisodia(Retd)",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 7,
+  "fields": {
+    "action_time": "2025-08-14T07:36:59.778Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "5",
+    "object_repr": "Er. Pinki Negi",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 8,
+  "fields": {
+    "action_time": "2025-08-14T07:37:27.445Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "6",
+    "object_repr": "Tanuja",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 9,
+  "fields": {
+    "action_time": "2025-08-19T05:27:15.707Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "3",
+    "object_repr": "Revit",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 10,
+  "fields": {
+    "action_time": "2025-08-19T05:27:51.450Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "3",
+    "object_repr": "Revit",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 11,
+  "fields": {
+    "action_time": "2025-08-19T05:28:57.916Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "4",
+    "object_repr": "AutoCAD Civil",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 12,
+  "fields": {
+    "action_time": "2025-08-19T05:30:14.597Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "5",
+    "object_repr": "SketchUp",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 13,
+  "fields": {
+    "action_time": "2025-08-19T05:31:48.873Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "6",
+    "object_repr": "SolidWorks",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 14,
+  "fields": {
+    "action_time": "2025-08-19T05:32:19.876Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "6",
+    "object_repr": "SolidWorks",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 15,
+  "fields": {
+    "action_time": "2025-08-19T05:33:22.448Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "7",
+    "object_repr": "CATIA",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 16,
+  "fields": {
+    "action_time": "2025-08-19T05:33:52.316Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "1",
+    "object_repr": "Python",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Image\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 17,
+  "fields": {
+    "action_time": "2025-08-19T05:34:29.967Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "2",
+    "object_repr": "Java",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Image\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 18,
+  "fields": {
+    "action_time": "2025-08-19T10:46:20.613Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "8",
+    "object_repr": "Digital Marketing",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 19,
+  "fields": {
+    "action_time": "2025-08-20T10:04:02.402Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "9",
+    "object_repr": "Django",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 20,
+  "fields": {
+    "action_time": "2025-08-20T10:05:40.308Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "10",
+    "object_repr": "Web Development",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 21,
+  "fields": {
+    "action_time": "2025-08-20T10:06:43.789Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "11",
+    "object_repr": "C++",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 22,
+  "fields": {
+    "action_time": "2025-08-20T11:46:57.415Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "7",
+    "object_repr": "Sarthak",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 23,
+  "fields": {
+    "action_time": "2025-08-22T08:16:20.966Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "1",
+    "object_repr": "Python",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 24,
+  "fields": {
+    "action_time": "2025-08-22T08:16:37.623Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "2",
+    "object_repr": "Java",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 25,
+  "fields": {
+    "action_time": "2025-08-22T08:17:04.827Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "3",
+    "object_repr": "Revit",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 26,
+  "fields": {
+    "action_time": "2025-08-22T08:17:20.115Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "4",
+    "object_repr": "AutoCAD Civil",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 27,
+  "fields": {
+    "action_time": "2025-08-22T08:17:35.771Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "5",
+    "object_repr": "SketchUp",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 28,
+  "fields": {
+    "action_time": "2025-08-22T08:17:50.651Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "6",
+    "object_repr": "SolidWorks",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 29,
+  "fields": {
+    "action_time": "2025-08-22T08:18:03.418Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "7",
+    "object_repr": "CATIA",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 30,
+  "fields": {
+    "action_time": "2025-08-22T08:18:18.739Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "8",
+    "object_repr": "Digital Marketing",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 31,
+  "fields": {
+    "action_time": "2025-08-22T08:18:34.592Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "9",
+    "object_repr": "Django",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 32,
+  "fields": {
+    "action_time": "2025-08-22T08:18:53.187Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "11",
+    "object_repr": "C++",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 33,
+  "fields": {
+    "action_time": "2025-08-22T08:18:56.596Z",
+    "user": 1,
+    "content_type": 7,
+    "object_id": "11",
+    "object_repr": "C++",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 34,
+  "fields": {
+    "action_time": "2025-08-22T10:19:20.771Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "8",
+    "object_repr": "Vansh Gupta",
+    "action_flag": 1,
+    "change_message": "[{\"added\": {}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 35,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.440Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "1",
+    "object_repr": "Er. Narendra K. Yadav",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 36,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.443Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "2",
+    "object_repr": "Dr. Prashant Agarwal",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 37,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.445Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "3",
+    "object_repr": "Mrs. Neeraja Sisodia",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 38,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.447Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "4",
+    "object_repr": "Brigadier Govinnd Singh Sisodia(Retd)",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 39,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.449Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "5",
+    "object_repr": "Er. Pinki Negi",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 40,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.450Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "6",
+    "object_repr": "Tanuja",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 41,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.452Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "7",
+    "object_repr": "Sarthak",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 42,
+  "fields": {
+    "action_time": "2025-08-23T05:44:50.455Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "8",
+    "object_repr": "Vansh Gupta",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 43,
+  "fields": {
+    "action_time": "2025-08-23T05:45:45.431Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "1",
+    "object_repr": "Er. Narendra K. Yadav",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 44,
+  "fields": {
+    "action_time": "2025-08-23T05:45:45.436Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "8",
+    "object_repr": "Vansh Gupta",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 45,
+  "fields": {
+    "action_time": "2025-08-23T05:46:36.718Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "8",
+    "object_repr": "Vansh Gupta",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 46,
+  "fields": {
+    "action_time": "2025-08-23T05:46:36.723Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "5",
+    "object_repr": "Er. Pinki Negi",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 47,
+  "fields": {
+    "action_time": "2025-08-23T05:52:01.285Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "5",
+    "object_repr": "Er. Pinki Negi",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 48,
+  "fields": {
+    "action_time": "2025-08-23T05:52:01.288Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "1",
+    "object_repr": "Er. Narendra K. Yadav",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Sort order\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 49,
+  "fields": {
+    "action_time": "2025-08-23T06:41:49.802Z",
+    "user": 1,
+    "content_type": 8,
+    "object_id": "7",
+    "object_repr": "Sarthak",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$BXMFZjcU5Yt7cLqMTi1tx4$wL1rOaN5hBGT5F+nIKiUPtlA8eeqlLCCByfcI3Mv+2o=",
+    "last_login": "2025-08-25T11:36:02.257Z",
+    "is_superuser": true,
+    "username": "admin",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-08-14T05:37:56.872Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$HfxArNpT7IyIRvPK3cNxFE$OtmziY5FDUVCHiK1v8yLOOOrD1oCSTP+4rFGZn8oaLo=",
+    "last_login": null,
+    "is_superuser": true,
+    "username": "SlogSolutions",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-08-25T12:52:45.249Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "2eoj74u46akhe8ncaxukegtftzantzck",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hCm7XTApXvPQAaGStVAUtqV8e7apAvd_vfefynP25r91tLiZ1FnBer0uwWOj1R2IHcut6pjLesyB70r-qBNX6uk5-Vw_w4yt_ytKfHgRmMHEssMMBJNASaL0sPIAwVGpL7j2BsIJmJCJ4KSgASnTpx6fwDU1jfU:1umQfS:0kYlY1GZxjTAfuxKviqQYoNBNEoDRy71E3uMau_83T0",
+    "expire_date": "2025-08-28T05:38:26.218Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "7wpz3zpe54x7123wesrmpvonln1bxmct",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hCm7XTApXvPQAaGStVAUtqV8e7apAvd_vfefynP25r91tLiZ1FnBer0uwWOj1R2IHcut6pjLesyB70r-qBNX6uk5-Vw_w4yt_ytKfHgRmMHEssMMBJNASaL0sPIAwVGpL7j2BsIJmJCJ4KSgASnTpx6fwDU1jfU:1unEVk:dwj4ap9CRVQIQjLKSMbAsXsZ6sVlQmg54yxD8BGeAo0",
+    "expire_date": "2025-08-30T10:51:44.489Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "jyuusrm8v5evr2yr4bk0act70wl6840g",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hCm7XTApXvPQAaGStVAUtqV8e7apAvd_vfefynP25r91tLiZ1FnBer0uwWOj1R2IHcut6pjLesyB70r-qBNX6uk5-Vw_w4yt_ytKfHgRmMHEssMMBJNASaL0sPIAwVGpL7j2BsIJmJCJ4KSgASnTpx6fwDU1jfU:1uofeK:rbrZdGomUXfbJUOnL8BJBbDAu6q_Jjc_zjXH1eZ7gHw",
+    "expire_date": "2025-09-03T10:02:32.234Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "lfmmidlx4o3hwed1wse881yq9xybb104",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hCm7XTApXvPQAaGStVAUtqV8e7apAvd_vfefynP25r91tLiZ1FnBer0uwWOj1R2IHcut6pjLesyB70r-qBNX6uk5-Vw_w4yt_ytKfHgRmMHEssMMBJNASaL0sPIAwVGpL7j2BsIJmJCJ4KSgASnTpx6fwDU1jfU:1uqVUY:kOW7q3H84Ic9BfV8cwbh2ev-YHh6I-iUULCwjh4ff7c",
+    "expire_date": "2025-09-08T11:36:02.268Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "pg0g3nj7bnpd50v08r87575ow32oribz",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hCm7XTApXvPQAaGStVAUtqV8e7apAvd_vfefynP25r91tLiZ1FnBer0uwWOj1R2IHcut6pjLesyB70r-qBNX6uk5-Vw_w4yt_ytKfHgRmMHEssMMBJNASaL0sPIAwVGpL7j2BsIJmJCJ4KSgASnTpx6fwDU1jfU:1upOqD:XY14bvdBAlhdz_UmEjppuxd167dq2GShFMxM0AoDgEw",
+    "expire_date": "2025-09-05T10:17:49.549Z"
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 1,
+  "fields": {
+    "name": "Er. Narendra K. Yadav",
+    "designation": "Chairman (IEI, UKSC) BE (Mechanical) IIT-R Former Chief Engineer Irrigation Department.",
+    "image": "mentors/NarendarKYadav.png",
+    "sort_order": 1
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 2,
+  "fields": {
+    "name": "Dr. Prashant Agarwal",
+    "designation": "Director (Civil Engg. Laboratory) BE, M. Tech, Ph.D (Civil)",
+    "image": "mentors/prashant.png",
+    "sort_order": 3
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 3,
+  "fields": {
+    "name": "Mrs. Neeraja Sisodia",
+    "designation": "Senior Trainer in PDP and OBTS",
+    "image": "mentors/Neeraja_Sisodia.png",
+    "sort_order": 2
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 4,
+  "fields": {
+    "name": "Brigadier Govinnd Singh Sisodia(Retd)",
+    "designation": "Retired Brigadier and Expert Trainer",
+    "image": "mentors/GovindSingh.png",
+    "sort_order": 4
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 5,
+  "fields": {
+    "name": "Er. Pinki Negi",
+    "designation": "Branch Coordinator",
+    "image": "mentors/pinki.png",
+    "sort_order": 8
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 6,
+  "fields": {
+    "name": "Tanuja",
+    "designation": "Councellor",
+    "image": "mentors/tannu.png",
+    "sort_order": 5
+  }
+},
+{
+  "model": "main.mentor",
+  "pk": 8,
+  "fields": {
+    "name": "Vansh Gupta",
+    "designation": "Intern",
+    "image": "mentors/IMG_6881.PNG",
+    "sort_order": 6
+  }
+},
+{
+  "model": "main.course",
+  "pk": 1,
+  "fields": {
+    "title": "Python",
+    "image": "courses/python.jpeg",
+    "data_ai_hint": "",
+    "duration": "2 months",
+    "price": "45000",
+    "category": "Computer Science",
+    "description": "Beginner-friendly language for web development, automation, data science, and AI."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 2,
+  "fields": {
+    "title": "Java",
+    "image": "courses/java.jpeg",
+    "data_ai_hint": "",
+    "duration": "3 months",
+    "price": "20000",
+    "category": "Computer Science",
+    "description": "Develop robust, platform-independent applications for web, mobile, and enterprise systems."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 3,
+  "fields": {
+    "title": "Revit",
+    "image": "courses/revit.jpeg",
+    "data_ai_hint": "revit",
+    "duration": "1.5 months",
+    "price": "15000",
+    "category": "Civil Tools",
+    "description": "Learn Building Information Modeling (BIM) for modern architectural and structural designs."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 4,
+  "fields": {
+    "title": "AutoCAD Civil",
+    "image": "courses/autocad.png",
+    "data_ai_hint": "autocad",
+    "duration": "1 month",
+    "price": "10000",
+    "category": "Civil Tools",
+    "description": "Build technical drawings and plans for civil engineering and construction."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 5,
+  "fields": {
+    "title": "SketchUp",
+    "image": "courses/skeychup.jpeg",
+    "data_ai_hint": "sketchup",
+    "duration": "2 months",
+    "price": "12000",
+    "category": "Civil Tools",
+    "description": "Create quick and detailed 3D designs for architectural and civil projects."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 6,
+  "fields": {
+    "title": "SolidWorks",
+    "image": "courses/solidworks.jpeg",
+    "data_ai_hint": "solidworks",
+    "duration": "1 months",
+    "price": "14000",
+    "category": "Mechanical Tools",
+    "description": "Learn 3D modeling and product design for manufacturing and engineering."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 7,
+  "fields": {
+    "title": "CATIA",
+    "image": "courses/CATIA.jpeg",
+    "data_ai_hint": "CATIA",
+    "duration": "3 month",
+    "price": "20000",
+    "category": "Mechanical Tools",
+    "description": "Design complex mechanical parts and assemblies with industry-standard CAD software."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 8,
+  "fields": {
+    "title": "Digital Marketing",
+    "image": "courses/digital_marketing.jpg",
+    "data_ai_hint": "Digital Marketing",
+    "duration": "2 weeks",
+    "price": "5000",
+    "category": "Specialized",
+    "description": "Gain skills to promote brands online and boost business growth."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 9,
+  "fields": {
+    "title": "Django",
+    "image": "courses/django.jpg",
+    "data_ai_hint": "Django",
+    "duration": "3 months",
+    "price": "50000",
+    "category": "Computer Science",
+    "description": "Master backend web development using Python to create powerful, scalable websites."
+  }
+},
+{
+  "model": "main.course",
+  "pk": 10,
+  "fields": {
+    "title": "Web Development",
+    "image": "courses/webdevelopment.png",
+    "data_ai_hint": "web development",
+    "duration": "2 months",
+    "price": "30000",
+    "category": "Computer Science",
+    "description": null
+  }
+},
+{
+  "model": "main.course",
+  "pk": 11,
+  "fields": {
+    "title": "C++",
+    "image": "courses/c.png",
+    "data_ai_hint": "c++",
+    "duration": "1 month",
+    "price": "10000",
+    "category": "Computer Science",
+    "description": "Learn the foundation of programming and build efficient, high-performance applications."
+  }
+}
+]
