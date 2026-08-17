@@ -132,7 +132,7 @@ router.put('/templates/:id', requireAuth, async (req, res) => {
 
     if (name) template.name = name;
     if (htmlContent) template.htmlContent = htmlContent;
-    
+
     if (isDefault !== undefined) {
       if (isDefault === true) {
         await CertificateTemplate.updateMany({}, { $set: { isDefault: false } });
@@ -180,9 +180,9 @@ router.get('/template-excel', requireAuth, (req, res) => {
     const ws = xlsx.utils.json_to_sheet(data);
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, "Template");
-    
+
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=Certificates_Import_Template.xlsx');
     res.send(buffer);
@@ -242,7 +242,7 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
     for (let i = 0; i < sheetData.length; i++) {
       const row = sheetData[i];
       const rowNum = i + 2; // Row number in Excel (1-indexed + header row)
-      
+
       const regNoVal = findValue(row, ['Reg No', 'RegistrationNo', 'Registration No', 'registrationNo', 'regNo']);
       const completionDateVal = findValue(row, ['CourseCompletionDate', 'courseCompletionDate', 'Completion Date', 'Course Completion Date', 'CompletionDate']);
 
@@ -402,7 +402,7 @@ router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=Certificates_Batch_${batch._id}.zip`);
 
     const archive = archiver('zip', { zlib: { level: 9 } });
-    
+
     archive.on('error', (err) => {
       throw err;
     });
@@ -441,7 +441,7 @@ router.get('/download-all-zip', requireAuth, async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=All_Certificates.zip');
 
     const archive = archiver('zip', { zlib: { level: 9 } });
-    
+
     archive.on('error', (err) => {
       throw err;
     });
@@ -548,7 +548,7 @@ router.get('/', requireAuth, async (req, res) => {
   let filter = {};
   if (req.query.search) {
     const searchRegex = buildSearchRegex(req.query.search);
-    
+
     // Find students matching search to filter certificates
     const students = await Student.find({
       $or: [
@@ -584,7 +584,7 @@ router.get('/', requireAuth, async (req, res) => {
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -620,7 +620,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       const student = await Student.findById(cert.studentId._id)
         .populate('collegeId')
         .populate('branchId');
-      
+
       const courseDetail = await CourseDetail.findById(cert.courseDetailId._id)
         .populate('technologyId')
         .populate('durationId');
@@ -641,12 +641,12 @@ router.put('/:id', requireAuth, async (req, res) => {
         pdfPath,
         new Date() // current completion or date issued
       );
-      
+
       cert.qrCodeUrl = qrCodeBase64;
     }
 
     await cert.save();
-    
+
     const populated = await Certificate.findById(cert._id)
       .populate({
         path: 'studentId',
