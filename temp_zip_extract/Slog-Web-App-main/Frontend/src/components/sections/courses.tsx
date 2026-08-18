@@ -50,7 +50,7 @@ export default function Courses() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   useEffect(() => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     fetch(`${API_URL}/api/courses/`)
       .then((res) => res.json())
       .then((data) => setCourses(data))
@@ -101,11 +101,10 @@ export default function Courses() {
                       variant={
                         selectedCategory === category ? "default" : "outline"
                       }
-                      className={`w-full rounded-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg ${
-                        selectedCategory === category
-                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-                          : "border-2 border-blue-200 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-300"
-                      }`}
+                      className={`w-full rounded-full transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg ${selectedCategory === category
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+                        : "border-2 border-blue-200 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+                        }`}
                       onClick={() =>
                         setSelectedCategory(
                           selectedCategory === category ? null : category
@@ -125,7 +124,7 @@ export default function Courses() {
 
         {/* Courses Grid */}
         {selectedCategory && (
-          <motion.div 
+          <motion.div
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -185,7 +184,7 @@ export default function Courses() {
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">
                     {selectedCourse.title}
                   </h3>
-                  
+
                   <div className="space-y-3 mb-6">
                     <div className="flex items-center">
                       <div className="bg-blue-100 p-2 rounded-lg mr-3">
@@ -198,7 +197,7 @@ export default function Courses() {
                         <p className="font-medium text-gray-900">{selectedCourse.duration}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center">
                       <div className="bg-green-100 p-2 rounded-lg mr-3">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -210,7 +209,7 @@ export default function Courses() {
                         <p className="font-medium text-gray-900">{selectedCourse.price}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center">
                       <div className="bg-purple-100 p-2 rounded-lg mr-3">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,7 +252,7 @@ const AnimatedCourseCard = ({
 }) => {
   const colorIndex = index % courseColors.length;
   const bgGradient = courseColors[colorIndex];
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -274,38 +273,38 @@ const AnimatedCourseCard = ({
           }}
         >
           {/* Animated background elements */}
-          <motion.div 
+          <motion.div
             className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10"
-            animate={{ 
+            animate={{
               scale: [1, 1.2, 1],
               opacity: [0.2, 0.4, 0.2]
             }}
-            transition={{ 
-              repeat: Infinity, 
+            transition={{
+              repeat: Infinity,
               duration: 3,
               delay: index * 0.2
             }}
           />
-          <motion.div 
+          <motion.div
             className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/10"
-            animate={{ 
+            animate={{
               scale: [1, 1.3, 1],
               opacity: [0.2, 0.3, 0.2]
             }}
-            transition={{ 
-              repeat: Infinity, 
+            transition={{
+              repeat: Infinity,
               duration: 4,
               delay: index * 0.3
             }}
           />
-          
+
           {/* Course title */}
           <h3 className="text-xl font-bold text-white z-10 relative">
             {course.title}
           </h3>
-          
+
           {/* Hover overlay */}
-          <motion.div 
+          <motion.div
             className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 rounded-3xl flex items-center justify-center transition-opacity duration-300"
             whileHover={{ opacity: 1 }}
           >
@@ -325,9 +324,9 @@ const AnimatedCourseCard = ({
             </motion.div>
           </motion.div>
         </motion.div>
-        
+
         {/* Subtle shadow effect on hover */}
-        <motion.div 
+        <motion.div
           className="absolute inset-0 rounded-3xl bg-gray-200/50 -z-10 mt-2 blur-md"
           whileHover={{ opacity: 0.5 }}
           transition={{ duration: 0.3 }}
