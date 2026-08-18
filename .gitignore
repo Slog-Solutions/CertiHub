@@ -38,4 +38,5 @@ Thumbs.db
 u949813839_slog_tree.sql
 
 # Project-specific paths
+backend/uploads/
 backend/backups/
