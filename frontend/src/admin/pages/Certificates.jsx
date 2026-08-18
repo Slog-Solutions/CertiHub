@@ -444,7 +444,7 @@ const Certificates = () => {
                       <div className="flex justify-end gap-2 items-center">
                         {item.status === 'Active' && item.pdfUrl && (
                           <a
-                            href={`${API_BASE_URL}${item.pdfUrl}`}
+                            href={item.pdfUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="p-1.5 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] transition"
