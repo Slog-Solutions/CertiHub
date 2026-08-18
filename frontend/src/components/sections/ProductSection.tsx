@@ -75,7 +75,7 @@ export function ProductSection({ section }: ProductSectionProps) {
 
     async function fetchProducts() {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
         const response = await fetch(`${API_URL}/api/products/?section=${section}`);
 
         if (!response.ok) {
