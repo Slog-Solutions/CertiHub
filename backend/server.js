@@ -159,6 +159,10 @@ app.use('/api/backup', require('./routes/backup').router);
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
 
+// Dummy endpoints for frontend CMS components to prevent 404 console errors
+app.use('/api/hero-slides', (req, res) => res.json([]));
+app.use('/api/products', (req, res) => res.json([]));
+app.use('/api/mentors', (req, res) => res.json([]));
 
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {
