@@ -102,6 +102,7 @@ router.get('/students', requireAuth, async (req, res) => {
     let dbQuery = Student.find(filter)
       .populate('collegeId')
       .populate('branchId')
+      .populate('durationId')
       .populate({
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
@@ -350,21 +351,26 @@ router.put('/students/:id', requireAuth, upload.single('photo'), async (req, res
     if (city !== undefined) student.city = city;
     if (trainingType !== undefined) student.trainingType = trainingType;
     if (courseDetailId) student.courseDetailId = courseDetailId;
-    if (durationId) student.durationId = durationId;
+    if (durationId && durationId !== '[object Object]' && durationId !== 'null' && durationId !== 'undefined') {
+      student.durationId = durationId;
+    }
     if (startDate) student.startDate = new Date(startDate);
     if (location !== undefined) student.location = location;
     if (isActive !== undefined) student.isActive = isActive === 'true' || isActive === true;
 
-    if (totalFee !== undefined) {
-      const oldTotal = student.totalFee;
-      student.totalFee = parseFloat(totalFee);
-      // Synchronize with Fee Discount record if totalFee changed
-      if (oldTotal !== student.totalFee) {
-        const discountRec = await FeeDiscount.findOne({ studentId: student._id });
-        if (discountRec) {
-          discountRec.totalFee = student.totalFee;
-          discountRec.totalToPay = student.totalFee - discountRec.discountAmount;
-          await discountRec.save();
+    if (totalFee !== undefined && totalFee !== null && totalFee !== '' && totalFee !== 'NaN') {
+      const parsedFee = parseFloat(totalFee);
+      if (!isNaN(parsedFee)) {
+        const oldTotal = student.totalFee;
+        student.totalFee = parsedFee;
+        // Synchronize with Fee Discount record if totalFee changed
+        if (oldTotal !== student.totalFee) {
+          const discountRec = await FeeDiscount.findOne({ studentId: student._id });
+          if (discountRec) {
+            discountRec.totalFee = student.totalFee;
+            discountRec.totalToPay = student.totalFee - discountRec.discountAmount;
+            await discountRec.save();
+          }
         }
       }
     }
@@ -374,6 +380,7 @@ router.put('/students/:id', requireAuth, upload.single('photo'), async (req, res
     const populated = await Student.findById(student._id)
       .populate('collegeId')
       .populate('branchId')
+      .populate('durationId')
       .populate({
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]

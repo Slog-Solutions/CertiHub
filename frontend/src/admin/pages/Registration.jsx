@@ -234,17 +234,18 @@ const Registration = () => {
       nationality: student.nationality || 'Indian',
       address: student.address,
       workingStatus: student.workingStatus || 'student',
-      collegeId: student.collegeId?._id || '',
-      branchId: student.branchId?._id || '',
+      collegeId: student.collegeId?._id || student.collegeId || '',
+      branchId: student.branchId?._id || student.branchId || '',
       year: student.year || '1st Year',
       state: student.state || '',
       city: student.city || '',
       trainingType: student.trainingType || 'Summer Training',
-      courseDetailId: student.courseDetailId?._id || '',
-      durationId: student.durationId?._id || student.courseDetailId?.durationId || '',
+      courseDetailId: student.courseDetailId?._id || student.courseDetailId || '',
+      durationId: (student.durationId && typeof student.durationId === 'object' ? student.durationId?._id : student.durationId) || 
+                  (student.courseDetailId?.durationId && typeof student.courseDetailId.durationId === 'object' ? student.courseDetailId.durationId?._id : student.courseDetailId?.durationId) || '',
       startDate: student.startDate ? new Date(student.startDate).toISOString().substring(0, 10) : '',
       location: student.location || '',
-      totalFee: student.totalFee || ''
+      totalFee: student.totalFee !== undefined && student.totalFee !== null && !isNaN(Number(student.totalFee)) ? student.totalFee : ''
     });
     setIsFormOpen(true);
   };
