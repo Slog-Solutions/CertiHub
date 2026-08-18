@@ -86,7 +86,7 @@ export default function Hero() {
     async function fetchSlides() {
       try {
         const res = await fetch(`${API_URL}/api/hero-slides/`);
-        if (!res.ok) throw new Error("Hero slides API not available");
+        if (!res.ok) return; // Silently fallback to static slides
         const data: HeroSlide[] = await res.json();
 
         if (Array.isArray(data)) {
@@ -105,7 +105,7 @@ export default function Hero() {
           setHeroSlides(mergedSlides);
         }
       } catch (error) {
-        console.error("Error fetching hero slides:", error);
+        console.warn("Using static hero slides.");
       }
     }
 

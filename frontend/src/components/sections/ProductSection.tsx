@@ -79,13 +79,14 @@ export function ProductSection({ section }: ProductSectionProps) {
         const response = await fetch(`${API_URL}/api/products/?section=${section}`);
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          setProducts(fallbacks[section]);
+          return;
         }
 
         const data = await response.json();
         setProducts(data && data.length > 0 ? data : fallbacks[section]);
       } catch (e) {
-        console.error("Failed to fetch products, using fallbacks:", e);
+        console.warn("Using static fallback products.");
         setProducts(fallbacks[section] || []);
       } finally {
         setLoading(false);

@@ -186,15 +186,21 @@ export default function MentorsPage() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
     fetch(`${API_URL}/api/mentors/`)
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch");
+        if (!res.ok) {
+          setMentors(fallbacks);
+          setLoading(false);
+          return null; // Stop chain
+        }
         return res.json();
       })
       .then((data) => {
-        setMentors(data && data.length > 0 ? data : fallbacks);
-        setLoading(false);
+        if (data) {
+          setMentors(data && data.length > 0 ? data : fallbacks);
+          setLoading(false);
+        }
       })
       .catch((err) => {
-        console.error("Fetch error, using static mentors:", err);
+        console.warn("Using static fallback mentors.");
         setMentors(fallbacks);
         setLoading(false);
       });
