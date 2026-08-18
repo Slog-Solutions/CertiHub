@@ -11,6 +11,12 @@ function findBrowserExecutable() {
     return process.env.CHROME_EXECUTABLE;
   }
   const candidates = [
+    // Linux paths (Hostinger VPS / Ubuntu)
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    // Windows paths
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     process.env.LOCALAPPDATA
