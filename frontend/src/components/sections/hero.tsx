@@ -86,6 +86,7 @@ export default function Hero() {
     async function fetchSlides() {
       try {
         const res = await fetch(`${API_URL}/api/hero-slides/`);
+        if (!res.ok) throw new Error("Hero slides API not available");
         const data: HeroSlide[] = await res.json();
 
         if (Array.isArray(data)) {
