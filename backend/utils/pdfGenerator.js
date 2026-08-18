@@ -96,7 +96,7 @@ const generateCertificatePDF = async (student, courseDetail, certificateId, qrCo
     day: '2-digit', month: '2-digit', year: 'numeric'
   });
 
-  const showSignatures = student.collegeId ? student.collegeId.showSignature !== false : true;
+  const showSignatures = true;
 
   const templateData = {
     // These keys EXACTLY match the zip's default.html placeholders
