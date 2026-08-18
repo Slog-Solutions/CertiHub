@@ -75,11 +75,11 @@ const nextConfig: NextConfig = {
         },
         {
           source: '/api/:path*',
-          destination: 'http://localhost:5001/api/:path*',
+          destination: 'http://localhost:1111/api/:path*',
         },
         {
           source: '/uploads/:path*',
-          destination: 'http://localhost:5001/uploads/:path*',
+          destination: 'http://localhost:1111/uploads/:path*',
         },
       ];
     }
