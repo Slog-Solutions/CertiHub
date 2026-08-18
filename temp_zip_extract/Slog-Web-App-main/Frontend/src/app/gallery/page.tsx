@@ -18,7 +18,7 @@ export default function Gallery() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     fetch(`${API_URL}/api/gallery/`)
       .then((res) => {

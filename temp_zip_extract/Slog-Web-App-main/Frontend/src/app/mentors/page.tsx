@@ -15,7 +15,7 @@ export default function MentorsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     fetch(`${API_URL}/api/mentors/`)
       .then((res) => res.json())
       .then((data) => {

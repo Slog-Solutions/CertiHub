@@ -80,36 +80,36 @@ export default function Hero() {
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(defaultSlides);
 
 
-useEffect(() => {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  useEffect(() => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-  async function fetchSlides() {
-    try {
-      const res = await fetch(`${API_URL}/api/hero-slides/`);
-      const data: HeroSlide[] = await res.json();
+    async function fetchSlides() {
+      try {
+        const res = await fetch(`${API_URL}/api/hero-slides/`);
+        const data: HeroSlide[] = await res.json();
 
-      if (Array.isArray(data)) {
-        // ✅ Create a map from backend by position
-        const backendMap = new Map(
-          data.map((slide) => [slide.position, slide])
-        );
+        if (Array.isArray(data)) {
+          // ✅ Create a map from backend by position
+          const backendMap = new Map(
+            data.map((slide) => [slide.position, slide])
+          );
 
-        // ✅ Merge: static first, backend overrides only same position
-        const mergedSlides = defaultSlides.map((slide) =>
-          backendMap.has(slide.position)
-            ? { ...slide, ...backendMap.get(slide.position) }
-            : slide
-        );
+          // ✅ Merge: static first, backend overrides only same position
+          const mergedSlides = defaultSlides.map((slide) =>
+            backendMap.has(slide.position)
+              ? { ...slide, ...backendMap.get(slide.position) }
+              : slide
+          );
 
-        setHeroSlides(mergedSlides);
+          setHeroSlides(mergedSlides);
+        }
+      } catch (error) {
+        console.error("Error fetching hero slides:", error);
       }
-    } catch (error) {
-      console.error("Error fetching hero slides:", error);
     }
-  }
 
-  fetchSlides();
-}, []);
+    fetchSlides();
+  }, []);
 
 
   return (
@@ -134,68 +134,66 @@ useEffect(() => {
           <div className="absolute inset-0 flex items-center justify-center z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
               <div
-                className={`flex flex-col md:flex-row ${
-                  index % 2 !== 0 ? "md:flex-row-reverse" : ""
-                } items-center justify-between gap-4 md:gap-8`}
+                className={`flex flex-col md:flex-row ${index % 2 !== 0 ? "md:flex-row-reverse" : ""
+                  } items-center justify-between gap-4 md:gap-8`}
               >
                 <div
-                  className={`max-w-3xl text-white text-center md:text-left ${
-                    index % 2 !== 0 ? "md:text-right" : "md:text-left"
-                  } px-4 md:px-0`}
+                  className={`max-w-3xl text-white text-center md:text-left ${index % 2 !== 0 ? "md:text-right" : "md:text-left"
+                    } px-4 md:px-0`}
                 >
                   <div className="[font-family:'Poiret_One',Helvetica] text-4xl md:text-6xl lg:text-7xl md:leading-[80px] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-500 bg-clip-text text-transparent mb-2 md:mb-4 pb-2">
                     {slide.superTitle}
                   </div>
 
                   <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
-	                    <Typewriter
-	                      words={
-	                        index === 0
-	                          ? [
-	                              "AI & ML Solutions",
-	                              "Software Development",
-	                              "Lab Setup",
-	                              "Product Development",
-	                            ]
-	                          : index === 1
-	                          ? [
-	                              "Advanced IT & Digital Transformation",
-	                              "Get 250+ Online/Offline Courses",
-	                              "Industry-Oriented Training Curriculum",
-	                              "Cutting-Edge Technology Training",
-	                              "Cybersecurity & Data Protection Programs",
-	                            ]
-	                          : [slide.title || "Empowering Your Future"]
-	                      }
-	                      loop={0}
-	                      cursor
-	                      cursorStyle={index === 0 ? "|" : "."}
-	                      typeSpeed={50}
-	                      deleteSpeed={30}
-	                      delaySpeed={1500}
-	                    />
-	                  </h2>
-	
+                    <Typewriter
+                      words={
+                        index === 0
+                          ? [
+                            "AI & ML Solutions",
+                            "Software Development",
+                            "Lab Setup",
+                            "Product Development",
+                          ]
+                          : index === 1
+                            ? [
+                              "Advanced IT & Digital Transformation",
+                              "Get 250+ Online/Offline Courses",
+                              "Industry-Oriented Training Curriculum",
+                              "Cutting-Edge Technology Training",
+                              "Cybersecurity & Data Protection Programs",
+                            ]
+                            : [slide.title || "Empowering Your Future"]
+                      }
+                      loop={0}
+                      cursor
+                      cursorStyle={index === 0 ? "|" : "."}
+                      typeSpeed={50}
+                      deleteSpeed={30}
+                      delaySpeed={1500}
+                    />
+                  </h2>
+
                   <p className={`text-base md:text-xl lg:text-2xl mt-2 leading-6 md:leading-10 text-justify }`}>
-	                    {slide.description}
-	                  </p>
-	
-	                  {slide.route && (
-	                    <Link href={slide.route}>
-	                      <Button
-	                        size="lg"
-	                        className="mt-4 md:mt-8 px-6 md:px-8 py-4 md:py-6 text-base md:text-lg rounded-lg"
-	                      >
-	                        {slide.buttonText}
-	                      </Button>
-	                    </Link>
-	                  )}
-	                </div>
-	              </div>
-	            </div>
-	          </div>
-	        </div>
-	      ))}
-	    </section>
-	  );
-	}
+                    {slide.description}
+                  </p>
+
+                  {slide.route && (
+                    <Link href={slide.route}>
+                      <Button
+                        size="lg"
+                        className="mt-4 md:mt-8 px-6 md:px-8 py-4 md:py-6 text-base md:text-lg rounded-lg"
+                      >
+                        {slide.buttonText}
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}

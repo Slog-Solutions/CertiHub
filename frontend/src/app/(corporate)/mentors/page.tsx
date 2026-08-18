@@ -183,7 +183,7 @@ export default function MentorsPage() {
       }
     ];
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const API_URL = process.env.NEXT_PUBLIC_API_URL ;
     fetch(`${API_URL}/api/mentors/`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch");

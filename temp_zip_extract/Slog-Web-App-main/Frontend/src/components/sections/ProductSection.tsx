@@ -24,13 +24,13 @@ export function ProductSection({ section }: ProductSectionProps) {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
         const response = await fetch(`${API_URL}/api/products/?section=${section}`);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setProducts(data);
       } catch (e) {
@@ -72,18 +72,18 @@ export function ProductSection({ section }: ProductSectionProps) {
     <div className="mt-8">
       <h4 className="text-xl font-semibold text-gray-900 mb-4">Our Products:</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-            >
-              <ProductCard product={product} />
-            </motion.div>
-          ))}
-        </div>
+        {products.map((product, index) => (
+          <motion.div
+            key={product.id}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: index * 0.1 }}
+            viewport={{ once: true }}
+          >
+            <ProductCard product={product} />
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }
