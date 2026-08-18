@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
   // Stable Axios instance: only recreated (with a fresh interceptor) when the
   // token actually changes, instead of on every render.
   const api = useMemo(() => {
-    const instance = axios.create({ baseURL: `${API_BASE_URL}/api` });
+    const instance = axios.create({ baseURL: `${API_BASE_URL}` });
     instance.interceptors.request.use(
       (config) => {
         if (token) {
