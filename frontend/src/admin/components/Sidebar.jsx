@@ -19,7 +19,10 @@ import {
   ChevronUp,
   FileText,
   X,
-  Bell
+  Bell,
+  BookOpen,
+  FolderGit2,
+  BookMarked
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -46,6 +49,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
     { name: 'Masters',         path: '/dashboard/masters', icon: Settings },
     { name: 'Users',           path: '/dashboard/users', icon: Users },
+    { name: 'Batches',         path: '/dashboard/batches', icon: BookOpen },
     { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
     { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
     { name: "Student's Fee",   path: '/dashboard/fees', icon: CreditCard },
@@ -53,6 +57,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
+    { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',
       icon: BarChart3,
@@ -75,6 +80,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
+    { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',
       icon: BarChart3,

@@ -12,6 +12,7 @@ const WebNavbar = () => {
     { name: 'Home', path: '/' },
     { name: 'About Us', path: '/about' },
     { name: 'Courses', path: '/courses' },
+    { name: 'Blog', path: '/blog' },
     { name: 'Verify Certificate', path: '/verify' },
     { name: 'Contact Us', path: '/contact' }
   ];

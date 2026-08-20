@@ -268,7 +268,10 @@ const Users = () => {
                     <td className="py-4 px-6 text-[var(--text-muted)] truncate max-w-[150px]">{item.address || '—'}</td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        item.role === 'Admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        item.role === 'Admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                        item.role === 'Teacher' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                        item.role === 'Student' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                        'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                       }`}>
                         {item.role}
                       </span>
@@ -406,6 +409,8 @@ const Users = () => {
                   >
                     <option value="Staff">Staff</option>
                     <option value="Admin">Admin</option>
+                    <option value="Teacher">Teacher</option>
+                    <option value="Student">Student</option>
                   </select>
                 </div>
               </div>

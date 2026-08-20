@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Masters from './pages/Masters';
 import Users from './pages/Users';
+import Batches from './pages/Batches';
 import Registration from './pages/Registration';
 import CourseLinks from './pages/CourseLinks';
 import Fees from './pages/Fees';
@@ -22,6 +23,8 @@ import Reports from './pages/Reports';
 import Backup from './pages/Backup';
 import Notifications from './pages/Notifications';
 import PublicRegistration from './pages/PublicRegistration';
+import Projects from './pages/Projects';
+import ManageCourses from './pages/ManageCourses';
 
 // Import Components
 import Sidebar from './components/Sidebar';
@@ -46,9 +49,9 @@ import './index.css';
 // Configure Axios defaults
 axios.defaults.baseURL = API_BASE_URL;
 
-// Auth Guard: Directs unauthenticated traffic to /login
+// Auth Guard: Directs unauthenticated traffic to /login and restricts to Admin/Staff
 const ProtectedRoute = ({ children }) => {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-cream)' }}>
@@ -56,7 +59,17 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-  return token ? children : <Navigate to="/login" replace />;
+
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Restrict access to Admin and Staff roles only
+  if (!['Admin', 'Staff'].includes(user.role)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
 // Role Guard: Restricts admin routes from Staff roles
@@ -101,6 +114,7 @@ const DashboardLayout = () => {
             <Route path="/masters" element={<AdminRoute><Masters /></AdminRoute>} />
             <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
             <Route path="/backup" element={<AdminRoute><Backup /></AdminRoute>} />
+            <Route path="/batches" element={<AdminRoute><Batches /></AdminRoute>} />
             
             {/* Common dashboard views */}
             <Route path="/registration" element={<Registration />} />
@@ -110,6 +124,7 @@ const DashboardLayout = () => {
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/courses" element={<ManageCourses />} />
             <Route path="/reports/fee-collection" element={<Reports type="fee-collection" />} />
             <Route path="/reports/date-wise-fee" element={<Reports type="date-wise" />} />
             <Route path="/reports/course" element={<Reports type="courses" />} />

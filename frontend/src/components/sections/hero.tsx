@@ -140,13 +140,15 @@ export default function Hero() {
               >
                 <div
                   className={`max-w-3xl text-white text-center md:text-left ${index % 2 !== 0 ? "md:text-right" : "md:text-left"
-                    } px-4 md:px-0`}
+                    } px-4 md:px-0 pt-20 md:pt-0`}
                 >
-                  <div className="[font-family:'Poiret_One',Helvetica] text-4xl md:text-6xl lg:text-7xl md:leading-[80px] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-500 bg-clip-text text-transparent mb-2 md:mb-4 pb-2">
+                  {/* Supertitle: xs → md → lg */}
+                  <div className="[font-family:'Poiret_One',Helvetica] text-2xl sm:text-4xl md:text-5xl lg:text-7xl md:leading-[80px] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-500 bg-clip-text text-transparent mb-2 md:mb-4 pb-2">
                     {slide.superTitle}
                   </div>
 
-                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
+                  {/* Typewriter heading */}
+                  <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-bold mb-3 md:mb-6">
                     <Typewriter
                       words={
                         index === 0
@@ -175,7 +177,8 @@ export default function Hero() {
                     />
                   </h2>
 
-                  <p className={`text-base md:text-xl lg:text-2xl mt-2 leading-6 md:leading-10 text-justify }`}>
+                  {/* Description */}
+                  <p className="text-sm sm:text-base md:text-lg lg:text-xl mt-2 leading-5 sm:leading-6 md:leading-8 text-justify line-clamp-4 md:line-clamp-none">
                     {slide.description}
                   </p>
 
@@ -183,7 +186,7 @@ export default function Hero() {
                     <Link href={slide.route}>
                       <Button
                         size="lg"
-                        className="mt-4 md:mt-8 px-6 md:px-8 py-4 md:py-6 text-base md:text-lg rounded-lg"
+                        className="mt-4 md:mt-8 px-5 md:px-8 py-3 md:py-6 text-sm md:text-lg rounded-lg"
                       >
                         {slide.buttonText}
                       </Button>

@@ -12,19 +12,19 @@ export default function AboutUsPage(): JSX.Element {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-teal-800 to-blue-900 py-28 px-6">
+    <div className="min-h-screen bg-gradient-to-r from-teal-800 to-blue-900 py-24 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto text-center text-white">
         {/* Hero Section */}
         <div className={`transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
             About <span className="text-teal-400">Slog Solutions Pvt. Ltd.</span>
           </h1>
-          <p className="text-lg max-w-3xl mx-auto mb-8">
+          <p className="text-xs sm:text-base md:text-lg max-w-3xl mx-auto mb-8">
             Empowering businesses, institutions, and individuals with innovative IT
             solutions, corporate training, and advanced technology services from
             Dehradun, Uttarakhand.
           </p>
-          <div className="flex justify-center space-x-6 text-xl mb-16">
+          <div className="flex flex-wrap justify-center gap-3 text-sm sm:text-base md:text-xl mb-16">
             <div className="bg-white/10 p-3 rounded-lg">50+ Projects</div>
             <div className="bg-white/10 p-3 rounded-lg">500+ Trainings</div>
             <div className="bg-white/10 p-3 rounded-lg">15,000+ Learners</div>

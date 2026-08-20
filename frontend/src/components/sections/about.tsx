@@ -11,30 +11,30 @@ const features = ["Affordable pricing", "Job placement support", "Lifetime acces
 
 export default function About() {
   return (
-    <section id="about" className="py-6bg-white overflow-hidden">
+    <section id="about" className="py-6 bg-white overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div className="container">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900">About Us</h2>
-            <p className="mt-4 text-2xl  text-gray-700">
-              Learn & Grow Your Skills From Anywhere
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">About Us</h2>
+            <p className="mt-3 text-base sm:text-lg md:text-xl text-gray-700">
+              Learn &amp; Grow Your Skills From Anywhere
             </p>
-            <p className="   mt-6 text-gray-600 leading-relaxed text-xl">
+            <p className="mt-4 text-gray-600 leading-relaxed text-sm sm:text-base md:text-lg">
               Slog solutions is your ideal destination for mastering software development, offering flexible, online courses that adapt to your schedule. With practical projects and a vibrant community, you gain hands-on experience and ongoing support. Whether you're a beginner or a seasoned pro, we empower your career journey.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {features.map((feature, index) => (
-                <Badge key={index} className="bg-primary/80 text-primary-foreground text-sm py-1 px-3">
+                <Badge key={index} className="bg-primary/80 text-primary-foreground text-xs sm:text-sm py-1 px-3">
                   {feature}
                 </Badge>
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6">
             {stats.map((stat, index) => (
-                 <div key={index} className={`p-6 md:p-8 rounded-2xl text-white bg-gradient-to-br ${stat.gradient} shadow-lg hover:shadow-xl transition-shadow duration-300`}>
-                    <p className="text-4xl md:text-5xl font-bold">{stat.value}</p>
-                    <p className="mt-2 text-sm md:text-base font-medium">{stat.label}</p>
+                 <div key={index} className={`p-4 sm:p-6 md:p-8 rounded-2xl text-white bg-gradient-to-br ${stat.gradient} shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+                    <p className="text-3xl sm:text-4xl md:text-5xl font-bold">{stat.value}</p>
+                    <p className="mt-2 text-xs sm:text-sm md:text-base font-medium">{stat.label}</p>
                 </div>
             ))}
           </div>
@@ -43,3 +43,4 @@ export default function About() {
     </section>
   );
 }
+
