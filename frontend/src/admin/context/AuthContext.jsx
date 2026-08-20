@@ -36,7 +36,9 @@ export const AuthProvider = ({ children }) => {
         const res = await api.get('/auth/profile');
         setUser(res.data);
       } catch (err) {
-        console.error('Failed to load user profile:', err.message);
+        if (err.response?.status !== 401) {
+          console.error('Failed to load user profile:', err.message);
+        }
         logout();
       } finally {
         setLoading(false);
