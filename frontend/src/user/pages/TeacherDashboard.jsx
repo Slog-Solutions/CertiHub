@@ -10,6 +10,33 @@ import {
 
 /* ─── Utility ──────────────────────────────────────────── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+const getThemePalette = (dark) => ({
+  bg:          dark ? '#0f1117'                        : '#f4f6f8',
+  surface:     dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
+  surfaceHov:  dark ? 'rgba(255,255,255,0.04)'         : '#f8fafc',
+  border:      dark ? 'rgba(255,255,255,0.07)'         : 'rgba(0,0,0,0.08)',
+  borderGreen: dark ? 'rgba(16,185,129,0.2)'           : 'rgba(16,185,129,0.3)',
+  text:        dark ? '#e2e8f0'                        : '#1f2937',
+  textSub:     dark ? '#f1f5f9'                        : '#111827',
+  textMuted:   dark ? 'rgba(255,255,255,0.4)'          : 'rgba(0,0,0,0.5)',
+  textMono:    dark ? 'rgba(255,255,255,0.3)'          : 'rgba(0,0,0,0.4)',
+  inputBg:     dark ? 'rgba(255,255,255,0.04)'         : '#f9fafb',
+  inputBorder: dark ? 'rgba(255,255,255,0.1)'          : 'rgba(0,0,0,0.12)',
+  headerBg:    dark ? 'rgba(15,17,23,0.9)'             : 'rgba(255,255,255,0.95)',
+  headerBorder:dark ? 'rgba(139,92,246,0.15)'          : 'rgba(139,92,246,0.2)',
+  shadow:      dark ? '0 4px 20px rgba(0,0,0,0.25)'    : '0 4px 20px rgba(0,0,0,0.03)',
+  sidebarBg:   dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
+  activeBg:    dark ? 'rgba(139,92,246,0.12)'          : 'rgba(139,92,246,0.06)',
+  activeBorder:dark ? 'rgba(139,92,246,0.4)'           : 'rgba(139,92,246,0.5)',
+  statBg:      dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
+  heroBg:      dark ? 'linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.03))' : 'linear-gradient(135deg,#fcfbfe,#f5f3ff)',
+  borderPurple:dark ? 'rgba(139,92,246,0.2)'           : 'rgba(139,92,246,0.25)',
+  tabBg:       dark ? 'rgba(255,255,255,0.01)'         : '#ffffff',
+  tabActiveBg: dark ? 'rgba(139,92,246,0.15)'          : 'rgba(139,92,246,0.08)',
+  tableBg:     dark ? 'rgba(255,255,255,0.01)'         : '#f9fafb',
+  cardBg:      dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
+  modalBg:     dark ? '#151821'                        : '#ffffff',
+});
 const Spin = ({ color = '#fff' }) => (
   <svg className="animate-spin" style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24">
     <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="4" />
@@ -62,7 +89,7 @@ const TeacherDashboard = () => {
   const { user, logout, api } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const dark = theme === 'dark';
-  const c = T(dark);
+  const c = getThemePalette(dark);
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
@@ -298,14 +325,14 @@ const TeacherDashboard = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
                   <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', fontSize: 10, fontWeight: 800, color: '#a78bfa', fontFamily: 'monospace' }}>{batchDetails.batchId}</span>
-                  <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
-                    Key: <strong style={{ color: '#f1f5f9', fontFamily: 'monospace' }}>{batchDetails.uniqueKey}</strong>
+                  <span style={{ padding: '3px 10px', borderRadius: 6, background: c.surfaceHov, border: `1px solid ${c.border}`, fontSize: 10, color: c.textMuted }}>
+                    Key: <strong style={{ color: c.textSub, fontFamily: 'monospace' }}>{batchDetails.uniqueKey}</strong>
                   </span>
                 </div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: c.textSub, marginBottom: 8 }}>{batchDetails.name}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.textMuted }}>
                   <Users size={13} color="#8b5cf6" />
-                  <strong style={{ color: '#f1f5f9' }}>{batchDetails.students?.length || 0}</strong> students enrolled
+                  <strong style={{ color: c.textSub }}>{batchDetails.students?.length || 0}</strong> students enrolled
                 </div>
               </div>
               {/* Quick Action Buttons */}
@@ -377,16 +404,16 @@ const TeacherDashboard = () => {
               !batchDetails.students?.length ? (
                 <Empty icon={Users} title="No students enrolled yet" sub={`Share Batch ID: ${batchDetails.batchId} and passcode: ${batchDetails.uniqueKey} with your students.`} />
               ) : (
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ background: c.cardBg, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 20px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Users size={14} color="#8b5cf6" />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>Student Register</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{batchDetails.students.length} students</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>Student Register</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 10, color: c.textMuted }}>{batchDetails.students.length} students</span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <tr style={{ borderBottom: `1px solid ${c.border}` }}>
                           {['Student', 'Username', 'Email', 'Mobile'].map(h => (
                             <th key={h} style={{ padding: '10px 18px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', background: c.tableBg }}>{h}</th>
                           ))}
@@ -394,7 +421,7 @@ const TeacherDashboard = () => {
                       </thead>
                       <tbody>
                         {batchDetails.students.map((s, i) => (
-                          <tr key={s._id} style={{ borderBottom: i < batchDetails.students.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                          <tr key={s._id} style={{ borderBottom: i < batchDetails.students.length - 1 ? `1px solid ${c.border}` : 'none' }}>
                             <td style={{ padding: '13px 18px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{
@@ -404,12 +431,12 @@ const TeacherDashboard = () => {
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   fontSize: 12, fontWeight: 800, color: `hsl(${(s.name?.charCodeAt(0) || 0) * 7 % 360},70%,70%)`
                                 }}>{s.name?.charAt(0).toUpperCase()}</div>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>{s.name}</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>{s.name}</span>
                               </div>
                             </td>
-                            <td style={{ padding: '13px 18px', fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>{s.username}</td>
-                            <td style={{ padding: '13px 18px', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{s.email}</td>
-                            <td style={{ padding: '13px 18px', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{s.mobile || '—'}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 11, color: c.textMuted, fontFamily: 'monospace' }}>{s.username}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 11, color: c.text }}>{s.email}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 11, color: c.textMuted }}>{s.mobile || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -440,13 +467,13 @@ const TeacherDashboard = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <h4 style={{ fontSize: 13, fontWeight: 700, color: c.textSub }}>{n.title}</h4>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c.textMuted }}>
                           <Calendar size={10} /> {fmt(n.date)}
                         </span>
                       </div>
                       <p style={{ fontSize: 12, color: c.textMuted, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{n.message}</p>
                     </div>
-                    <button onClick={() => handleDelete('notifications', n._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: 'rgba(255,255,255,0.3)' }}>
+                    <button onClick={() => handleDelete('notifications', n._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: c.textMuted }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -469,8 +496,8 @@ const TeacherDashboard = () => {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14 }}>
                     {batchDetails.pdfs.map((p, i) => (
-                      <div key={p._id || i} style={{
-                        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+                     <div key={p._id || i} style={{
+                        background: c.cardBg, border: `1px solid ${c.border}`,
                         borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 12
                       }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
@@ -479,14 +506,14 @@ const TeacherDashboard = () => {
                             background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center'
                           }}><FileText size={18} color="#10b981" /></div>
-                          <button onClick={() => handleDelete('pdfs', p._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+                          <button onClick={() => handleDelete('pdfs', p._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: c.textMuted, flexShrink: 0 }}>
                             <Trash2 size={13} />
                           </button>
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: c.textSub, marginBottom: 4 }}>{p.title}</div>
                           {p.description && <div style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5, marginBottom: 6 }}>{p.description}</div>}
-                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ fontSize: 10, color: c.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <Calendar size={10} /> {fmt(p.date)}
                           </div>
                         </div>
