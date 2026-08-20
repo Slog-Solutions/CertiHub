@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import logo from "../../assets/logo.png";
@@ -127,6 +128,8 @@ const resourcesItems = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
+  const isLightBgPage = pathname === "/courses";
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedService, setSelectedService] = useState(services[0]);
@@ -169,7 +172,7 @@ export default function Header() {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled ? "bg-black/50 backdrop-blur-sm shadow-md" : "bg-transparent"
+        (isScrolled || isLightBgPage) ? "bg-slate-900 shadow-md" : "bg-transparent"
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
