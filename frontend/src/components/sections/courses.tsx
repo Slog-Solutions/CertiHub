@@ -162,7 +162,7 @@ export default function Courses() {
         {/* Courses Grid */}
         {selectedCategory && (
           <motion.div 
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
@@ -298,13 +298,13 @@ const AnimatedCourseCard = ({
       className="flex justify-center"
     >
       <motion.div
-        className="relative w-4/5 mx-auto cursor-pointer"
+        className="relative w-full mx-auto cursor-pointer"
         whileHover={{ y: -10 }}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
         onClick={onClick}
       >
         <motion.div
-          className={`h-10 rounded-3xl bg-gradient-to-r ${bgGradient} shadow-lg flex items-center justify-center p-6 mb-4 text-center overflow-hidden relative`}
+          className={`h-24 sm:h-28 rounded-3xl bg-gradient-to-r ${bgGradient} shadow-lg flex items-center justify-center p-4 mb-4 text-center overflow-hidden relative`}
           whileHover={{
             boxShadow: "0px 25px 50px -12px rgba(0, 0, 0, 0.25)",
           }}

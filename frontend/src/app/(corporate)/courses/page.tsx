@@ -1,17 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import book from "@/assets/books.jpeg";
 import EnquiryForm from "@/components/EnquiryForm";
 
 type Course = {
@@ -53,19 +44,28 @@ export default function Courses() {
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Courses");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [search, setSearch] = useState("");
 
+  // ── Fetch courses (with deduplication by title) ──
   useEffect(() => {
     fetch("/api/masters/coursedetail/public")
       .then((res) => res.json())
       .then((data) => {
         if (!Array.isArray(data)) return;
-        const mapped: Course[] = data.map((item: any, index: number) => {
+
+        const seenTitles = new Map<string, Course>();
+        let idCounter = 1;
+
+        data.forEach((item: any) => {
           const techName = item.technologyId?.name || "Technology Track";
+          // ── Skip duplicates by title ──
+          if (seenTitles.has(techName)) return;
+
           const techNote = item.technologyId?.note || "";
           const durValue = item.durationId?.value || "";
           const durUnit = item.durationId?.unit || "";
           const durString = durValue ? `${durValue} ${durUnit}(s)` : "4-6 Weeks";
-          
+
           let category = "Specialized";
           const nameLower = techName.toLowerCase();
           if (nameLower.includes("cad") || nameLower.includes("solidworks") || nameLower.includes("creo") || nameLower.includes("ansys") || nameLower.includes("catia") || nameLower.includes("mechanical")) {
@@ -81,33 +81,46 @@ export default function Courses() {
           } else if (nameLower.includes("photoshop") || nameLower.includes("illustrator") || nameLower.includes("design") || nameLower.includes("creative") || nameLower.includes("autocad")) {
             category = "Creative Arts";
           }
-          
-          return {
-            id: index + 1,
+
+          const course: Course = {
+            id: idCounter++,
             title: techName,
             image: "/assets/books.jpeg",
             dataAiHint: techName,
             duration: durString,
             price: `INR ${item.price}`,
-            category: category,
-            description: techNote
+            category,
+            description: techNote,
           };
+          seenTitles.set(techName, course);
         });
-        setCourses(mapped);
-        setFilteredCourses(mapped);
+
+        const unique = Array.from(seenTitles.values());
+        unique.sort((a, b) => a.title.localeCompare(b.title));
+        console.log("Fetched courses successfully. Total:", unique.length, unique);
+        setCourses(unique);
+        setFilteredCourses(unique);
       })
       .catch((err) => console.error("Fetch error:", err));
   }, []);
 
+  // ── Filter courses by category + search ──
   useEffect(() => {
-    if (selectedCategory === "All Courses") {
-      setFilteredCourses(courses);
-    } else {
-      setFilteredCourses(
-        courses.filter((course) => course.category === selectedCategory)
-      );
-    }
-  }, [selectedCategory, courses]);
+    const q = search.toLowerCase().trim();
+    const byCategory =
+      selectedCategory === "All Courses"
+        ? courses
+        : courses.filter((c) => c.category === selectedCategory);
+    const bySearch = q
+      ? byCategory.filter(
+          (c) =>
+            c.title.toLowerCase().includes(q) ||
+            c.category.toLowerCase().includes(q) ||
+            (c.description && c.description.toLowerCase().includes(q))
+        )
+      : byCategory;
+    setFilteredCourses(bySearch);
+  }, [selectedCategory, search, courses]);
 
   return (
     <section
@@ -140,7 +153,52 @@ export default function Courses() {
           </motion.div>
         </div>
 
-        <div className="mb-16 flex flex-wrap justify-center gap-4">
+        {/* ── Search Bar ── */}
+        <div className="max-w-2xl mx-auto mb-8 px-2">
+          <div className="relative">
+            {/* Search icon */}
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-teal-300 pointer-events-none"
+              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+            </svg>
+
+            <input
+              id="course-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search courses by name or category…"
+              className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-teal-300/70 rounded-2xl pl-12 pr-12 py-3.5 text-sm sm:text-base focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/30 transition-all"
+            />
+
+            {/* Clear button */}
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-teal-300 hover:text-white transition-colors"
+                aria-label="Clear search"
+              >
+                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Result count */}
+          {(search || selectedCategory !== "All Courses") && (
+            <p className="mt-2 text-xs text-teal-300/80 text-center">
+              {filteredCourses.length === 0
+                ? "No courses match your search"
+                : `${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} found`}
+            </p>
+          )}
+        </div>
+
+        <div className="mb-10 flex flex-wrap justify-center gap-3">
           {categories.map((category, index) => (
             <Button
               key={index}

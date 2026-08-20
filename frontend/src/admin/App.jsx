@@ -30,6 +30,8 @@ import Backup from './pages/Backup';
 import VerifyCertificate from './pages/VerifyCertificate';
 import PublicRegistration from './pages/PublicRegistration';
 import Notifications from './pages/Notifications';
+import Projects from './pages/Projects';
+import ManageCourses from './pages/ManageCourses';
 
 // Public Layout Wrapper
 const PublicLayout = ({ children }) => {
@@ -108,6 +110,7 @@ const DashboardLayout = () => {
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/courses" element={<ManageCourses />} />
             <Route path="/reports/fee-collection" element={<Reports type="fee-collection" />} />
             <Route path="/reports/date-wise-fee" element={<Reports type="date-wise" />} />
             <Route path="/reports/course" element={<Reports type="courses" />} />

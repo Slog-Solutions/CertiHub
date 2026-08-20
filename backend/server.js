@@ -1,4 +1,4 @@
-// Slog Solutions server bootstrapper (restarted)
+// Slog Solutions server bootstrapper (restarted - trigger)
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -41,6 +41,10 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsRoot = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsRoot)) {
   fs.mkdirSync(uploadsRoot);
+}
+const pdfsDir = path.join(uploadsRoot, 'pdfs');
+if (!fs.existsSync(pdfsDir)) {
+  fs.mkdirSync(pdfsDir, { recursive: true });
 }
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -158,6 +162,9 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/backup', require('./routes/backup').router);
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/batches', require('./routes/batches'));
+app.use('/api/projects', require('./routes/projects'));
+
 
 // Dummy endpoints for frontend CMS components to prevent 404 console errors
 app.use('/api/hero-slides', (req, res) => res.json([]));
@@ -188,6 +195,17 @@ if (process.env.NODE_ENV === 'production') {
       res.sendFile(dashboardHtml);
     } else {
       res.sendFile(dashboardIndex);
+    }
+  });
+
+  // Route /user* to Next.js user SPA page
+  app.get('/user*', (req, res) => {
+    const userHtml = path.resolve(__dirname, '../frontend/out/user.html');
+    const userIndex = path.resolve(__dirname, '../frontend/out/user/index.html');
+    if (fs.existsSync(userHtml)) {
+      res.sendFile(userHtml);
+    } else {
+      res.sendFile(userIndex);
     }
   });
 

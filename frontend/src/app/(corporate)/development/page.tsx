@@ -126,7 +126,7 @@ export default function DevelopmentServices() {
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
               Development <span className="text-teal-600">Services</span>
             </h1>
-            <p className="text-xl text-white mb-10 max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base md:text-xl text-white mb-10 max-w-2xl mx-auto">
               Transforming ideas into innovative digital solutions through cutting-edge technology and expert craftsmanship.
             </p>
             
@@ -222,11 +222,15 @@ export default function DevelopmentServices() {
             </p>
           </motion.div>
 
-          <div className="flex flex-wrap mb-8 border-b border-gray-200">
+          <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200">
             {services.map((service, index) => (
               <button
                 key={service.id}
-                className={`px-6 py-3 font-semibold text-lg border-b-2 transition-colors duration-300 ${activeTab === index ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-teal-500'}`}
+                className={`px-3 sm:px-6 py-2 sm:py-3 font-semibold text-sm sm:text-lg border-b-2 transition-colors duration-300 whitespace-nowrap ${
+                  activeTab === index
+                    ? 'border-teal-600 text-teal-600'
+                    : 'border-transparent text-gray-500 hover:text-teal-500'
+                }`}
                 onClick={() => setActiveTab(index)}
               >
                 {service.title}

@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -21,7 +21,12 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      await login(username, password);
+      const res = await login(username, password);
+      if (res && res.user && !['Admin', 'Staff'].includes(res.user.role)) {
+        logout();
+        setError('Access denied: You do not have permissions to access the Admin portal.');
+        return;
+      }
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');

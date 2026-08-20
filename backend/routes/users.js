@@ -8,6 +8,18 @@ const { buildSearchRegex } = require('../utils/regexSafe');
 // Apply Admin restriction to all routes in this file
 router.use(requireAuth, requireRole(['Admin']));
 
+// @route   GET /api/users/teachers
+// @desc    Get list of all active teachers
+// @access  Private (Admin only)
+router.get('/teachers', async (req, res) => {
+  try {
+    const teachers = await User.find({ role: 'Teacher', isActive: true }).select('name username email');
+    res.json(teachers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // @route   GET /api/users
 // @desc    Get all users with pagination and search
 // @access  Private (Admin only)

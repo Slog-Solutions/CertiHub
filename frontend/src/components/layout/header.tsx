@@ -42,7 +42,9 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/#services", label: "Services" },
   { href: "/#resources", label: "Resources" },
+  { href: "/about", label: "About Us" },
   { href: "/mentors", label: "Slog Ascend" },
+  { href: "/blog", label: "Blog" },
   { href: "/#contact", label: "Contact" },
 ];
 
@@ -118,13 +120,9 @@ const services = [
 ];
 
 const resourcesItems = [
-  { href: "/about", label: "About Us" },
   { href: "#joinus", label: "Join Us" },
-  
   { href: "https://slogedu.slogsolutions.com/", label: "LMS" },
   { href: "/verify", label: "Verify Certificates" },
-  
-  
   { href: "/faq", label: "FAQs" },
 ];
 
@@ -231,17 +229,20 @@ export default function Header() {
                       <div className="w-1/4 p-4 bg-gray-800">
                         <div className="bg-white text-black p-3 shadow-md w-full">
                           {services.map((service) => (
-                            <div
+                            <Link
                               key={service.name}
-                              className={`p-3 cursor-pointer font-semibold transition-all duration-300 hover:bg-gray-200/70 
-                                ${activeMain === service.name ? "bg-gray-100" : ""}`}
+                              href={service.path}
+                              onClick={() => setIsDropdownOpen(false)}
                               onMouseEnter={() => {
                                 setActiveMain(service.name);
                                 setSelectedService(service);
                               }}
+                              className={`block p-3 font-semibold transition-all duration-300 hover:bg-gray-200/70 hover:text-cyan-700 ${
+                                activeMain === service.name ? "bg-gray-100 text-cyan-700" : ""
+                              }`}
                             >
                               {service.name}
-                            </div>
+                            </Link>
                           ))}
                         </div>
                       </div>
@@ -262,12 +263,6 @@ export default function Header() {
                           </div>
                         )}
 
-                        {/* Navigate with Next.js Link */}
-                        <Link href={selectedService.path || "/services"}>
-                          <Button className="mt-1 bg-cyan-500 text-white hover:bg-cyan-600 rounded-lg w-fit text-sm py-2 px-4">
-                            Explore Now
-                          </Button>
-                        </Link>
                       </div>
 
                       {/* Images */}
@@ -359,6 +354,17 @@ export default function Header() {
                     </div>
                   </div>
                 </div>
+              ) : item.label === "Blog" ? (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="text-sm font-bold text-white hover:text-cyan-600 py-2 flex items-center gap-1"
+                >
+                  <span className="relative">
+                    {item.label}
+                    <span className="absolute -top-2 -right-5 bg-cyan-500 text-[9px] font-bold text-white px-1 py-0.5 rounded-full leading-none">NEW</span>
+                  </span>
+                </Link>
               ) : (
                 <Link
                   key={item.label}
