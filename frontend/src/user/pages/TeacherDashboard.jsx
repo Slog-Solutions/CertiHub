@@ -10,7 +10,7 @@ import {
 
 /* ─── Utility ──────────────────────────────────────────── */
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-const T = (dark) => ({
+const getThemePalette = (dark) => ({
   bg:          dark ? '#0f1117'                        : '#f4f6f8',
   surface:     dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
   surfaceHov:  dark ? 'rgba(255,255,255,0.04)'         : '#f8fafc',
@@ -89,7 +89,7 @@ const TeacherDashboard = () => {
   const { user, logout, api } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const dark = theme === 'dark';
-  const c = T(dark);
+  const c = getThemePalette(dark);
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
