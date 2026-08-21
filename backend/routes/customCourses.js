@@ -6,22 +6,54 @@ const fs = require('fs');
 const CustomCourse = require('../models/CustomCourse');
 const CourseCategory = require('../models/CourseCategory');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { uploadBuffer, cloudinary } = require('../utils/cloudinary');
 
-// Multer disk storage configuration for Course Images
-const uploadsDir = path.join(__dirname, '../uploads/courses');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const safeName = Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, safeName);
+// Helper to extract Cloudinary public ID
+const getPublicIdFromUrl = (url) => {
+  if (!url || !url.includes('res.cloudinary.com')) return null;
+  try {
+    const parts = url.split('/');
+    const uploadIndex = parts.indexOf('upload');
+    if (uploadIndex === -1) return null;
+    const pathParts = parts.slice(uploadIndex + 2); // skips 'upload' and version (e.g. 'v12345')
+    const pathWithExt = pathParts.join('/');
+    const publicId = pathWithExt.substring(0, pathWithExt.lastIndexOf('.'));
+    return publicId;
+  } catch (err) {
+    console.error('Failed to parse Cloudinary public ID:', err);
+    return null;
   }
-});
+};
+
+// Helper to delete an old course image (handles both local file and Cloudinary)
+const deleteOldImage = async (imageUrl) => {
+  if (!imageUrl) return;
+  
+  if (imageUrl.includes('res.cloudinary.com')) {
+    const publicId = getPublicIdFromUrl(imageUrl);
+    if (publicId) {
+      try {
+        await cloudinary.uploader.destroy(publicId);
+        console.log(`Successfully deleted Cloudinary image: ${publicId}`);
+      } catch (err) {
+        console.error(`Failed to delete Cloudinary image: ${publicId}`, err);
+      }
+    }
+  } else if (imageUrl.startsWith('/uploads/')) {
+    const oldPath = path.join(__dirname, '..', imageUrl);
+    if (fs.existsSync(oldPath)) {
+      try {
+        fs.unlinkSync(oldPath);
+        console.log(`Successfully deleted local image file: ${oldPath}`);
+      } catch (err) {
+        console.error(`Failed to delete local image: ${oldPath}`, err);
+      }
+    }
+  }
+};
+
+// Multer memory storage configuration for Course Images
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
@@ -141,7 +173,13 @@ router.post('/', requireAuth, requireRole(['Admin']), upload.single('image'), as
 
     let imageUrl = '';
     if (req.file) {
-      imageUrl = `/uploads/courses/${req.file.filename}`;
+      try {
+        const result = await uploadBuffer(req.file.buffer, 'courses');
+        imageUrl = result.secure_url;
+      } catch (uploadErr) {
+        console.error('Cloudinary upload error:', uploadErr);
+        return res.status(500).json({ error: 'Failed to upload image to Cloudinary. Please check your CLOUDINARY configuration in backend/.env' });
+      }
     }
 
     const course = new CustomCourse({
@@ -187,14 +225,16 @@ router.put('/:id', requireAuth, requireRole(['Admin']), upload.single('image'), 
     if (isActive !== undefined) course.isActive = isActive !== 'false';
 
     if (req.file) {
-      // Optional: Delete old image from disk
-      if (course.image) {
-        const oldPath = path.join(__dirname, '..', course.image);
-        if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
+      try {
+        const result = await uploadBuffer(req.file.buffer, 'courses');
+        if (course.image) {
+          await deleteOldImage(course.image);
         }
+        course.image = result.secure_url;
+      } catch (uploadErr) {
+        console.error('Cloudinary upload error:', uploadErr);
+        return res.status(500).json({ error: 'Failed to upload image to Cloudinary. Please check your CLOUDINARY configuration in backend/.env' });
       }
-      course.image = `/uploads/courses/${req.file.filename}`;
     }
 
     await course.save();
@@ -213,12 +253,9 @@ router.delete('/:id', requireAuth, requireRole(['Admin']), async (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Delete image from disk
+    // Delete image from Cloudinary or local disk
     if (course.image) {
-      const imgPath = path.join(__dirname, '..', course.image);
-      if (fs.existsSync(imgPath)) {
-        fs.unlinkSync(imgPath);
-      }
+      await deleteOldImage(course.image);
     }
 
     await CustomCourse.findByIdAndDelete(req.params.id);
