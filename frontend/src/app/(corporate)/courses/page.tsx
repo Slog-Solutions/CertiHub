@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import EnquiryForm from "@/components/EnquiryForm";
+import {
+  Search,
+  BookOpen,
+  Clock,
+  Tag,
+  X,
+  FileText,
+  PhoneCall,
+  HelpCircle,
+  Mail,
+} from "lucide-react";
 
 type Course = {
   id: string;
@@ -15,36 +26,38 @@ type Course = {
   description: string;
 };
 
-// Colors mapping for category-specific tags
+// Colors mapping for category badges
 const getCategoryBadgeStyles = (cat: string) => {
   const name = cat.toLowerCase();
   if (name.includes("computer") || name.includes("programming") || name.includes("web") || name.includes("python") || name.includes("java")) {
-    return "bg-indigo-50 text-indigo-600 border border-indigo-100";
+    return "bg-teal-100 text-teal-800 border border-teal-200";
   }
   if (name.includes("civil") || name.includes("structural") || name.includes("survey")) {
-    return "bg-amber-50 text-amber-700 border border-amber-100";
+    return "bg-amber-100 text-amber-800 border border-amber-200";
   }
   if (name.includes("mechanical") || name.includes("cad") || name.includes("solidworks") || name.includes("ansys")) {
-    return "bg-rose-50 text-rose-600 border border-rose-100";
+    return "bg-rose-100 text-rose-800 border border-rose-200";
   }
   if (name.includes("architecture") || name.includes("sketchup") || name.includes("max")) {
-    return "bg-teal-50 text-teal-600 border border-teal-100";
+    return "bg-purple-100 text-purple-800 border border-purple-200";
   }
-  return "bg-emerald-50 text-emerald-600 border border-emerald-100";
+  return "bg-teal-100 text-teal-700 border border-teal-200";
 };
 
-export default function Courses() {
+export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<string[]>(["All Courses"]);
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("All Courses");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // ── Fetch Categories and Courses ──
   useEffect(() => {
-    // 1. Fetch categories
-    fetch("/api/custom-courses/categories")
+    setIsLoading(true);
+
+    const fetchCategories = fetch("/api/custom-courses/categories")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -54,8 +67,7 @@ export default function Courses() {
       })
       .catch((err) => console.error("Failed to load categories:", err));
 
-    // 2. Fetch custom courses
-    fetch("/api/custom-courses/public")
+    const fetchCourses = fetch("/api/custom-courses/public")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -73,6 +85,10 @@ export default function Courses() {
         }
       })
       .catch((err) => console.error("Fetch custom courses error:", err));
+
+    Promise.allSettled([fetchCategories, fetchCourses]).then(() => {
+      setIsLoading(false);
+    });
   }, []);
 
   // ── Filter courses by category + search ──
@@ -84,300 +100,348 @@ export default function Courses() {
         : courses.filter((c) => c.category === selectedCategory);
     const bySearch = q
       ? byCategory.filter(
-          (c) =>
-            c.title.toLowerCase().includes(q) ||
-            c.category.toLowerCase().includes(q) ||
-            (c.description && c.description.toLowerCase().includes(q))
-        )
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          c.category.toLowerCase().includes(q) ||
+          (c.description && c.description.toLowerCase().includes(q))
+      )
       : byCategory;
     setFilteredCourses(bySearch);
   }, [selectedCategory, search, courses]);
 
   return (
-    <section
-      id="courses"
-      className="pt-6 relative w-full min-h-screen bg-slate-50 text-slate-800"
-    >
-      <div className="mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mt-10">
-        {/* Heading */}
-        <div className="text-center mb-12 pt-16">
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
-            <div className="w-16 h-1 bg-emerald-600 rounded-full mx-auto mb-4"></div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
-              All Courses on Slog
-            </h2>
-            <p className="mt-3 text-base text-slate-500 max-w-2xl mx-auto leading-relaxed">
-              Explore professional catalog modules designed to start your journey towards engineering and technological excellence!
-            </p>
-          </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+
+      {/* ── 1. HERO SECTION ─────────────────────────────────────────── */}
+      <section className="relative py-20 overflow-hidden bg-gradient-to-r from-teal-800 to-blue-900">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiMwMGFiYjEiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjEiPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzAiIHI9IjIiLz48L2c+PC9zdmc+')]"></div>
         </div>
 
-        {/* ── Search Bar ── */}
-        <div className="max-w-xl mx-auto mb-10 px-2">
-          <div className="relative">
-            {/* Search icon */}
-            <svg
-              width="20"
-              height="20"
-              className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 pointer-events-none"
-              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center max-w-3xl mx-auto pt-6"
+          >
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
+              All Courses on <span className="text-teal-600">Slog</span>
+            </h1>
+            <p className="text-sm sm:text-base md:text-xl text-white mb-10 max-w-2xl mx-auto">
+              Explore professional catalog modules designed to start your journey towards engineering and technological excellence!
+            </p>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="flex flex-wrap justify-center gap-4"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-            </svg>
+              <EnquiryForm
+                triggerButton={
+                  <button className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    Get Started
+                  </button>
+                }
+              />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
 
-            <input
-              id="course-search"
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search courses by name or category…"
-              className="w-full bg-white border border-slate-200 text-slate-800 placeholder-slate-400 rounded-xl pl-11 pr-11 py-3 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all shadow-sm"
-            />
+      {/* ── 2. SEARCH & FILTER SECTION ───────────────────────────────── */}
+      <section className="py-12 bg-white border-b border-gray-100">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
 
-            {/* Clear button */}
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                aria-label="Clear search"
-              >
-                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+          {/* Search Bar */}
+          <div className="max-w-xl mx-auto mb-8">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              <input
+                id="course-search"
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search courses by name or category…"
+                className="w-full bg-gray-50 border border-gray-200 text-gray-800 placeholder-gray-400 rounded-full pl-12 pr-12 py-3 text-base focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all shadow-sm"
+              />
+
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Search Result Count */}
+            {(search || selectedCategory !== "All Courses") && (
+              <p className="mt-3 text-xs text-gray-500 text-center font-semibold">
+                {filteredCourses.length === 0
+                  ? "No matching courses found"
+                  : `Found ${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""}`}
+              </p>
             )}
           </div>
 
-          {/* Result count */}
-          {(search || selectedCategory !== "All Courses") && (
-            <p className="mt-2 text-xs text-slate-500 text-center font-semibold">
-              {filteredCourses.length === 0
-                ? "No matching courses found"
-                : `${filteredCourses.length} course${filteredCourses.length !== 1 ? "s" : ""} found`}
-            </p>
+          {/* Category Selector Pills */}
+          <div className="flex flex-wrap justify-center gap-2 max-w-5xl mx-auto">
+            {categories.map((category, index) => {
+              const isSelected = selectedCategory === category;
+              return (
+                <button
+                  key={index}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 ${isSelected
+                      ? "bg-teal-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                    }`}
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── 3. COURSES CATALOG GRID ───────────────────────────────────── */}
+      <section className="py-16 bg-gradient-to-br from-teal-50 to-cyan-50">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+
+          {/* Loading Skeletons */}
+          {isLoading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-8">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="bg-white border border-gray-100 rounded-2xl h-80 animate-pulse p-4 space-y-4 shadow-md">
+                  <div className="bg-gray-200 h-40 rounded-xl w-full" />
+                  <div className="bg-gray-200 h-5 rounded w-3/4" />
+                  <div className="bg-gray-200 h-4 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
           )}
-        </div>
 
-        {/* Categories Tabs Selector */}
-        <div className="mb-10 flex flex-wrap justify-center gap-2">
-          {categories.map((category, index) => (
-            <Button
-              key={index}
-              variant={selectedCategory === category ? "default" : "outline"}
-              className={`rounded-lg px-5 py-1.5 text-xs font-bold transition-all ${
-                selectedCategory === category
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-0"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800"
-              }`}
-              onClick={() => setSelectedCategory(category)}
+          {/* Courses Cards Grid */}
+          {!isLoading && (
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
             >
-              {category}
-            </Button>
-          ))}
-        </div>
+              {filteredCourses.map((course) => (
+                <div
+                  key={course.id}
+                  onClick={() => setSelectedCourse(course)}
+                  className="bg-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Card Image */}
+                    <div className="h-44 w-full bg-gray-50 rounded-xl border border-gray-100 relative flex items-center justify-center overflow-hidden mb-4">
+                      {course.image ? (
+                        <img
+                          src={course.image}
+                          alt={course.title}
+                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="text-gray-400 flex flex-col items-center gap-1.5">
+                          <BookOpen className="h-8 w-8 text-teal-600 opacity-60" />
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Course Track</span>
+                        </div>
+                      )}
 
-        {/* Courses Grid */}
-        <motion.div 
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-16"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          {filteredCourses.map((course, index) => (
-            <div
-              key={course.id}
-              onClick={() => setSelectedCourse(course)}
-              className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer group"
-            >
-              {/* Card Image */}
-              <div className="h-44 w-full bg-slate-50 border-b border-slate-100 relative flex items-center justify-center overflow-hidden">
-                {course.image ? (
-                  <img
-                    src={course.image}
-                    alt={course.title}
-                    className="object-cover w-full h-full group-hover:scale-102 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="text-slate-400 flex flex-col items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-[9px] font-bold uppercase tracking-wider">No Image</span>
+                      {/* Category Badge */}
+                      <div className="absolute top-3 left-3">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase shadow-sm ${getCategoryBadgeStyles(course.category)}`}>
+                          {course.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Course Title & Description */}
+                    <h3 className="text-lg font-bold text-gray-900 leading-snug group-hover:text-teal-600 transition-colors line-clamp-2">
+                      {course.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-2 line-clamp-3 leading-relaxed">
+                      {course.description || "Click to view full syllabus details and enquire for this training track."}
+                    </p>
                   </div>
-                )}
-                {/* Category tag */}
-                <div className="absolute top-3 left-3">
-                  <span className={`px-2.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase ${getCategoryBadgeStyles(course.category)}`}>
-                    {course.category}
-                  </span>
+
+                  {/* Card Footer Info */}
+                  <div className="border-t border-gray-100 pt-3.5 mt-4 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 font-medium">
+                      <Clock className="h-3.5 w-3.5 text-teal-600" />
+                      <span>{course.duration}</span>
+                    </span>
+
+                    <span className="font-bold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-100 text-xs">
+                      {course.price.startsWith("₹") || course.price.toLowerCase().includes("inr") || course.price.toLowerCase().includes("tbd") || course.price.toLowerCase().includes("free") ? course.price : `₹${course.price}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ))}
+            </motion.div>
+          )}
 
-              {/* Card details */}
-              <div className="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 leading-snug group-hover:text-emerald-600 transition-colors line-clamp-2">
-                    {course.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-2.5 line-clamp-3 min-h-[4.5em] leading-relaxed">
-                    {course.description || "Click to view full syllabus details and enquire for this track."}
-                  </p>
-                </div>
-
-                <div className="border-t border-slate-100 pt-3.5 mt-3.5 flex items-center justify-between text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="font-semibold">{course.duration}</span>
-                  </span>
-                  <span className="font-bold text-slate-800">
-                    {course.price.startsWith("₹") || course.price.toLowerCase().includes("inr") || course.price.toLowerCase().includes("tbd") || course.price.toLowerCase().includes("free") ? course.price : `₹${course.price}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </motion.div>
-
-        {/* No courses message */}
-        {filteredCourses.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <div className="bg-white border border-slate-200 border-dashed rounded-2xl p-8 max-w-sm mx-auto shadow-sm">
-              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-100">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0v6" />
-                </svg>
-              </div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">No courses found</h3>
-              <p className="text-slate-500 text-xs leading-normal">We don't have any courses active in this category yet. Check back soon!</p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Course Details Modal */}
-        <AnimatePresence>
-          {selectedCourse && (
+          {/* Empty State */}
+          {!isLoading && filteredCourses.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center z-50 p-4"
-              onClick={() => setSelectedCourse(null)}
+              className="text-center py-12"
             >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-2xl shadow-xl max-w-4xl w-full overflow-hidden relative border border-slate-100 text-slate-800"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Close Button */}
+              <div className="bg-white border border-gray-200 border-dashed rounded-2xl p-8 max-w-sm mx-auto shadow-sm">
+                <div className="w-12 h-12 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-teal-100 text-teal-600">
+                  <HelpCircle className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-bold text-gray-800 mb-1">No courses found</h3>
+                <p className="text-gray-500 text-xs leading-normal mb-4">We don't have any courses matching this search. Try a different term or reset filters.</p>
                 <button
-                  onClick={() => setSelectedCourse(null)}
-                  className="absolute top-4 right-4 z-10 bg-slate-100 hover:bg-slate-200 rounded-full p-1.5 transition-colors text-slate-500"
+                  onClick={() => {
+                    setSearch("");
+                    setSelectedCategory("All Courses");
+                  }}
+                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg shadow transition-colors"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  Reset Filters
                 </button>
+              </div>
+            </motion.div>
+          )}
 
-                <div className="flex flex-col md:flex-row min-h-[420px]">
-                  {/* Course Image */}
-                  <div className="md:w-1/2 min-h-[250px] md:h-auto overflow-hidden relative bg-slate-50 flex items-center justify-center border-r border-slate-100">
+        </div>
+      </section>
+
+      {/* ── 4. COURSE DETAILS MODAL ────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedCourse && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center z-50 p-4"
+            onClick={() => setSelectedCourse(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-2xl shadow-xl max-w-3xl w-full overflow-hidden relative border border-gray-100 text-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedCourse(null)}
+                className="absolute top-4 right-4 z-10 bg-gray-100 hover:bg-gray-200 rounded-full p-1.5 transition-colors text-gray-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="flex flex-col md:flex-row min-h-[400px]">
+                {/* Course Image Side */}
+                <div className="md:w-1/2 min-h-[220px] md:h-auto overflow-hidden relative bg-gray-50 flex items-center justify-center border-b md:border-b-0 md:border-r border-gray-100">
+                  {selectedCourse.image ? (
                     <img
                       src={selectedCourse.image}
                       alt={selectedCourse.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute top-4 left-4">
-                      <span className={`px-2.5 py-0.5 rounded-md text-[9px] font-bold tracking-wide uppercase shadow-sm ${getCategoryBadgeStyles(selectedCourse.category)}`}>
-                        {selectedCourse.category}
-                      </span>
+                  ) : (
+                    <div className="text-gray-400 flex flex-col items-center gap-2 p-8">
+                      <BookOpen className="h-10 w-10 text-teal-600 opacity-60" />
+                      <span className="text-xs font-bold text-gray-500">Slog Track</span>
                     </div>
-                  </div>
-
-                  {/* Course Info */}
-                  <div className="md:w-1/2 p-8 flex flex-col justify-between">
-                    <div>
-                      <h3 className="text-2xl font-extrabold text-slate-900 mb-4 border-b border-slate-100 pb-3">
-                        {selectedCourse.title}
-                      </h3>
-                      
-                      {/* Course Description */}
-                      <div className="mb-6 max-h-[200px] overflow-y-auto pr-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Course Details & Syllabus</p>
-                        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">
-                          {selectedCourse.description || "No detailed syllabus description available for this course track."}
-                        </p>
-                      </div>
-                      
-                      {/* Duration & Price Grid */}
-                      <div className="grid grid-cols-2 gap-4 mb-6 border-t border-slate-100 pt-4">
-                        <div className="flex items-center">
-                          <div className="bg-slate-50 p-2.5 rounded-lg mr-3 border border-slate-150 flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Duration</p>
-                            <p className="text-xs font-bold text-slate-700">{selectedCourse.duration}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center">
-                          <div className="bg-slate-50 p-2.5 rounded-lg mr-3 border border-slate-150 flex-shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold">Course Fees</p>
-                            <p className="text-xs font-bold text-slate-700">
-                              {selectedCourse.price.startsWith("₹") || selectedCourse.price.toLowerCase().includes("inr") || selectedCourse.price.toLowerCase().includes("tbd") || selectedCourse.price.toLowerCase().includes("free") ? selectedCourse.price : `₹${selectedCourse.price}`}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex gap-3 border-t border-slate-100 pt-4">
-                      <EnquiryForm
-                        courseInterested={selectedCourse.title}
-                        triggerButton={
-                          <button
-                            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                            </svg>
-                            Enquire About Course
-                          </button>
-                        }
-                      />
-                    </div>
+                  )}
+                  <div className="absolute top-4 left-4">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase shadow-sm ${getCategoryBadgeStyles(selectedCourse.category)}`}>
+                      {selectedCourse.category}
+                    </span>
                   </div>
                 </div>
-              </motion.div>
+
+                {/* Course Details Side */}
+                <div className="md:w-1/2 p-8 flex flex-col justify-between space-y-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3">
+                      {selectedCourse.title}
+                    </h3>
+
+                    <div className="space-y-2 mb-6">
+                      <span className="text-[10px] text-teal-600 font-bold uppercase tracking-wider block">
+                        Course Overview & Syllabus
+                      </span>
+                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto pr-2">
+                        {selectedCourse.description || "Comprehensive hands-on training module covering foundational theory, lab setups, practical exercises, and capstone project implementations."}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                      <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 flex items-center gap-3">
+                        <Clock className="h-5 w-5 text-teal-600 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase font-bold">Duration</p>
+                          <p className="text-xs font-bold text-gray-800">{selectedCourse.duration}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-teal-50/50 p-3 rounded-xl border border-teal-100 flex items-center gap-3">
+                        <Tag className="h-5 w-5 text-teal-600 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-gray-500 uppercase font-bold">Course Fee</p>
+                          <p className="text-xs font-bold text-teal-700">
+                            {selectedCourse.price.startsWith("₹") || selectedCourse.price.toLowerCase().includes("inr") || selectedCourse.price.toLowerCase().includes("tbd") || selectedCourse.price.toLowerCase().includes("free") ? selectedCourse.price : `₹${selectedCourse.price}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100">
+                    <EnquiryForm
+                      courseInterested={selectedCourse.title}
+                      triggerButton={
+                        <button className="w-full py-3 px-6 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                          <Mail className="h-4 w-4" /> Enquire / Enroll For Course
+                        </button>
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 5. CTA BANNER ────────────────────────────────────────────── */}
+      <section className="py-20 bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-center">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl space-y-6">
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Ready to Start Your Training?
+          </h2>
+          <p className="text-xl opacity-90 max-w-2xl mx-auto">
+            Get in touch with our academic team today and let's discuss how we can help you build market-ready skills.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
+            <EnquiryForm
+              triggerButton={
+                <button className="px-8 py-3 bg-white text-teal-600 font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                  Contact Us
+                </button>
+              }
+            />
+          </div>
+        </div>
+      </section>
+
+    </div>
   );
 }

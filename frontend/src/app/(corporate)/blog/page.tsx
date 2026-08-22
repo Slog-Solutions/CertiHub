@@ -2,85 +2,39 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Clock, Tag, Search, BookOpen } from "lucide-react";
+import { ArrowUpRight, Clock, Tag, Search, BookOpen, User, ArrowRight } from "lucide-react";
 
-/* ─── Static blog posts – swap for an API call when a CMS is ready ─── */
+/* ─── Official SEO Blog Posts with Software Development Images ─── */
 const blogs = [
   {
-    id: 1,
-    title: "How AI & Machine Learning Are Reshaping Corporate Training",
+    id: "how-to-turn-a-business-idea-into-software",
+    title: "How to Turn a Business Idea Into Software: 8 Key Steps",
     excerpt:
-      "Discover how SLOG is integrating AI-driven personalised learning paths to help organisations upskill their workforce faster and more effectively.",
-    category: "AI & ML",
-    date: "August 12, 2026",
-    readTime: "5 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-cyan-500 to-blue-600",
-    icon: "🤖",
-  },
-  {
-    id: 2,
-    title: "Outbound Training: Why Teams That Play Together Stay Together",
-    excerpt:
-      "Explore the psychology behind experiential learning and how SLOG's outbound programs have transformed team dynamics across 50+ corporate clients.",
-    category: "Team Building",
-    date: "August 5, 2026",
-    readTime: "4 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-teal-500 to-emerald-600",
-    icon: "🏕️",
-  },
-  {
-    id: 3,
-    title: "GeM Portal Onboarding: A Step-by-Step Guide for MSMEs",
-    excerpt:
-      "SLOG Solutions is a registered GeM vendor. This guide walks MSMEs through vendor registration, catalogue listing, and winning their first order.",
-    category: "Government",
-    date: "July 28, 2026",
-    readTime: "6 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-violet-500 to-purple-600",
-    icon: "🏛️",
-  },
-  {
-    id: 4,
-    title: "Top 5 Civil CAD Skills Every Engineering Student Needs in 2026",
-    excerpt:
-      "From AutoCAD to BIM modelling – our trainers break down the most in-demand CAD skills that recruiters are looking for right now.",
-    category: "Student Training",
-    date: "July 20, 2026",
-    readTime: "3 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-orange-500 to-amber-600",
-    icon: "📐",
-  },
-  {
-    id: 5,
-    title: "Defence Technology: SLOG's Role in Modernising the Indian Army",
-    excerpt:
-      "An inside look at how SLOG has delivered software and lab infrastructure solutions to defence establishments across Uttarakhand.",
-    category: "Defence",
-    date: "July 10, 2026",
+      "Learn how to turn a business idea into successful software through validation, MVP development, UI/UX design, testing, launch, and scaling.",
+    category: "Startup & Product Strategy",
+    date: "August 22, 2026",
     readTime: "7 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-slate-500 to-gray-700",
-    icon: "🛡️",
+    href: "/blog/how-to-turn-a-business-idea-into-software",
+    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
+    icon: "🚀",
+    author: "Slog Engineering Team",
   },
   {
-    id: 6,
-    title: "Digital Marketing in 2026: What the Numbers Actually Say",
+    id: "custom-software-dehradun",
+    title: "Custom Software Development in Dehradun: Why Off-the-Shelf Tools Are Holding Your Business Back",
     excerpt:
-      "SLOG's digital marketing trainers analyse the latest trends – short-form video, AI-driven SEO, and hyper-personalisation – and what they mean for your career.",
-    category: "Digital Marketing",
-    date: "June 30, 2026",
-    readTime: "5 min",
-    href: "https://www.slogsolutions.com/blog",
-    gradient: "from-pink-500 to-rose-600",
-    icon: "📊",
+      "Thinking about custom software development? Here's how Dehradun businesses are ditching generic SaaS tools for solutions built around how they actually work.",
+    category: "Software Development",
+    date: "August 22, 2026",
+    readTime: "6 min",
+    href: "/blog/custom-software-development-dehradun",
+    image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
+    icon: "💻",
+    author: "Slog Engineering Team",
   },
 ];
 
-const categories = ["All", ...Array.from(new Set(blogs.map((b) => b.category)))];
+const categories = ["All", "Software Development", "Startup & Product Strategy"];
 
 export default function BlogPage() {
   const [visible, setVisible] = useState(false);
@@ -117,17 +71,16 @@ export default function BlogPage() {
         >
           <span className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold px-4 py-1.5 rounded-full mb-5">
             <BookOpen className="h-3.5 w-3.5" />
-            Slog Solutions Blog
+            Slog Solutions Official Blog
           </span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
-            Insights, Ideas &amp;{" "}
+            Insights, Engineering &amp;{" "}
             <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">
-              Industry News
+              Software Development
             </span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-10">
-            Stay updated with the latest from the world of training, technology, and
-            innovation — straight from the SLOG team in Dehradun.
+            Stay updated with the latest in custom software development, startup MVP building, IoT lab setups, and digital innovation from SLOG Solutions in Dehradun.
           </p>
 
           {/* Search */}
@@ -135,7 +88,7 @@ export default function BlogPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search articles…"
+              placeholder="Search articles..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-white/5 border border-white/10 text-white placeholder-gray-500 rounded-xl pl-11 pr-5 py-3 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition"
@@ -166,63 +119,61 @@ export default function BlogPage() {
 
       {/* ── Blog Grid ── */}
       <section className="px-6 pb-24">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {filtered.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
               <p className="text-5xl mb-4">🔍</p>
               <p className="text-lg font-medium">No articles found.</p>
-              <p className="text-sm mt-1">Try a different search term or category.</p>
+              <p className="text-sm mt-1">Try searching for &quot;custom software&quot; or &quot;idea into software&quot;.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((post, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {filtered.map((post) => (
                 <article
                   key={post.id}
-                  style={{ transitionDelay: `${i * 60}ms` }}
-                  className={`group flex flex-col bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 ${
-                    visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
-                  }`}
+                  className="group flex flex-col bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-cyan-500/40 hover:shadow-2xl transition-all duration-300 justify-between"
                 >
-                  {/* Card header gradient */}
-                  <div
-                    className={`h-36 bg-gradient-to-br ${post.gradient} flex items-center justify-center text-5xl select-none`}
-                  >
-                    {post.icon}
-                  </div>
-
-                  {/* Card body */}
-                  <div className="flex flex-col flex-1 p-5 gap-3">
-                    {/* Meta */}
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500">
-                      <span className="bg-cyan-500/10 text-cyan-400 font-semibold px-2 py-0.5 rounded-full">
+                  <div>
+                    {/* Image Header */}
+                    <div className="h-56 relative overflow-hidden bg-slate-900">
+                      <img
+                        src={post.image}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute top-4 left-4 bg-teal-500 text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
                         {post.category}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {post.readTime} read
-                      </span>
-                      <span>{post.date}</span>
+                      </div>
                     </div>
 
-                    {/* Title */}
-                    <h2 className="text-sm font-bold text-white leading-snug group-hover:text-cyan-300 transition-colors line-clamp-2">
-                      {post.title}
-                    </h2>
+                    {/* Body */}
+                    <div className="p-6 space-y-3">
+                      <div className="flex items-center gap-3 text-xs text-cyan-400 font-medium">
+                        <span className="flex items-center gap-1">
+                          <User className="h-3.5 w-3.5" /> {post.author}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" /> {post.readTime}
+                        </span>
+                      </div>
 
-                    {/* Excerpt */}
-                    <p className="text-xs text-gray-400 leading-relaxed line-clamp-3 flex-1">
-                      {post.excerpt}
-                    </p>
+                      <h2 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                        <Link href={post.href}>{post.title}</Link>
+                      </h2>
 
-                    {/* Read more */}
+                      <p className="text-gray-300 text-xs sm:text-sm leading-relaxed line-clamp-3">
+                        {post.excerpt}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-6 pt-0">
                     <Link
                       href={post.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
+                      className="inline-flex items-center gap-2 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors group-hover:translate-x-1 duration-200"
                     >
-                      Read Article
-                      <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      Read Full Guide <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </article>
@@ -236,19 +187,18 @@ export default function BlogPage() {
       <section className="px-6 pb-20">
         <div className="max-w-4xl mx-auto bg-gradient-to-r from-cyan-600/20 to-teal-600/20 border border-cyan-500/20 rounded-2xl p-10 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-            Want to write for us?
+            Ready to Turn Your Business Idea Into Software?
           </h2>
           <p className="text-gray-400 text-sm mb-6 max-w-xl mx-auto">
-            Are you an expert in technology, training, or industry trends? We&apos;d love
-            to feature your insights on the SLOG Blog.
+            Get in touch with Slog Solutions to discuss custom software development, MVP building, IoT lab setups, and product development tailored to your team&apos;s vision.
           </p>
-          <a
-            href="mailto:info@slogsolutions.com"
+          <Link
+            href="/development"
             className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white font-semibold text-sm px-6 py-3 rounded-full transition-colors shadow-lg shadow-cyan-500/20"
           >
-            Get in Touch
+            Explore Development Services
             <ArrowUpRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </section>
     </main>

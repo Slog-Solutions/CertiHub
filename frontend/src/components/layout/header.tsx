@@ -43,7 +43,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/#services", label: "Services" },
   { href: "/#resources", label: "Resources" },
-  { href: "/about", label: "About Us" },
+  { href: "/user", label: "Student Portal" },
   { href: "/mentors", label: "Slog Ascend" },
   { href: "/blog", label: "Blog" },
   { href: "/#contact", label: "Contact" },
@@ -121,6 +121,7 @@ const services = [
 ];
 
 const resourcesItems = [
+  { href: "/about", label: "About Us" },
   { href: "#joinus", label: "Join Us" },
   { href: "https://slogedu.slogsolutions.com/", label: "LMS" },
   { href: "/verify", label: "Verify Certificates" },
@@ -219,9 +220,8 @@ export default function Header() {
 
                   {/* Dropdown */}
                   <div
-                    className={`absolute left-0 pt-2 w-[850px] transition-all duration-200 ${
-                      isDropdownOpen ? "opacity-100 visible" : "opacity-0 invisible"
-                    }`}
+                    className={`absolute left-0 pt-2 w-[850px] transition-all duration-200 ${isDropdownOpen ? "opacity-100 visible" : "opacity-0 invisible"
+                      }`}
                   >
                     <div
                       className="flex bg-gray-900 text-white rounded-xl shadow-lg border border-gray-800 overflow-hidden z-50"
@@ -240,9 +240,8 @@ export default function Header() {
                                 setActiveMain(service.name);
                                 setSelectedService(service);
                               }}
-                              className={`block p-3 font-semibold transition-all duration-300 hover:bg-gray-200/70 hover:text-cyan-700 ${
-                                activeMain === service.name ? "bg-gray-100 text-cyan-700" : ""
-                              }`}
+                              className={`block p-3 font-semibold transition-all duration-300 hover:bg-gray-200/70 hover:text-cyan-700 ${activeMain === service.name ? "bg-gray-100 text-cyan-700" : ""
+                                }`}
                             >
                               {service.name}
                             </Link>
@@ -326,11 +325,10 @@ export default function Header() {
 
                   {/* Resources dropdown */}
                   <div
-                    className={`absolute left-1/2 transform -translate-x-1/2 pt-3 transition-all duration-200 ${
-                      isResourcesDropdownOpen
+                    className={`absolute left-1/2 transform -translate-x-1/2 pt-3 transition-all duration-200 ${isResourcesDropdownOpen
                         ? "opacity-100 visible"
                         : "opacity-0 invisible"
-                    }`}
+                      }`}
                   >
                     <div
                       className="bg-gray-900 text-white rounded-xl shadow-lg border border-gray-800 overflow-hidden z-50"
@@ -343,7 +341,7 @@ export default function Header() {
                             <Button variant="ghost" className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm hover:text-black">
                               {res.label}
                             </Button>
-                          }/>
+                          } />
                         ) : (
                           <Link
                             key={res.label}
@@ -389,13 +387,13 @@ export default function Header() {
                 </Button>
               }
             />
-              <EnquiryForm
-                  triggerButton={
-            <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white">
-              Enquiry
-            </Button>
-                  }
-                />
+            <EnquiryForm
+              triggerButton={
+                <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white">
+                  Enquiry
+                </Button>
+              }
+            />
           </div>
 
           {/* Mobile Menu */}
@@ -428,20 +426,20 @@ export default function Header() {
                     <X className="h-6 w-6" />
                   </Button>
                 </div>
-                
+
                 <nav className="flex flex-col space-y-4">
                   {navItems.map((item) => (
                     <div key={item.label}>
                       {item.label === "Services" ? (
                         <div>
-                          <button 
+                          <button
                             className="flex items-center justify-between w-full text-lg font-bold hover:text-cyan-400 py-2"
                             onClick={() => setMobileServicesOpen(!mobileServicesOpen)}
                           >
                             <span>{item.label}</span>
                             <ChevronDown className={`h-5 w-5 transition-transform ${mobileServicesOpen ? 'rotate-180' : ''}`} />
                           </button>
-                          
+
                           {mobileServicesOpen && (
                             <div className="pl-4 mt-2 space-y-3 border-l border-gray-700">
                               {services.map((service) => (
@@ -474,14 +472,14 @@ export default function Header() {
                         </div>
                       ) : item.label === "Resources" ? (
                         <div>
-                          <button 
+                          <button
                             className="flex items-center justify-between w-full text-lg font-bold hover:text-cyan-400 py-2"
                             onClick={() => setMobileResourcesOpen(!mobileResourcesOpen)}
                           >
                             <span>{item.label}</span>
                             <ChevronDown className={`h-5 w-5 transition-transform ${mobileResourcesOpen ? 'rotate-180' : ''}`} />
                           </button>
-                          
+
                           {mobileResourcesOpen && (
                             <div className="pl-4 mt-2 space-y-2 border-l border-gray-700">
                               {resourcesItems.map((res) => (
@@ -490,7 +488,7 @@ export default function Header() {
                                     <Button variant="ghost" className="block w-full text-left font-normal text-gray-300 hover:text-cyan-400 px-0 py-0">
                                       {res.label}
                                     </Button>
-                                  }/>
+                                  } />
                                 ) : (
                                   <Link
                                     key={res.label}
@@ -517,12 +515,12 @@ export default function Header() {
                     </div>
                   ))}
                 </nav>
-                
+
                 <div className="mt-8 flex flex-col space-y-4">
-                  
+
                   <JoinUsForm
                     triggerButton={
-                      <Button 
+                      <Button
                         variant="outline"
                         className="rounded-full w-full"
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -533,7 +531,7 @@ export default function Header() {
                   />
                   <EnquiryForm
                     triggerButton={
-                      <Button 
+                      <Button
                         className="rounded-full w-full bg-cyan-500 hover:bg-cyan-600 text-white"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >

@@ -1,135 +1,176 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import EnquiryForm from "@/components/EnquiryForm";
-// Ministry of Defence services data
+import {
+  ShieldCheck,
+  Lock,
+  Cpu,
+  Server,
+  FileCheck,
+  Award,
+  CheckCircle2,
+  Users,
+  Building2,
+  Sparkles,
+  ArrowRight,
+  Clock,
+  Briefcase,
+  PhoneCall,
+  Mail,
+  Layers,
+  Target,
+  Zap,
+  Radio,
+  KeyRound,
+  Terminal,
+} from "lucide-react";
+
+import armyImg from "@/assets/ArmyTraing.png";
+
+// Ministry of Defence Services Data
 const services = [
   {
     id: 1,
-    title: "Specialized Defence Training",
-    subtitle: "Advanced training programs for defence personnel",
-    description: "Our specialized defence training programs are designed to enhance the capabilities of military personnel through cutting-edge techniques, simulation-based learning, and strategic skill development. We focus on both physical readiness and mental agility required in modern defence scenarios.",
+    title: "Tactical Cyber Security & Information Defence",
+    subtitle: "Advanced military-grade cybersecurity & network hardening",
+    icon: ShieldCheck,
+    badge: "Ministry Clearance",
+    image: armyImg,
+    description: "Our specialized defence cyber training programs enhance the operational security of military networks through threat intelligence, penetration testing, air-gapped system isolation, and Incident Response Playbooks.",
     features: [
-      "Combat training simulations",
-      "Strategic leadership development",
-      "Technical equipment operation",
-      "Tactical decision-making exercises",
-      "Cyber warfare preparedness",
-      "Joint operations coordination"
+      "Information warfare & tactical threat analysis",
+      "Network hardening & perimeter penetration testing",
+      "Air-gapped database encryption & audit trails",
+      "Encrypted communications & secure radio protocols",
+      "Tactical decision-making under cyber warfare scenarios",
+      "Joint operations coordination & command center SOPs",
     ],
-    duration: "Customizable Programs",
-    participants: "Military Personnel Only",
-    security: "Top Secret Clearance Required",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-      </svg>
-    )
+    duration: "1 to 3 Weeks / Custom",
+    participants: "Military & Defence Personnel Only",
+    security: "Top Secret Clearance Protocol",
   },
   {
     id: 2,
-    title: "Defence Software Solutions",
-    subtitle: "Secure and robust software for defence applications",
-    description: "We develop mission-critical software solutions with the highest security standards for defence applications. Our systems are built with encryption, redundancy, and reliability at their core, ensuring operational continuity even in the most challenging environments.",
+    title: "Encrypted Defence Software & Command Systems",
+    subtitle: "Mission-critical, high-availability software solutions",
+    icon: Server,
+    badge: "Mission Critical",
+    image: armyImg,
+    description: "We develop custom mission-critical software built with AES-256 encryption, zero-trust access architecture, and real-time surveillance analytics designed to operate reliably in harsh operational environments.",
     features: [
-      "Encrypted communication systems",
-      "Command and control interfaces",
-      "Real-time surveillance software",
-      "Data analysis and intelligence platforms",
-      "Secure messaging applications",
-      "Logistics and resource management"
+      "Encrypted tactical communication interfaces",
+      "Command and control (C2) dashboard systems",
+      "Real-time aerial & perimeter surveillance software",
+      "High-speed intelligence data aggregation platforms",
+      "Secure offline messaging & telemetry applications",
+      "Logistics, inventory & armory management systems",
     ],
-    duration: "Project-Based",
-    participants: "Authorized Personnel Only",
-    security: "Classified Clearance Required",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-      </svg>
-    )
+    duration: "Project-Based Engagement",
+    participants: "Authorized Security Personnel",
+    security: "Classified Clearance Level",
   },
   {
     id: 3,
-    title: "Defence Lab Infrastructure",
-    subtitle: "High-security laboratory setups for defence R&D",
-    description: "We design and implement secure laboratory environments tailored for defence research and development. Our facilities meet the highest security protocols while providing cutting-edge technology for innovation in defence systems, materials, and technologies.",
+    title: "High-Security Defence Lab Setup",
+    subtitle: "R&D laboratory infrastructure meeting strict defence standards",
+    icon: Cpu,
+    badge: "Infrastructure",
+    image: armyImg,
+    description: "We design, equip, and commission high-security R&D laboratory environments tailored for defence research, biometric access control, Faraday cage EMF shielding, and secure hardware testing.",
     features: [
-      "Biometric access control systems",
-      "EMF shielding and secure networking",
-      "Specialized testing equipment",
-      "Controlled environment chteals",
-      "Secure data storage solutions",
-      "Surveillance and monitoring systems"
+      "Biometric & multi-factor physical access control",
+      "Faraday cage EMF shielding & secure network wiring",
+      "Specialized hardware testing & diagnostic equipment",
+      "Cleanroom environmental control systems",
+      "Air-gapped local storage & encrypted data backup",
+      "24/7 CCTV surveillance & automated perimeter alerts",
     ],
-    duration: "Custom Implementation",
+    duration: "Custom Infrastructure Implementation",
     participants: "Cleared Research Personnel",
     security: "Restricted Access Facility",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-8 0H3m2 0h4M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>
-    )
-  }
+  },
+  {
+    id: 4,
+    title: "Onsite Cantonment & Unit Training Bootcamps",
+    subtitle: "Direct on-premise technical workshops at military units",
+    icon: Building2,
+    badge: "Onsite Execution",
+    image: armyImg,
+    description: "Our certified trainers conduct hands-on technical bootcamps directly at military units, command headquarters, and defence establishments across India with zero security compromise.",
+    features: [
+      "Customized curriculum based on unit requirement",
+      "Offline sandbox lab kits brought to client premises",
+      "Hands-on hardware & software troubleshooting",
+      "Practical command exercises & digital simulations",
+      "Official certificate issuance & performance logs",
+    ],
+    duration: "1 to 2 Weeks",
+    participants: "Unit Batches (20 - 100 Personnel)",
+    security: "Onsite Verification Required",
+  },
 ];
 
-// Testimonials from defence personnel
+// Strategic Advantages / Benefits Data
+const benefits = [
+  {
+    title: "GeM Registered Vendor",
+    description: "Empaneled on Government e-Marketplace (GeM) for swift, transparent procurement.",
+    icon: "📜",
+  },
+  {
+    title: "Military-Grade Security",
+    description: "All training methodologies and software meet military encryption and air-gapped standards.",
+    icon: "🔒",
+  },
+  {
+    title: "Tailored Clearance Modules",
+    description: "Customized curricula aligned with specific unit SOPs, operational parameters, and clearance levels.",
+    icon: "⚙️",
+  },
+  {
+    title: "Proven Defence Track Record",
+    description: "Battle-tested solutions refined through extensive collaboration with defence organizations.",
+    icon: "🎖️",
+  },
+  {
+    title: "Certified Security Specialists",
+    description: "Instructors include top security-cleared software architects and cybersecurity specialists.",
+    icon: "👨‍💻",
+  },
+  {
+    title: "24/7 Operational Support",
+    description: "Dedicated support desk ensuring continuous reliability for critical deployments.",
+    icon: "🛡️",
+  },
+];
+
+// Testimonials from Defence Personnel
 const testimonials = [
   {
     id: 1,
     name: "Col. Vikram Singh",
     role: "Indian Army",
-    content: "The training program significantly enhanced our unit's operational readiness. The simulation systems were exceptionally realistic and valuable.",
-    avatar: "VS"
+    content: "Slog Solutions' cybersecurity training program significantly enhanced our unit's digital readiness. The hands-on simulations were realistic and highly effective.",
+    avatar: "VS",
   },
   {
     id: 2,
     name: "Dr. Anjali Mehta",
     role: "Defence Research Scientist",
-    content: "The secure lab infrastructure has accelerated our research while maintaining the highest security standards. The technical support is exceptional.",
-    avatar: "AM"
+    content: "The secure lab infrastructure implemented by Slog Solutions has accelerated our R&D while strictly maintaining top-level security protocols.",
+    avatar: "AM",
   },
   {
     id: 3,
     name: "Wing Commander R. Sharma",
     role: "Indian Air Force",
-    content: "The custom software solutions have revolutionized our command and control capabilities. The encryption standards are impeccable.",
-    avatar: "RS"
-  }
-];
-
-// Benefits data
-const benefits = [
-  {
-    title: "Enhanced Security",
-    description: "All our solutions meet the highest defence security protocols and encryption standards.",
-    icon: "🔒"
+    content: "The software and encryption modules delivered by their engineering team are reliable, user-friendly, and compliant with military standards.",
+    avatar: "RS",
   },
-  {
-    title: "Cutting-Edge Technology",
-    description: "We utilize the latest advancements in defence technology and research methodologies.",
-    icon: "🛠️"
-  },
-  {
-    title: "Custom Solutions",
-    description: "Every program is tailored to specific defence requirements and operational parameters.",
-    icon: "⚙️"
-  },
-  {
-    title: "Expert Personnel",
-    description: "Our team includes former defence specialists and top security-cleared experts.",
-    icon: "👨‍💼"
-  },
-  {
-    title: "Proven Methodologies",
-    description: "We employ battle-tested approaches refined through years of defence collaboration.",
-    icon: "📊"
-  },
-  {
-    title: "Continuous Support",
-    description: "Round-the-clock technical support and maintenance for all deployed solutions.",
-    icon: "🛡️"
-  }
 ];
 
 export default function MinistryOfDefence() {
@@ -137,57 +178,106 @@ export default function MinistryOfDefence() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
-      {/* Hero Section */}
-      <section className="relative py-20 overflow-hidden bg-gradient-to-r from-teal-800 to-blue-900">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48ZyBmaWxsPSJub25lIiBzdHJva2U9IiM0NDQiIHN0cm9rZS13aWR0aD0iMC41IiBvcGFjaXR5PSIwLjIiPjxwYXRoIGQ9Ik0zMCwzMCBMNDUsMTUgTTMwLDMwIEwxNSw0NSBNMzAsMzAgTDE1LDE1IE0zMCwzMCBMNDUsNDUiLz48L2c+PC9zdmc+')] opacity-20"></div>
+      
+      {/* ── 1. HERO SECTION WITH ARMY IMAGE OVERLAY ──────────────────── */}
+      <section className="relative py-24 overflow-hidden bg-gradient-to-r from-teal-800 to-blue-900 text-white">
+        <div className="absolute inset-0 -z-10 opacity-25">
+          <Image
+            src={armyImg}
+            alt="Slog Defence Training Session"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-teal-950 via-teal-900/90 to-blue-950" />
         </div>
-        
+
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <div className="mb-6 flex justify-center">
-              <div className="bg-gray-700 text-gray-200 px-4 py-2 rounded-full text-sm font-semibold">
-                Ministry of Defence Approved Vendor
-              </div>
-            </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
-              Ministry of <span className="text-teal-600">Defence</span> Solutions
-            </h1>
-            <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-              Specialized training, secure software, and high-security infrastructure for defence applications.
-            </p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            <motion.div 
+            {/* Left Column Content */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="lg:col-span-7 space-y-6 text-left"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-teal-500/20 text-teal-300 border border-teal-400/30 text-xs font-bold rounded-full backdrop-blur-md">
+                <ShieldCheck className="h-4 w-4 text-teal-400" /> GeM Registered & Defence Approved Vendor
+              </div>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight">
+                Ministry of <span className="text-teal-400">Defence</span> Solutions
+                <span className="block text-2xl sm:text-3xl font-light text-teal-200 mt-2">Tactical Training, Secure Software & Infrastructure</span>
+              </h1>
+
+              <p className="text-base sm:text-lg text-blue-100 max-w-2xl leading-relaxed">
+                Empowering military personnel, defence establishments, and public sector units with specialized cyber security bootcamps, encrypted software systems, and high-security lab setups.
+              </p>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="flex flex-wrap gap-4 pt-2"
+              >
+                <EnquiryForm
+                  triggerButton={
+                    <button className="px-8 py-3.5 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                      Request Secure Briefing
+                    </button>
+                  }
+                />
+                <Link
+                  href="#services"
+                  className="px-8 py-3.5 border-2 border-teal-400/50 text-white font-bold rounded-full hover:bg-white/10 transition-colors duration-300 flex items-center gap-2"
+                >
+                  Explore Capabilities <ArrowRight className="h-4 w-4 text-teal-300" />
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            {/* Right Column Featured Army Image Card */}
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="flex flex-wrap justify-center gap-4"
+              transition={{ delay: 0.2, duration: 0.8 }}
+              className="lg:col-span-5"
             >
-              <EnquiryForm
-                                    triggerButton={
-                                      <button className="px-8 py-3 bg-teal-600 text-white font-semibold rounded shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:bg-teal-700">
-                Request Information
-              </button>
-                                    }
-                                />
-              
-              {/* <button className="px-8 py-3 border-2 border-gray-300 text-gray-300 font-semibold rounded hover:bg-gray-700 transition-colors duration-300">
-                Contact Security Desk
-              </button> */}
+              <div className="relative rounded-3xl overflow-hidden border-2 border-teal-400/40 shadow-2xl bg-white p-3 group">
+                <div className="relative h-[320px] sm:h-[380px] rounded-2xl overflow-hidden">
+                  <Image
+                    src={armyImg}
+                    alt="Slog Army Defence Training Program"
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
+
+                  {/* Badge Overlay */}
+                  <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-teal-500 rounded-lg text-white">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Defence Training in Action</h4>
+                        <p className="text-xs text-teal-200">High-Security Operational & Technical Readiness</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
-          </motion.div>
+
+          </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* ── 2. STRATEGIC ADVANTAGES / BENEFITS ──────────────────────── */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -198,7 +288,7 @@ export default function MinistryOfDefence() {
               Strategic <span className="text-teal-600">Advantages</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Our defence solutions provide critical advantages for national security operations.
+              Our defence solutions deliver critical advantages built around zero-trust security and government procurement compliance.
             </p>
           </motion.div>
 
@@ -210,13 +300,13 @@ export default function MinistryOfDefence() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="bg-gradient-to-br from-white to-gray-50 rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 group"
+                className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group"
               >
-                <div className="text-3xl mb-4">{benefit.icon}</div>
+                <div className="text-4xl mb-4">{benefit.icon}</div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors duration-300">
                   {benefit.title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm leading-relaxed">
                   {benefit.description}
                 </p>
               </motion.div>
@@ -225,10 +315,10 @@ export default function MinistryOfDefence() {
         </div>
       </section>
 
-      {/* Services Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-100 to-gray-200">
+      {/* ── 3. DEFENCE SERVICES SHOWCASE ─────────────────────────────── */}
+      <section className="py-20 bg-gradient-to-br from-teal-50 to-cyan-50 border-y border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -236,67 +326,51 @@ export default function MinistryOfDefence() {
             className="text-center mb-16"
           >
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Defence <span className="text-teal-600">Services</span>
+              Defence <span className="text-teal-600">Services & Capabilities</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Specialized solutions designed specifically for Ministry of Defence requirements.
+              Specialized technical offerings tailored to Ministry of Defence parameters.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {services.map((service, index) => (
-              <motion.div
-                key={service.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-200 group cursor-pointer"
-                onClick={() => setActiveTab(index)}
-              >
-                <div className="mb-6 flex justify-center">
-                  <div className="p-4 bg-teal-100 rounded-lg text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300">
-                    {service.icon}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {services.map((service, index) => {
+              const Icon = service.icon;
+              return (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 group cursor-pointer"
+                  onClick={() => setActiveTab(index)}
+                >
+                  <div className="mb-6 flex justify-center">
+                    <div className="p-4 bg-teal-100 rounded-2xl text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300">
+                      <Icon className="h-8 w-8" />
+                    </div>
                   </div>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors duration-300">
-                  {service.title}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {service.subtitle}
-                </p>
-                
-                <div className="flex justify-between text-sm text-gray-500 mb-4">
-                  <span className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {service.duration}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-teal-600 transition-colors duration-300">
+                    {service.title}
+                  </h3>
+                  <p className="text-gray-600 text-xs mb-4 leading-relaxed">
+                    {service.subtitle}
+                  </p>
+                  <span className="text-[11px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-100 inline-block">
+                    {service.badge}
                   </span>
-                  <span className="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    {service.security}
-                  </span>
-                </div>
-                
-                {/* <button className="text-teal-600 font-semibold flex items-center group-hover:underline">
-                  Classified details
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button> */}
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Detailed Service Section */}
-      <section className="py-20 bg-white">
+      {/* ── 4. DETAILED SPECIFICATIONS (TABBED SHOWCASE) ─────────────── */}
+      <section id="services" className="py-20 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -307,15 +381,20 @@ export default function MinistryOfDefence() {
               Service <span className="text-teal-600">Specifications</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Detailed information about our specialized defence solutions (clearance required).
+              Explore technical capabilities and security protocols for each defence program.
             </p>
           </motion.div>
 
-          <div className="flex flex-wrap mb-8 border-b border-gray-200">
+          {/* Service Tabs */}
+          <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200 justify-center">
             {services.map((service, index) => (
               <button
                 key={service.id}
-                className={`px-6 py-3 font-semibold text-lg border-b-2 transition-colors duration-300 ${activeTab === index ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-teal-600'}`}
+                className={`px-4 sm:px-6 py-2.5 sm:py-3 font-semibold text-sm sm:text-base border-b-2 transition-colors duration-300 whitespace-nowrap ${
+                  activeTab === index
+                    ? "border-teal-600 text-teal-600"
+                    : "border-transparent text-gray-500 hover:text-teal-500"
+                }`}
                 onClick={() => setActiveTab(index)}
               >
                 {service.title}
@@ -323,6 +402,7 @@ export default function MinistryOfDefence() {
             ))}
           </div>
 
+          {/* Active Tab Panel */}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -330,139 +410,81 @@ export default function MinistryOfDefence() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
-              className="bg-gray-100 rounded-lg shadow-md p-8"
+              className="bg-gray-50 rounded-2xl shadow-lg p-8 border border-gray-100"
             >
-              <div className="flex flex-col md:flex-row gap-8">
-                <div className="md:w-2/3">
-                  <div className="flex items-center mb-4">
-                    <div className="bg-teal-100 p-3 rounded-lg text-teal-600 mr-4">
-                      {services[activeTab].icon}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {services[activeTab].title}
-                      </h3>
-                      <p className="text-gray-600">
-                        {services[activeTab].subtitle}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-gray-600 mb-6 border-l-4 border-teal-500 pl-4 py-2 bg-teal-50">
+              <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
+                <div className="md:w-2/3 space-y-4">
+                  <span className="px-3 py-1 bg-teal-100 text-teal-800 text-xs font-bold rounded-full">
+                    {services[activeTab].badge}
+                  </span>
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {services[activeTab].title}
+                  </h3>
+                  <p className="text-gray-600 text-base leading-relaxed">
                     {services[activeTab].description}
                   </p>
-                  
-                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Key Features:</h4>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
-                    {services[activeTab].features.map((feature, index) => (
-                      <motion.li 
-                        key={index}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-start bg-white p-3 rounded border border-gray-200"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600 mr-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-gray-700">{feature}</span>
-                      </motion.li>
-                    ))}
-                  </ul>
-                  
-                  {/* <div className="bg-white p-4 rounded-lg shadow-sm mb-6 border border-gray-200">
-                    <h4 className="font-semibold text-gray-900 mb-2">Operational Details:</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span><strong>Duration:</strong> {services[activeTab].duration}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        <span><strong>Personnel:</strong> {services[activeTab].participants}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                        <span><strong>Security Level:</strong> {services[activeTab].security}</span>
-                      </div>
-                    </div>
-                  </div> */}
-                  <EnquiryForm
-                      triggerButton={
-                        <button className="px-6 py-3 bg-teal-600 text-white font-semibold rounded shadow-md hover:bg-teal-700 transition-colors duration-300 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Request Secure Briefing
-                  </button>
-                      }
-                  />
-                  
-                </div>
-                
-                <div className="md:w-1/3">
-                  <div className="bg-teal-50 rounded-lg p-6 border border-teal-200">
-                    <h4 className="text-lg font-semibold text-teal-800 mb-4">Security Protocols</h4>
-                    <ul className="space-y-3">
-                      <li className="flex items-start">
-                        <div className="bg-teal-100 rounded-full p-2 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-teal-700">Multi-factor authentication required</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-teal-100 rounded-full p-2 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-teal-700">Background verification mandatory</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-teal-100 rounded-full p-2 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-teal-700">Secure facility access only</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-teal-100 rounded-full p-2 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-teal-700">Encrypted communications</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="bg-teal-100 rounded-full p-2 mr-3">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-teal-700">Regular security audits</span>
-                      </li>
-                    </ul>
+
+                  <div className="flex flex-wrap gap-4 pt-2 text-xs font-semibold text-gray-700">
+                    <span className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 flex items-center gap-1.5">
+                      <Clock className="h-4 w-4 text-teal-600" /> Duration: {services[activeTab].duration}
+                    </span>
+                    <span className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-teal-600" /> Target: {services[activeTab].participants}
+                    </span>
+                    <span className="bg-white px-3 py-1.5 rounded-lg border border-gray-200 flex items-center gap-1.5">
+                      <Lock className="h-4 w-4 text-teal-600" /> Security: {services[activeTab].security}
+                    </span>
                   </div>
                 </div>
+
+                <div className="md:w-1/3 bg-white p-6 rounded-xl border border-teal-100 shadow-sm w-full space-y-3">
+                  <h4 className="font-bold text-teal-800 text-base">Security Compliance:</h4>
+                  <ul className="space-y-2 text-xs text-gray-700">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" /> Zero-Trust Access Architecture
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" /> AES-256 Air-Gapped Encryption
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" /> GeM Procurement Compliance
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" /> Certified Onsite Instructors
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Modules List */}
+              <h4 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-200 pb-3">Core Deliverables & Features:</h4>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+                {services[activeTab].features.map((feature, fIdx) => (
+                  <li key={fIdx} className="flex items-start bg-white p-3.5 rounded-xl border border-gray-100 text-sm text-gray-700">
+                    <CheckCircle2 className="h-5 w-5 text-teal-600 mr-2 mt-0.5 shrink-0" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex justify-center pt-2">
+                <EnquiryForm
+                  triggerButton={
+                    <button className="px-8 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 transition-colors flex items-center gap-2">
+                      <Lock className="h-4 w-4" /> Request Secure Briefing
+                    </button>
+                  }
+                />
               </div>
             </motion.div>
           </AnimatePresence>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-br from-gray-100 to-gray-200">
+      {/* ── 5. TESTIMONIALS & ENDORSEMENTS ──────────────────────────── */}
+      <section className="py-20 bg-gradient-to-br from-teal-50 to-blue-50 border-t border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -473,36 +495,33 @@ export default function MinistryOfDefence() {
               Defence <span className="text-teal-600">Endorsements</span>
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Feedback from defence personnel who have utilized our specialized services.
+              Feedback from military personnel and research scientists who have completed our programs.
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
+            {testimonials.map((t, index) => (
               <motion.div
-                key={testimonial.id}
+                key={t.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200"
+                className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-100"
               >
                 <div className="flex items-center mb-4">
                   <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-800 font-bold mr-4">
-                    {testimonial.avatar}
+                    {t.avatar}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>
-                    <p className="text-sm text-teal-600">{testimonial.role}</p>
+                    <h4 className="font-semibold text-gray-900">{t.name}</h4>
+                    <p className="text-xs text-teal-600 font-medium">{t.role}</p>
                   </div>
                 </div>
-                <p className="text-gray-600 italic">"{testimonial.content}"</p>
-                
+                <p className="text-gray-600 text-sm italic leading-relaxed">"{t.content}"</p>
                 <div className="flex mt-4">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-teal-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
+                    <span key={star} className="text-amber-400 text-sm">★</span>
                   ))}
                 </div>
               </motion.div>
@@ -511,36 +530,28 @@ export default function MinistryOfDefence() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      {/* <section className="py-20 bg-gradient-to-r from-gray-900 to-gray-800 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Secure Defence Solutions
-            </h2>
-            <p className="text-xl opacity-90 mb-10 max-w-2xl mx-auto">
-              Contact our secure desk for classified information about our defence services.
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4">
-              <button className="px-8 py-3 bg-teal-600 text-white font-semibold rounded shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:bg-teal-700 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Secure Inquiry
-              </button>
-              <button className="px-8 py-3 border-2 border-gray-300 text-gray-300 font-semibold rounded hover:bg-gray-700 transition-colors duration-300">
-                Official Documentation
-              </button>
-            </div>
-          </motion.div>
+      {/* ── 6. FINAL CTA BANNER ──────────────────────────────────────── */}
+      <section className="py-20 bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-center">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl space-y-6">
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Secure Defence Solutions
+          </h2>
+          <p className="text-xl opacity-90 max-w-2xl mx-auto">
+            Contact our secure desk today for official proposals, GeM procurement details, or classified briefings.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
+            <EnquiryForm
+              triggerButton={
+                <button className="px-8 py-3.5 bg-white text-teal-600 font-bold rounded-full shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Secure Inquiry
+                </button>
+              }
+            />
+          </div>
         </div>
-      </section> */}
+      </section>
+
     </div>
   );
 }
