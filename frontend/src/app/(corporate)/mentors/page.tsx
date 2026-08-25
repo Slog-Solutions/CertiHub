@@ -5,9 +5,11 @@ import Image from "next/image";
 import "./mentor.css"; // keep your custom CSS
 
 interface Mentor {
+  _id?: string;
   name: string;
   designation: string;
   image: string;
+  sortOrder?: number;
 }
 
 export default function MentorsPage() {
@@ -194,8 +196,12 @@ export default function MentorsPage() {
         return res.json();
       })
       .then((data) => {
-        if (data) {
-          setMentors(data && data.length > 0 ? data : fallbacks);
+        if (data && Array.isArray(data) && data.length > 0) {
+          const sorted = [...data].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+          setMentors(sorted);
+          setLoading(false);
+        } else {
+          setMentors(fallbacks);
           setLoading(false);
         }
       })
@@ -248,11 +254,12 @@ export default function MentorsPage() {
                 <div className="flip-card-front bg-white">
                   <div className="relative w-full h-80">
                     <Image
-                      src={mentor.image}
+                      src={mentor.image?.startsWith('http') ? mentor.image : `${process.env.NEXT_PUBLIC_API_URL || ''}${mentor.image}`}
                       alt={mentor.name}
                       fill
                       className="object-cover w-full h-full"
                       priority={index < 4}
+                      unoptimized={!mentor.image?.startsWith('http')}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900/50 via-stone-900/10 to-transparent"></div>
                   </div>

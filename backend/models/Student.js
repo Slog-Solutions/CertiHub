@@ -100,6 +100,9 @@ const studentSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  completionDate: {
+    type: Date
+  },
   location: {
     type: String,
     default: ''

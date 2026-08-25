@@ -62,33 +62,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/dashboard/:path*',
-          destination: '/dashboard',
-        },
-        {
-          source: '/verify/:path*',
-          destination: '/verify',
-        },
-        {
-          source: '/user/:path*',
-          destination: '/user',
-        },
-        {
-          source: '/api/:path*',
-          destination: 'http://localhost:5001/api/:path*',
-        },
-        {
-          source: '/uploads/:path*',
-          destination: 'http://localhost:5001/uploads/:path*',
-        },
-      ];
-    }
-    return [];
-  },
 };
 
 export default nextConfig;

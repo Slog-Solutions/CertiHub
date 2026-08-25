@@ -8,30 +8,30 @@ import Header from './components/Header';
 import WebNavbar from './components/WebNavbar';
 import WebFooter from './components/WebFooter';
 
-// Public Pages
-import Home from './pages/Home';
-import AboutUs from './pages/AboutUs';
-import ContactUs from './pages/ContactUs';
-import Courses from './pages/Courses';
+// Public Views
+import Home from './views/Home';
+import AboutUs from './views/AboutUs';
+import ContactUs from './views/ContactUs';
+import Courses from './views/Courses';
 
-// Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Masters from './pages/Masters';
-import Users from './pages/Users';
-import Registration from './pages/Registration';
-import CourseLinks from './pages/CourseLinks';
-import Fees from './pages/Fees';
-import Discounts from './pages/Discounts';
-import Enquiries from './pages/Enquiries';
-import Certificates from './pages/Certificates';
-import Reports from './pages/Reports';
-import Backup from './pages/Backup';
-import VerifyCertificate from './pages/VerifyCertificate';
-import PublicRegistration from './pages/PublicRegistration';
-import Notifications from './pages/Notifications';
-import Projects from './pages/Projects';
-import ManageCourses from './pages/ManageCourses';
+// Views
+import Login from './views/Login';
+import Dashboard from './views/Dashboard';
+import Masters from './views/Masters';
+import Users from './views/Users';
+import Registration from './views/Registration';
+import CourseLinks from './views/CourseLinks';
+import Fees from './views/Fees';
+import Discounts from './views/Discounts';
+import Enquiries from './views/Enquiries';
+import Certificates from './views/Certificates';
+import Reports from './views/Reports';
+import Backup from './views/Backup';
+import VerifyCertificate from './views/VerifyCertificate';
+import PublicRegistration from './views/PublicRegistration';
+import Notifications from './views/Notifications';
+import Projects from './views/Projects';
+import ManageCourses from './views/ManageCourses';
 
 // Public Layout Wrapper
 const PublicLayout = ({ children }) => {
@@ -99,6 +99,7 @@ const DashboardLayout = () => {
             
             {/* Admin only views */}
             <Route path="/masters" element={<AdminRoute><Masters /></AdminRoute>} />
+            <Route path="/mentors" element={<AdminRoute><Masters defaultTab="mentor" /></AdminRoute>} />
             <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
             <Route path="/backup" element={<AdminRoute><Backup /></AdminRoute>} />
             
