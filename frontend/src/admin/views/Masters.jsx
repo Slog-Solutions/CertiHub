@@ -1,18 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Settings, Loader, AlertCircle, CheckCircle2, X, FileImage, ShieldCheck } from 'lucide-react';
+import { Plus, Search, Settings, Loader, AlertCircle, CheckCircle2, X, FileImage, ShieldCheck, Save, User } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 import ExportButtons from '../components/ExportButtons';
 
-const Masters = () => {
+const Masters = ({ defaultTab }) => {
   const { api } = useAuth();
-  const [activeTab, setActiveTab] = useState('technology');
+  const location = useLocation();
+
+  // Read URL search parameter or defaultTab immediately during initial state calculation
+  const getInitialTab = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam) return tabParam;
+    }
+    return defaultTab || 'technology';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [dataList, setDataList] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Active tab reference to prevent race conditions from out-of-order async responses
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
   // References for drop-downs
   const [technologies, setTechnologies] = useState([]);
@@ -43,24 +62,61 @@ const Masters = () => {
     isActive: true
   });
 
+  const [mentorForm, setMentorForm] = useState({
+    name: '',
+    designation: '',
+    image: '',
+    sortOrder: 0,
+    isActive: true
+  });
+  const [mentorPhotoFile, setMentorPhotoFile] = useState(null);
+
+  // Mentors Indexing & Bulk Selection State
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [headerSortOrder, setHeaderSortOrder] = useState('');
+  const [editedIndexes, setEditedIndexes] = useState({});
+  const [savingIndexes, setSavingIndexes] = useState(false);
+
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   // Fetch lists based on active tab
   const fetchTabData = async () => {
+    const requestedTab = activeTab;
     try {
       setLoading(true);
       setError('');
-      let endpoint = `/masters/${activeTab}`;
+      setDataList([]);
+      setTotal(0);
+      let endpoint = `/masters/${requestedTab}`;
       const res = await api.get(endpoint, {
-        params: { page, search, limit: 10 }
+        params: { page, search, limit: requestedTab === 'mentor' ? 500 : 10 }
       });
-      setDataList(res.data.data);
-      setTotal(res.data.total);
+
+      // Ignore response if user switched tabs while request was in-flight
+      if (activeTabRef.current !== requestedTab) return;
+
+      const listData = res.data?.data || [];
+      setDataList(listData);
+      setTotal(res.data?.total || 0);
+
+      if (requestedTab === 'mentor' && listData) {
+        const initialMap = {};
+        listData.forEach(item => {
+          initialMap[item._id] = item.sortOrder || 0;
+        });
+        setEditedIndexes(initialMap);
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load master records');
+      if (activeTabRef.current === requestedTab) {
+        setError(err.response?.data?.error || 'Failed to load master records');
+        setDataList([]);
+        setTotal(0);
+      }
     } finally {
-      setLoading(false);
+      if (activeTabRef.current === requestedTab) {
+        setLoading(false);
+      }
     }
   };
 
@@ -75,6 +131,15 @@ const Masters = () => {
       console.error('Failed to load references', err.message);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    const targetTab = tabParam || defaultTab || 'technology';
+    if (targetTab !== activeTab) {
+      setActiveTab(targetTab);
+    }
+  }, [location.search, defaultTab]);
 
   useEffect(() => {
     fetchTabData();
@@ -97,12 +162,17 @@ const Masters = () => {
     setTotal(0);
     setError('');
     setMessage('');
+    setSelectedIds([]);
+    setHeaderSortOrder('');
+    setEditedIndexes({});
+    setMentorPhotoFile(null);
   };
 
   // Open modals
   const handleOpenAddModal = () => {
     setEditingItem(null);
     setLogoFile(null);
+    setMentorPhotoFile(null);
     
     // Reset forms
     setTechForm({ name: '', note: '', isActive: true });
@@ -110,6 +180,7 @@ const Masters = () => {
     setBranchForm({ name: '', note: '', isActive: true });
     setCollegeForm({ cityName: '', collegeName: '', shortForm: '', isActive: true, showSignature: true });
     setCourseForm({ technologyId: '', durationId: '', price: '', isActive: true });
+    setMentorForm({ name: '', designation: '', image: '', sortOrder: 0, isActive: true });
     
     setIsModalOpen(true);
   };
@@ -117,6 +188,7 @@ const Masters = () => {
   const handleOpenEditModal = (item) => {
     setEditingItem(item);
     setLogoFile(null);
+    setMentorPhotoFile(null);
 
     if (activeTab === 'technology') {
       setTechForm({ name: item.name, note: item.note, isActive: item.isActive });
@@ -140,6 +212,14 @@ const Masters = () => {
         isActive: item.isActive
       });
       loadReferences();
+    } else if (activeTab === 'mentor') {
+      setMentorForm({
+        name: item.name,
+        designation: item.designation || '',
+        image: item.image || '',
+        sortOrder: item.sortOrder || 0,
+        isActive: item.isActive
+      });
     }
 
     setIsModalOpen(true);
@@ -147,7 +227,7 @@ const Masters = () => {
 
   // Delete
   const handleDeleteItem = async (id) => {
-    if (!window.confirm('Are you sure you want to permanently delete this master record? Dependencies will be validated.')) return;
+    if (!window.confirm('Are you sure you want to permanently delete this record? Dependencies will be validated.')) return;
     try {
       setError('');
       setMessage('');
@@ -176,6 +256,66 @@ const Masters = () => {
     }
   };
 
+  // Bulk & Inline Indexing Handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(dataList.map(item => item._id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(i => i !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleHeaderGo = () => {
+    const val = parseInt(headerSortOrder);
+    if (isNaN(val)) return;
+    if (selectedIds.length === 0) {
+      alert('Please select at least one mentor checkbox to bulk set sort-order.');
+      return;
+    }
+    const newEdited = { ...editedIndexes };
+    selectedIds.forEach(id => {
+      newEdited[id] = val;
+    });
+    setEditedIndexes(newEdited);
+    setMessage(`Updated index to ${val} for ${selectedIds.length} selected mentor photo(s). Click 'Save Indexing' to apply.`);
+  };
+
+  const handleIndexChange = (id, val) => {
+    const parsed = parseInt(val);
+    setEditedIndexes(prev => ({
+      ...prev,
+      [id]: isNaN(parsed) ? '' : parsed
+    }));
+  };
+
+  const handleSaveIndexes = async () => {
+    try {
+      setSavingIndexes(true);
+      setError('');
+      setMessage('');
+      const itemsToUpdate = Object.keys(editedIndexes).map(id => ({
+        id,
+        sortOrder: parseInt(editedIndexes[id]) || 0
+      }));
+
+      await api.put('/masters/mentor/bulk-sort', { items: itemsToUpdate });
+      setMessage('Mentor photo indexing saved successfully!');
+      fetchTabData();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save mentor indexing');
+    } finally {
+      setSavingIndexes(false);
+    }
+  };
+
   // Submit form
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -193,7 +333,6 @@ const Masters = () => {
       } else if (activeTab === 'branch') {
         payload = branchForm;
       } else if (activeTab === 'college') {
-        // Multipart upload form data
         const formData = new FormData();
         formData.append('cityName', collegeForm.cityName);
         formData.append('collegeName', collegeForm.collegeName);
@@ -207,6 +346,20 @@ const Masters = () => {
         headers = { 'Content-Type': 'multipart/form-data' };
       } else if (activeTab === 'coursedetail') {
         payload = courseForm;
+      } else if (activeTab === 'mentor') {
+        if (mentorPhotoFile) {
+          const formData = new FormData();
+          formData.append('name', mentorForm.name);
+          formData.append('designation', mentorForm.designation);
+          formData.append('image', mentorForm.image);
+          formData.append('sortOrder', mentorForm.sortOrder);
+          formData.append('isActive', mentorForm.isActive);
+          formData.append('photo', mentorPhotoFile);
+          payload = formData;
+          headers = { 'Content-Type': 'multipart/form-data' };
+        } else {
+          payload = mentorForm;
+        }
       }
 
       if (editingItem) {
@@ -265,6 +418,15 @@ const Masters = () => {
         { header: 'Status', accessor: c => c.isActive ? 'Active' : 'Inactive' }
       ];
     }
+    if (activeTab === 'mentor') {
+      return [
+        { header: 'Mentor Name', accessor: m => m.name },
+        { header: 'Index (Sort Order)', accessor: m => m.sortOrder },
+        { header: 'Designation', accessor: m => m.designation },
+        { header: 'Photo URL', accessor: m => m.image },
+        { header: 'Status', accessor: m => m.isActive ? 'Active' : 'Inactive' }
+      ];
+    }
     return [];
   };
 
@@ -273,8 +435,14 @@ const Masters = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-color)] pb-5">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-dark)]">Masters Configuration</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Configure drop-down lookup records used across the platform portals.</p>
+          <h2 className="text-xl font-bold text-[var(--text-dark)]">
+            {activeTab === 'mentor' ? 'Mentors & Photo Indexing Management' : 'Masters Configuration'}
+          </h2>
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            {activeTab === 'mentor'
+              ? 'Manage mentor profiles, photos, and indexing positions for frontend ordering.'
+              : 'Configure drop-down lookup records used across the platform portals.'}
+          </p>
         </div>
         
         <button
@@ -282,23 +450,23 @@ const Masters = () => {
           className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10"
         >
           <Plus className="h-4 w-4" />
-          Add New Record
+          {activeTab === 'mentor' ? 'Add Mentor Photo' : 'Add New Record'}
         </button>
       </div>
 
       {/* Tabs Menu */}
-      <div className="flex border-b border-[var(--border-color)] space-x-6 text-xs">
-        {['technology', 'duration', 'branch', 'college', 'coursedetail'].map((tab) => (
+      <div className="flex border-b border-[var(--border-color)] space-x-6 text-xs overflow-x-auto">
+        {['technology', 'duration', 'branch', 'college', 'coursedetail', 'mentor'].map((tab) => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
-            className={`pb-4 px-1 font-semibold uppercase tracking-wider transition ${
+            className={`pb-4 px-1 font-semibold uppercase tracking-wider transition shrink-0 ${
               activeTab === tab 
                 ? 'text-emerald-400 border-b-2 border-emerald-500' 
                 : 'text-[var(--text-muted)] hover:text-[var(--text-dark)]'
             }`}
           >
-            {tab === 'coursedetail' ? 'Course Details' : `${tab} Master`}
+            {tab === 'coursedetail' ? 'Course Details' : tab === 'mentor' ? 'Mentors & Photo Indexing' : `${tab} Master`}
           </button>
         ))}
       </div>
@@ -323,7 +491,7 @@ const Masters = () => {
         <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
           <input
             type="text"
-            placeholder={`Search ${activeTab}...`}
+            placeholder={`Search ${activeTab === 'mentor' ? 'mentors' : activeTab}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-colors duration-300 py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
@@ -341,7 +509,7 @@ const Masters = () => {
         {loading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
             <Loader className="h-8 w-8 animate-spin text-emerald-500" />
-            <span className="text-xs text-[var(--text-muted)]">Querying master catalog...</span>
+            <span className="text-xs text-[var(--text-muted)]">Querying records catalog...</span>
           </div>
         ) : dataList.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center space-y-4">
@@ -349,7 +517,7 @@ const Masters = () => {
               <Settings className="h-6 w-6" />
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-[var(--text-dark)]">No master records found</h4>
+              <h4 className="text-xs font-semibold text-[var(--text-dark)]">No records found</h4>
               <p className="text-[10px] text-[var(--text-muted)]">Add configurations to pre-fill registers.</p>
             </div>
           </div>
@@ -359,6 +527,40 @@ const Masters = () => {
               <thead>
                 <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)] transition-colors duration-300/40">
                   {/* DYNAMIC HEADERS BASED ON TAB */}
+                  {activeTab === 'mentor' && (
+                    <>
+                      <th className="py-4 px-4 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={dataList.length > 0 && selectedIds.length === dataList.length}
+                          onChange={handleSelectAll}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </th>
+                      <th className="py-4 px-4 w-14 text-center">Photo</th>
+                      <th className="py-4 px-6">Name</th>
+                      <th className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <span>sort-order</span>
+                          <input
+                            type="number"
+                            placeholder="20"
+                            value={headerSortOrder}
+                            onChange={(e) => setHeaderSortOrder(e.target.value)}
+                            className="w-16 px-2 py-1 text-xs border border-[var(--border-color)] rounded bg-[var(--bg-cream)] text-[var(--text-dark)] focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleHeaderGo}
+                            className="px-2 py-1 text-[10px] bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow"
+                          >
+                            Go
+                          </button>
+                        </div>
+                      </th>
+                      <th className="py-4 px-6">Designation</th>
+                    </>
+                  )}
                   {activeTab === 'technology' && (
                     <>
                       <th className="py-4 px-6">Technology Name</th>
@@ -401,6 +603,42 @@ const Masters = () => {
                 {dataList.map((item) => (
                   <tr key={item._id} className="text-xs hover:bg-[var(--bg-cream)]/20 transition-colors duration-150">
                     {/* DYNAMIC DATA ROWS */}
+                    {activeTab === 'mentor' && (
+                      <>
+                        <td className="py-4 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(item._id)}
+                            onChange={() => handleSelectRow(item._id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </td>
+                        {/* Mentor Photo Thumbnail */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="h-10 w-10 rounded-full border border-gray-300 overflow-hidden bg-gray-100 flex items-center justify-center shadow-sm mx-auto cursor-pointer" onClick={() => handleOpenEditModal(item)}>
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <User className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-blue-600 hover:underline cursor-pointer" onClick={() => handleOpenEditModal(item)}>
+                          {item.name}
+                        </td>
+                        <td className="py-4 px-6">
+                          <input
+                            type="number"
+                            value={editedIndexes[item._id] !== undefined ? editedIndexes[item._id] : (item.sortOrder || 0)}
+                            onChange={(e) => handleIndexChange(item._id, e.target.value)}
+                            className="w-20 px-2 py-1 text-xs border border-[var(--border-color)] rounded bg-[var(--bg-cream)] font-mono text-[var(--text-dark)] focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="py-4 px-6 text-[var(--text-dark)] max-w-xs truncate">
+                          {item.designation || '—'}
+                        </td>
+                      </>
+                    )}
                     {activeTab === 'technology' && (
                       <>
                         <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.name}</td>
@@ -461,10 +699,27 @@ const Masters = () => {
             </table>
           </div>
         )}
+
+        {/* Mentors Bottom Action Bar for Bulk Index Saving */}
+        {activeTab === 'mentor' && dataList.length > 0 && (
+          <div className="flex items-center justify-between p-4 bg-[var(--bg-card)] border-t border-[var(--border-color)] text-xs">
+            <div className="text-[var(--text-muted)] font-semibold flex items-center gap-2">
+              <span>{selectedIds.length} selected</span>
+            </div>
+            <button
+              onClick={handleSaveIndexes}
+              disabled={savingIndexes}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition shadow-md disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {savingIndexes ? 'Saving...' : 'Save Indexing'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Pagination Controls */}
-      {total > 10 && (
+      {total > 10 && activeTab !== 'mentor' && (
         <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-4">
           <span className="text-[10px] text-[var(--text-muted)] font-semibold">Showing 10 records per page</span>
           <div className="flex gap-2">
@@ -498,37 +753,122 @@ const Masters = () => {
             </button>
 
             <div className="p-6 border-b border-[var(--border-color)]">
-              <h3 className="text-sm font-bold text-[var(--text-dark)] capitalize flex items-center gap-2">
-                <Settings className="h-4 w-4 text-emerald-400 animate-spin-slow" />
-                {editingItem ? `Edit ${activeTab}` : `Add New ${activeTab}`}
+              <h3 className="text-sm font-bold text-[var(--text-dark)]">
+                {editingItem ? `Edit ${activeTab === 'mentor' ? 'Mentor' : 'Master'}` : `Add New ${activeTab === 'mentor' ? 'Mentor' : 'Master Record'}`}
               </h3>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                Fill details below to update master catalog.
+              </p>
             </div>
 
             <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
-              
               {/* TECHNOLOGY FORM FIELDS */}
               {activeTab === 'technology' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Tech stream Name</label>
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Technology Name *</label>
                     <input
                       type="text"
                       required
                       value={techForm.name}
                       onChange={(e) => setTechForm({ ...techForm, name: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                      placeholder="React.js Development"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. Python Full Stack"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Note Details</label>
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Notes / Remarks</label>
                     <textarea
+                      rows={2}
                       value={techForm.note}
                       onChange={(e) => setTechForm({ ...techForm, note: e.target.value })}
-                      rows="3"
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none resize-none"
-                      placeholder="Enter optional description..."
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="Optional notes"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* MENTOR FORM FIELDS */}
+              {activeTab === 'mentor' && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Mentor Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={mentorForm.name}
+                      onChange={(e) => setMentorForm({ ...mentorForm, name: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. Dr. Chandan Prakash Sharma"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Designation</label>
+                    <input
+                      type="text"
+                      value={mentorForm.designation}
+                      onChange={(e) => setMentorForm({ ...mentorForm, designation: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. FIE (INDIA), Chairman IEI-UKSC, Dehradun"
+                    />
+                  </div>
+
+                  {/* Mentor Photo File Upload & URL */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Upload Mentor Photo</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex-1 flex flex-col items-center justify-center h-24 border border-[var(--border-color)] border-dashed rounded-lg bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-dark)] transition p-2 text-center">
+                        <FileImage className="w-5 h-5 text-emerald-500/80 mb-1" />
+                        <p className="text-[10px] font-semibold truncate max-w-[180px]">
+                          {mentorPhotoFile ? mentorPhotoFile.name : 'Click to upload photo file'}
+                        </p>
+                        <p className="text-[8px] text-[var(--text-muted)]">Max size: 2MB (jpg, png, webp)</p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setMentorPhotoFile(e.target.files[0] || null)}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {/* Photo Preview Card */}
+                      <div className="h-24 w-20 rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] flex flex-col items-center justify-center p-1 relative overflow-hidden shrink-0">
+                        {mentorPhotoFile ? (
+                          <img src={URL.createObjectURL(mentorPhotoFile)} alt="Preview" className="h-full w-full object-cover rounded" />
+                        ) : mentorForm.image ? (
+                          <img src={mentorForm.image} alt="Preview" className="h-full w-full object-cover rounded" />
+                        ) : (
+                          <div className="flex flex-col items-center justify-center text-[8px] text-gray-400">
+                            <User className="w-6 h-6 text-gray-300 mb-1" />
+                            No Photo
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Or Image URL</label>
+                      <input
+                        type="text"
+                        value={mentorForm.image}
+                        onChange={(e) => setMentorForm({ ...mentorForm, image: e.target.value })}
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                        placeholder="https://res.cloudinary.com/..."
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Indexing / Sort Order</label>
+                      <input
+                        type="number"
+                        value={mentorForm.sortOrder}
+                        onChange={(e) => setMentorForm({ ...mentorForm, sortOrder: parseInt(e.target.value) || 0 })}
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -538,39 +878,38 @@ const Masters = () => {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Value (Number)</label>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Numeric Value *</label>
                       <input
                         type="number"
                         required
                         value={durForm.value}
                         onChange={(e) => setDurForm({ ...durForm, value: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
                         placeholder="6"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Unit Period</label>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Duration Unit *</label>
                       <select
                         value={durForm.unit}
                         onChange={(e) => setDurForm({ ...durForm, unit: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                       >
-                        <option value="hour">Hour(s)</option>
-                        <option value="day">Day(s)</option>
-                        <option value="week">Week(s)</option>
                         <option value="month">Month(s)</option>
+                        <option value="week">Week(s)</option>
+                        <option value="days">Day(s)</option>
                         <option value="year">Year(s)</option>
                       </select>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Notes</label>
-                    <input
-                      type="text"
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Notes / Remarks</label>
+                    <textarea
+                      rows={2}
                       value={durForm.note}
                       onChange={(e) => setDurForm({ ...durForm, note: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                      placeholder="Short notes"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="Optional notes"
                     />
                   </div>
                 </div>
@@ -580,87 +919,85 @@ const Masters = () => {
               {activeTab === 'branch' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Branch Name</label>
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Branch Name *</label>
                     <input
                       type="text"
                       required
                       value={branchForm.name}
                       onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                      placeholder="Computer Science Engineering (CSE)"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. Dehradun Main Campus"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Note Details</label>
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Notes / Remarks</label>
                     <textarea
+                      rows={2}
                       value={branchForm.note}
                       onChange={(e) => setBranchForm({ ...branchForm, note: e.target.value })}
-                      rows="3"
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none resize-none"
-                      placeholder="Enter optional description..."
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="Optional notes"
                     />
                   </div>
                 </div>
               )}
 
-              {/* COLLEGE FORM FIELDS (Supporting image upload) */}
+              {/* COLLEGE FORM FIELDS */}
               {activeTab === 'college' && (
                 <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Full College Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={collegeForm.collegeName}
+                      onChange={(e) => setCollegeForm({ ...collegeForm, collegeName: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      placeholder="e.g. Graphic Era Deemed to be University"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">College Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={collegeForm.collegeName}
-                        onChange={(e) => setCollegeForm({ ...collegeForm, collegeName: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                        placeholder="Indian Institute of Technology"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Short Form</label>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Short Form / Abbr *</label>
                       <input
                         type="text"
                         required
                         value={collegeForm.shortForm}
                         onChange={(e) => setCollegeForm({ ...collegeForm, shortForm: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                        placeholder="IIT"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                        placeholder="GEU"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">City</label>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">City Location *</label>
                       <input
                         type="text"
                         required
                         value={collegeForm.cityName}
                         onChange={(e) => setCollegeForm({ ...collegeForm, cityName: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
-                        placeholder="New Delhi"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                        placeholder="Dehradun"
                       />
                     </div>
-                    
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Show Signature Line</label>
-                      <select
-                        value={collegeForm.showSignature}
-                        onChange={(e) => setCollegeForm({ ...collegeForm, showSignature: e.target.value === 'true' })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
-                      >
-                        <option value="true">Yes, render signatory line</option>
-                        <option value="false">No, hide signatory line</option>
-                      </select>
-                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Show Signature Line</label>
+                    <select
+                      value={collegeForm.showSignature}
+                      onChange={(e) => setCollegeForm({ ...collegeForm, showSignature: e.target.value === 'true' })}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                    >
+                      <option value="true">Yes, render signatory line</option>
+                      <option value="false">No, hide signatory line</option>
+                    </select>
                   </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">College Logo Image</label>
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-24 border border-[var(--border-color)] border-dashed rounded-lg bg-[var(--bg-cream)] border-[var(--border-color)] hover:bg-[var(--bg-cream)] cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-dark)] transition">
+                      <label className="flex flex-col items-center justify-center w-full h-24 border border-[var(--border-color)] border-dashed rounded-lg bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-dark)] transition">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           <FileImage className="w-6 h-6 text-emerald-500/80 mb-1" />
                           <p className="text-[10px] font-semibold">
@@ -690,7 +1027,7 @@ const Masters = () => {
                         required
                         value={courseForm.technologyId}
                         onChange={(e) => setCourseForm({ ...courseForm, technologyId: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                       >
                         <option value="">-- Choose Technology --</option>
                         {technologies.map(t => (
@@ -705,7 +1042,7 @@ const Masters = () => {
                         required
                         value={courseForm.durationId}
                         onChange={(e) => setCourseForm({ ...courseForm, durationId: e.target.value })}
-                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                        className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
                       >
                         <option value="">-- Choose Duration --</option>
                         {durations.map(d => (
@@ -722,7 +1059,7 @@ const Masters = () => {
                       required
                       value={courseForm.price}
                       onChange={(e) => setCourseForm({ ...courseForm, price: e.target.value })}
-                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none"
                       placeholder="15000"
                     />
                   </div>

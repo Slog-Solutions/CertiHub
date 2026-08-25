@@ -7,24 +7,24 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { API_BASE_URL } from './config';
 
-// Import Pages
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Masters from './pages/Masters';
-import Users from './pages/Users';
-import Batches from './pages/Batches';
-import Registration from './pages/Registration';
-import CourseLinks from './pages/CourseLinks';
-import Fees from './pages/Fees';
-import Discounts from './pages/Discounts';
-import Enquiries from './pages/Enquiries';
-import Certificates from './pages/Certificates';
-import Reports from './pages/Reports';
-import Backup from './pages/Backup';
-import Notifications from './pages/Notifications';
-import PublicRegistration from './pages/PublicRegistration';
-import Projects from './pages/Projects';
-import ManageCourses from './pages/ManageCourses';
+// Import Views
+import Login from './views/Login';
+import Dashboard from './views/Dashboard';
+import Masters from './views/Masters';
+import Users from './views/Users';
+import Batches from './views/Batches';
+import Registration from './views/Registration';
+import CourseLinks from './views/CourseLinks';
+import Fees from './views/Fees';
+import Discounts from './views/Discounts';
+import Enquiries from './views/Enquiries';
+import Certificates from './views/Certificates';
+import Reports from './views/Reports';
+import Backup from './views/Backup';
+import Notifications from './views/Notifications';
+import PublicRegistration from './views/PublicRegistration';
+import Projects from './views/Projects';
+import ManageCourses from './views/ManageCourses';
 
 // Import Components
 import Sidebar from './components/Sidebar';

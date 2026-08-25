@@ -262,6 +262,7 @@ router.post('/register', upload.single('photo'), async (req, res) => {
       courseDetailId,
       durationId,
       startDate: new Date(startDate),
+      completionDate: req.body.completionDate ? new Date(req.body.completionDate) : undefined,
       location: location || '',
       totalFee,
       isActive: true
@@ -355,6 +356,9 @@ router.put('/students/:id', requireAuth, upload.single('photo'), async (req, res
       student.durationId = durationId;
     }
     if (startDate) student.startDate = new Date(startDate);
+    if (req.body.completionDate !== undefined) {
+      student.completionDate = req.body.completionDate ? new Date(req.body.completionDate) : null;
+    }
     if (location !== undefined) student.location = location;
     if (isActive !== undefined) student.isActive = isActive === 'true' || isActive === true;
 

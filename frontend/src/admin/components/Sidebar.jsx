@@ -48,6 +48,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const adminMenu = [
     { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
     { name: 'Masters',         path: '/dashboard/masters', icon: Settings },
+    { name: 'Mentors',         path: '/dashboard/masters?tab=mentor', icon: ShieldCheck },
     { name: 'Users',           path: '/dashboard/users', icon: Users },
     { name: 'Batches',         path: '/dashboard/batches', icon: BookOpen },
     { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },

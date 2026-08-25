@@ -13,11 +13,17 @@ const College = require('../models/College');
 const CourseDetail = require('../models/CourseDetail');
 const Student = require('../models/Student');
 const GeneratedCourseLink = require('../models/GeneratedCourseLink');
+const Mentor = require('../models/Mentor');
+const { uploadBuffer } = require('../utils/cloudinary');
 
 // Ensure upload directories exist
 const uploadDir = path.join(__dirname, '../uploads/colleges');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+}
+const mentorUploadDir = path.join(__dirname, '../uploads/mentors');
+if (!fs.existsSync(mentorUploadDir)) {
+  fs.mkdirSync(mentorUploadDir, { recursive: true });
 }
 
 // Multer memory storage and validation
@@ -600,6 +606,144 @@ router.delete('/coursedetail/:id', requireAuth, requireRole(['Admin']), async (r
     await GeneratedCourseLink.deleteMany({ courseDetailId });
     await CourseDetail.findByIdAndDelete(courseDetailId);
     res.json({ message: 'Course Detail deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ==========================================
+   6. MENTOR MASTER
+   ========================================== */
+router.get('/mentor', requireAuth, async (req, res) => {
+  try {
+    const pageNum = parseInt(req.query.page) || 1;
+    const limitNum = parseInt(req.query.limit) || 500;
+    const skip = (pageNum - 1) * limitNum;
+
+    let filter = {};
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, 'i');
+      filter.$or = [{ name: searchRegex }, { designation: searchRegex }];
+    }
+
+    if (req.query.isActive !== undefined) {
+      filter.isActive = req.query.isActive === 'true';
+    }
+
+    const total = await Mentor.countDocuments(filter);
+    const data = await Mentor.find(filter)
+      .sort({ sortOrder: 1, createdAt: 1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    res.json({
+      data,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/mentor', requireAuth, requireRole(['Admin']), upload.single('photo'), async (req, res) => {
+  const { name, designation, image, sortOrder, isActive } = req.body;
+  if (!name) return res.status(400).json({ error: 'Mentor name is required' });
+
+  try {
+    let finalImageUrl = image || '';
+
+    if (req.file) {
+      try {
+        const cloudRes = await uploadBuffer(req.file.buffer, 'media/mentors');
+        finalImageUrl = cloudRes.secure_url;
+      } catch (cloudErr) {
+        console.error('Cloudinary upload fallback to local storage:', cloudErr.message);
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `mentor_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`;
+        const filePath = path.join(mentorUploadDir, filename);
+        fs.writeFileSync(filePath, req.file.buffer);
+        finalImageUrl = `/uploads/mentors/${filename}`;
+      }
+    }
+
+    const mentor = new Mentor({
+      name,
+      designation: designation || '',
+      image: finalImageUrl,
+      sortOrder: parseInt(sortOrder) || 0,
+      isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
+    });
+    await mentor.save();
+    res.status(201).json(mentor);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/mentor/bulk-sort', requireAuth, requireRole(['Admin']), async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+
+    const bulkOps = items.map(item => ({
+      updateOne: {
+        filter: { _id: item.id },
+        update: { $set: { sortOrder: parseInt(item.sortOrder) || 0 } }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Mentor.bulkWrite(bulkOps);
+    }
+
+    res.json({ message: 'Sort orders updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/mentor/:id', requireAuth, requireRole(['Admin']), upload.single('photo'), async (req, res) => {
+  const { name, designation, image, sortOrder, isActive } = req.body;
+  try {
+    const mentor = await Mentor.findById(req.params.id);
+    if (!mentor) return res.status(404).json({ error: 'Mentor not found' });
+
+    if (name !== undefined) mentor.name = name;
+    if (designation !== undefined) mentor.designation = designation;
+    if (sortOrder !== undefined) mentor.sortOrder = parseInt(sortOrder) || 0;
+    if (isActive !== undefined) mentor.isActive = (isActive === 'true' || isActive === true);
+
+    if (req.file) {
+      try {
+        const cloudRes = await uploadBuffer(req.file.buffer, 'media/mentors');
+        mentor.image = cloudRes.secure_url;
+      } catch (cloudErr) {
+        console.error('Cloudinary upload fallback to local storage:', cloudErr.message);
+        const ext = path.extname(req.file.originalname) || '.jpg';
+        const filename = `mentor_${Date.now()}_${Math.round(Math.random() * 1e9)}${ext}`;
+        const filePath = path.join(mentorUploadDir, filename);
+        fs.writeFileSync(filePath, req.file.buffer);
+        mentor.image = `/uploads/mentors/${filename}`;
+      }
+    } else if (image !== undefined) {
+      mentor.image = image;
+    }
+
+    await mentor.save();
+    res.json(mentor);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/mentor/:id', requireAuth, requireRole(['Admin']), async (req, res) => {
+  try {
+    await Mentor.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Mentor record deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

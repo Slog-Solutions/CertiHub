@@ -73,6 +73,7 @@ const Registration = () => {
     courseDetailId: '',
     durationId: '', // loaded matching CourseDetail
     startDate: '',
+    completionDate: '',
     location: '',
 
     totalFee: '',
@@ -210,6 +211,7 @@ const Registration = () => {
       courseDetailId: '',
       durationId: '',
       startDate: '',
+      completionDate: '',
       location: '',
       totalFee: '',
       amountSubmitted: '0',
@@ -244,6 +246,7 @@ const Registration = () => {
       durationId: (student.durationId && typeof student.durationId === 'object' ? student.durationId?._id : student.durationId) || 
                   (student.courseDetailId?.durationId && typeof student.courseDetailId.durationId === 'object' ? student.courseDetailId.durationId?._id : student.courseDetailId?.durationId) || '',
       startDate: student.startDate ? new Date(student.startDate).toISOString().substring(0, 10) : '',
+      completionDate: student.completionDate ? new Date(student.completionDate).toISOString().substring(0, 10) : '',
       location: student.location || '',
       totalFee: student.totalFee !== undefined && student.totalFee !== null && !isNaN(Number(student.totalFee)) ? student.totalFee : ''
     });
@@ -452,6 +455,30 @@ const Registration = () => {
 
 
 
+  const getStudentCompletionDate = (s) => {
+    if (s.completionDate) {
+      return new Date(s.completionDate).toISOString().substring(0, 10);
+    }
+    const start = s.startDate ? new Date(s.startDate) : null;
+    const durObj = s.durationId || s.courseDetailId?.durationId;
+    if (start && durObj && !isNaN(start.getTime())) {
+      const val = Number(durObj.value) || 0;
+      const unit = String(durObj.unit || 'month').toLowerCase();
+      const end = new Date(start);
+      if (unit.includes('month')) {
+        end.setMonth(end.getMonth() + val);
+      } else if (unit.includes('week')) {
+        end.setDate(end.getDate() + (val * 7));
+      } else if (unit.includes('day')) {
+        end.setDate(end.getDate() + val);
+      } else {
+        end.setMonth(end.getMonth() + val);
+      }
+      return end.toISOString().substring(0, 10);
+    }
+    return '';
+  };
+
   // Setup columns for exports
   const exportColumns = [
     { header: 'Reg No', accessor: s => s.registrationNo },
@@ -460,6 +487,7 @@ const Registration = () => {
     { header: 'Email', accessor: s => s.email },
     { header: 'College', accessor: s => s.collegeId?.collegeName || '' },
     { header: 'Course', accessor: s => s.courseDetailId?.technologyId?.name || '' },
+    { header: 'Completion Date', accessor: s => getStudentCompletionDate(s) },
     { header: 'Total Fee (INR)', accessor: s => s.totalFee },
     { header: 'Status', accessor: s => s.isActive ? 'Active' : 'Inactive' }
   ];
@@ -1252,6 +1280,17 @@ const Registration = () => {
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                     className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Completion Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={formData.completionDate || ''}
+                    onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
+                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] border-[var(--border-color)] p-2.5 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                    placeholder="Auto-calculated if blank"
                   />
                 </div>
               </div>
