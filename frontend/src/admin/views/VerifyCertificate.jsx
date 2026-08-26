@@ -12,6 +12,13 @@ const VerifyCertificate = () => {
   const [error, setError] = useState('');
   const [searchId, setSearchId] = useState('');
 
+  const getPdfUrl = (url) => {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${API_BASE_URL.replace(/\/api$/, '')}${cleanPath}`;
+  };
+
   useEffect(() => {
     if (!id) {
       setLoading(false);
@@ -185,7 +192,7 @@ const VerifyCertificate = () => {
                 </button>
                 {data.status === 'Active' && data.pdfUrl && (
                   <a
-                    href={data.pdfUrl}
+                    href={getPdfUrl(data.pdfUrl)}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white hover:bg-emerald-400 transition"
