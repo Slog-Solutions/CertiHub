@@ -17,6 +17,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:9002',
+  'https://smp.slogsolutions.com',
+  'http://smp.slogsolutions.com',
   process.env.CLIENT_URL
 ].filter(Boolean);
 
@@ -46,13 +48,16 @@ const pdfsDir = path.join(uploadsRoot, 'pdfs');
 if (!fs.existsSync(pdfsDir)) {
   fs.mkdirSync(pdfsDir, { recursive: true });
 }
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 // Lazy PDF generation fallback for certificates
 app.get('/uploads/certificates/:filename', async (req, res, next) => {
   const filename = req.params.filename;
   if (!filename.endsWith('.pdf')) {
     return next();
+  }
+
+  const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
+  if (fs.existsSync(pdfPath)) {
+    return res.sendFile(pdfPath);
   }
 
   const certificateId = filename.slice(0, -4); // Remove .pdf
@@ -61,7 +66,7 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     const Certificate = require('./models/Certificate');
     const cert = await Certificate.findOne({ certificateId });
     if (!cert) {
-      return next(); // Fall through to 404 or other static paths if not in DB
+      return res.status(404).send('Certificate record not found');
     }
 
     const Student = require('./models/Student');
@@ -80,7 +85,6 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     }
 
     const { generateCertificatePDF } = require('./utils/pdfGenerator');
-    const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
 
     // Ensure certsDir exists
     const certsDir = path.dirname(pdfPath);
@@ -101,9 +105,11 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     res.sendFile(pdfPath);
   } catch (error) {
     console.error('Lazy PDF generation failed:', error);
-    res.status(500).send('Error generating certificate PDF');
+    res.status(500).send('Error generating certificate PDF: ' + error.message);
   }
 });
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB
 connectDB().then(() => {

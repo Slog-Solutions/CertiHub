@@ -27,6 +27,13 @@ const Certificates = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  const getPdfUrl = (url) => {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const cleanPath = url.startsWith('/') ? url : `/${url}`;
+    return `${API_BASE_URL.replace(/\/api$/, '')}${cleanPath}`;
+  };
+
   const fetchCertificates = async () => {
     try {
       setLoading(true);
@@ -444,7 +451,7 @@ const Certificates = () => {
                       <div className="flex justify-end gap-2 items-center">
                         {item.status === 'Active' && item.pdfUrl && (
                           <a
-                            href={item.pdfUrl}
+                            href={getPdfUrl(item.pdfUrl)}
                             target="_blank"
                             rel="noreferrer"
                             className="p-1.5 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] transition"
