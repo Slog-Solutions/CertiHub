@@ -188,7 +188,7 @@ const TeacherDashboard = () => {
           <div>
             <div style={{ fontWeight: 800, fontSize: 15, color: dark ? '#fff' : '#0f172a', letterSpacing: '-0.3px' }}>Slog Solutions</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <BookOpen size={10} /> Teacher Panel
+              <BookOpen size={10} /> Expert Portal
             </div>
           </div>
         </div>
