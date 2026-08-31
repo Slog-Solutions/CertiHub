@@ -152,7 +152,7 @@ const Enquiries = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-color)] pb-5">
         <div>
           <h2 className="text-xl font-bold text-[var(--text-dark)]">Enquiry CRM</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Track prospective student intake leads, notes, and pipeline status conversions.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Track prospective candidate intake leads, notes, and pipeline status conversions.</p>
         </div>
         
         <button

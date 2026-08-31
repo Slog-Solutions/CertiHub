@@ -141,7 +141,7 @@ const StudentDashboard = () => {
           <div>
             <div style={{ fontWeight: 800, fontSize: 15, color: dark ? '#fff' : '#0f172a', letterSpacing: '-0.3px' }}>Slog Solutions</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <GraduationCap size={10} /> Student Portal
+              <GraduationCap size={10} /> Candidate Portal
             </div>
           </div>
         </div>
@@ -376,7 +376,7 @@ const StudentDashboard = () => {
             {activeTab === 'notifications' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {!batchDetails.notifications?.length ? (
-                  <Empty icon={Bell} title="No announcements yet" sub="Your teacher hasn't posted any announcements for this batch yet." />
+                  <Empty icon={Bell} title="No announcements yet" sub="Your expert hasn't posted any announcements for this batch yet." />
                 ) : batchDetails.notifications.map((n, i) => (
                   <div key={i} style={{
                     background: c.cardBg, border: `1px solid ${c.border}`,
@@ -399,7 +399,7 @@ const StudentDashboard = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16 }}>
                 {!batchDetails.pdfs?.length ? (
                   <div style={{ gridColumn: '1/-1' }}>
-                    <Empty icon={FileText} title="No PDFs uploaded" sub="Your teacher hasn't uploaded any study material yet." />
+                    <Empty icon={FileText} title="No PDFs uploaded" sub="Your expert hasn't uploaded any study material yet." />
                   </div>
                 ) : batchDetails.pdfs.map((p, i) => (
                   <div key={i} style={{
@@ -437,7 +437,7 @@ const StudentDashboard = () => {
             {activeTab === 'links' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {!batchDetails.links?.length ? (
-                  <Empty icon={Link2} title="No links shared" sub="Your teacher hasn't shared any useful links for this batch yet." />
+                  <Empty icon={Link2} title="No links shared" sub="Your expert hasn't shared any useful links for this batch yet." />
                 ) : batchDetails.links.map((l, i) => (
                   <div key={i} style={{
                     background: c.cardBg, border: `1px solid ${c.border}`,

@@ -43,7 +43,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/#services", label: "Services" },
   { href: "/#resources", label: "Resources" },
-  { href: "/user", label: "Student Portal" },
+  { href: "/user", label: "Candidate Portal" },
   { href: "/mentors", label: "Slog Ascend" },
   { href: "/blog", label: "Blog" },
   { href: "/#contact", label: "Contact" },

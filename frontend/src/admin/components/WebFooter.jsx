@@ -117,7 +117,7 @@ const WebFooter = () => {
           <p>© {new Date().getFullYear()} Slog Solutions Pvt. Ltd. All rights reserved.</p>
           <div className="flex gap-4">
             <Link to="/verify" className="hover:text-slate-300 transition">Verify Certificate</Link>
-            <Link to="/register" className="hover:text-slate-300 transition">Student Registration</Link>
+            <Link to="/register" className="hover:text-slate-300 transition">Candidate Registration</Link>
             <Link to="/login" className="hover:text-slate-300 transition">Portal Login</Link>
           </div>
         </div>

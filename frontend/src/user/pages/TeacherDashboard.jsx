@@ -155,7 +155,7 @@ const TeacherDashboard = () => {
   };
 
   const tabs = [
-    { id: 'students', label: 'Students', icon: Users, count: batchDetails?.students?.length || 0 },
+    { id: 'students', label: 'Candidates', icon: Users, count: batchDetails?.students?.length || 0 },
     { id: 'notifications', label: 'Announcements', icon: Bell, count: batchDetails?.notifications?.length || 0 },
     { id: 'pdfs', label: 'Study PDFs', icon: FileText, count: batchDetails?.pdfs?.length || 0 },
     { id: 'links', label: 'Links', icon: Link2, count: batchDetails?.links?.length || 0 },
@@ -188,7 +188,7 @@ const TeacherDashboard = () => {
           <div>
             <div style={{ fontWeight: 800, fontSize: 15, color: dark ? '#fff' : '#0f172a', letterSpacing: '-0.3px' }}>Slog Solutions</div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <BookOpen size={10} /> Teacher Panel
+              <BookOpen size={10} /> Expert Panel
             </div>
           </div>
         </div>
@@ -237,7 +237,7 @@ const TeacherDashboard = () => {
         }}>
           <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${c.border}` }}>
             <p style={{ fontSize: 10, fontWeight: 800, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Assigned Batches</p>
-            <p style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5 }}>Select a batch to manage resources and students.</p>
+            <p style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5 }}>Select a batch to manage resources and candidates.</p>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 0' }}>
@@ -304,7 +304,7 @@ const TeacherDashboard = () => {
               <div>
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: c.textSub, marginBottom: 8 }}>Welcome, Instructor!</h2>
                 <p style={{ fontSize: 13, color: c.textMuted, maxWidth: 380, lineHeight: 1.7 }}>
-                  Select an assigned batch from the sidebar to manage students, post announcements, and upload study materials.
+                  Select an assigned batch from the sidebar to manage candidates, post announcements, and upload study materials.
                 </p>
               </div>
             </div>
@@ -332,7 +332,7 @@ const TeacherDashboard = () => {
                 <h2 style={{ fontSize: 22, fontWeight: 800, color: c.textSub, marginBottom: 8 }}>{batchDetails.name}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.textMuted }}>
                   <Users size={13} color="#8b5cf6" />
-                  <strong style={{ color: c.textSub }}>{batchDetails.students?.length || 0}</strong> students enrolled
+                  <strong style={{ color: c.textSub }}>{batchDetails.students?.length || 0}</strong> candidates enrolled
                 </div>
               </div>
               {/* Quick Action Buttons */}
@@ -356,7 +356,7 @@ const TeacherDashboard = () => {
             {/* ── STATS STRIP ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
               {[
-                { icon: Users, val: batchDetails.students?.length || 0, label: 'Students', color: '#8b5cf6' },
+                { icon: Users, val: batchDetails.students?.length || 0, label: 'Candidates', color: '#8b5cf6' },
                 { icon: Bell, val: batchDetails.notifications?.length || 0, label: 'Announcements', color: '#f59e0b' },
                 { icon: FileText, val: batchDetails.pdfs?.length || 0, label: 'PDFs Uploaded', color: '#10b981' },
                 { icon: Link2, val: batchDetails.links?.length || 0, label: 'Links Shared', color: '#60a5fa' },
@@ -402,19 +402,19 @@ const TeacherDashboard = () => {
             {/* ── STUDENTS TAB ── */}
             {activeTab === 'students' && (
               !batchDetails.students?.length ? (
-                <Empty icon={Users} title="No students enrolled yet" sub={`Share Batch ID: ${batchDetails.batchId} and passcode: ${batchDetails.uniqueKey} with your students.`} />
+                <Empty icon={Users} title="No candidates enrolled yet" sub={`Share Batch ID: ${batchDetails.batchId} and passcode: ${batchDetails.uniqueKey} with your candidates.`} />
               ) : (
                 <div style={{ background: c.cardBg, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 20px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Users size={14} color="#8b5cf6" />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>Student Register</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 10, color: c.textMuted }}>{batchDetails.students.length} students</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>Candidate Register</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 10, color: c.textMuted }}>{batchDetails.students.length} candidates</span>
                   </div>
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ borderBottom: `1px solid ${c.border}` }}>
-                          {['Student', 'Username', 'Email', 'Mobile'].map(h => (
+                          {['Candidate', 'Username', 'Email', 'Mobile'].map(h => (
                             <th key={h} style={{ padding: '10px 18px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', background: c.tableBg }}>{h}</th>
                           ))}
                         </tr>
@@ -457,7 +457,7 @@ const TeacherDashboard = () => {
                   }}><PlusCircle size={14} /> Post Announcement</button>
                 </div>
                 {!batchDetails.notifications?.length ? (
-                  <Empty icon={Bell} title="No announcements posted" sub="Click 'Post Announcement' to notify your students about important updates." />
+                  <Empty icon={Bell} title="No announcements posted" sub="Click 'Post Announcement' to notify your candidates about important updates." />
                 ) : batchDetails.notifications.map((n, i) => (
                   <div key={n._id || i} style={{
                     background: c.cardBg, border: `1px solid ${c.border}`,
@@ -543,7 +543,7 @@ const TeacherDashboard = () => {
                   }}><PlusCircle size={14} /> Add Link</button>
                 </div>
                 {!batchDetails.links?.length ? (
-                  <Empty icon={Link2} title="No links shared" sub="Click 'Add Link' to share reference material and resources with students." />
+                  <Empty icon={Link2} title="No links shared" sub="Click 'Add Link' to share reference material and resources with candidates." />
                 ) : batchDetails.links.map((l, i) => (
                   <div key={l._id || i} style={{
                     background: c.cardBg, border: `1px solid ${c.border}`,

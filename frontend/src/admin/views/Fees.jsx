@@ -146,7 +146,7 @@ const Fees = () => {
 
   const exportColumns = [
     { header: 'Reg No', accessor: s => s.registrationNo },
-    { header: 'Student Name', accessor: s => s.name },
+    { header: 'Candidate Name', accessor: s => s.name },
     { header: 'Course Stream', accessor: s => s.courseName },
     { header: 'Total Fee (INR)', accessor: s => s.totalFee },
     { header: 'Tuition discount', accessor: s => s.discountAmount },
@@ -161,8 +161,8 @@ const Fees = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-color)] pb-5">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-dark)]">Student's Fee</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Audit student balances, log installments paid, and print ledger accounts.</p>
+          <h2 className="text-xl font-bold text-[var(--text-dark)]">Candidate's Fee</h2>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Audit candidate balances, log installments paid, and print ledger accounts.</p>
         </div>
       </div>
 
@@ -196,7 +196,7 @@ const Fees = () => {
           </button>
         </form>
 
-        <ExportButtons data={allStudents} columns={exportColumns} filename="student_fees_report" />
+        <ExportButtons data={allStudents} columns={exportColumns} filename="candidate_fees_report" />
       </div>
 
       {/* Fee Table view */}
@@ -213,7 +213,7 @@ const Fees = () => {
             </div>
             <div className="space-y-1">
               <h4 className="text-xs font-semibold text-[var(--text-dark)]">No records found</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Students registered will pop up here with accounts balances logs.</p>
+              <p className="text-[10px] text-[var(--text-muted)]">Candidates registered will pop up here with accounts balances logs.</p>
             </div>
           </div>
         ) : (
@@ -222,7 +222,7 @@ const Fees = () => {
               <thead>
                 <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)] transition-colors duration-300/40">
                   <th className="py-4 px-6">Reg No</th>
-                  <th className="py-4 px-6">Student Name</th>
+                  <th className="py-4 px-6">Candidate Name</th>
                   <th className="py-4 px-6">Course stream</th>
                   <th className="py-4 px-6">Total Fee</th>
                   <th className="py-4 px-6">Submitted Fee</th>

@@ -116,7 +116,7 @@ const Batches = () => {
   };
 
   const handleDeleteBatch = async (batchId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this batch? All curriculum resources and enrolled students will be unlinked.')) return;
+    if (!window.confirm('Are you sure you want to permanently delete this batch? All curriculum resources and enrolled candidates will be unlinked.')) return;
     try {
       setError('');
       setMessage('');
@@ -161,7 +161,7 @@ const Batches = () => {
             <BookOpen className="h-6 w-6 text-emerald-500" />
             Class Batches Management
           </h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Configure student learn groups, assign instructional teachers, and audit resources.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1">Configure candidate learn groups, assign instructional experts, and audit resources.</p>
         </div>
         
         <button
@@ -193,7 +193,7 @@ const Batches = () => {
         <div className="relative w-full sm:w-80">
           <input
             type="text"
-            placeholder="Search by ID, name, teacher..."
+            placeholder="Search by ID, name, expert..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-colors duration-300 py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
@@ -216,7 +216,7 @@ const Batches = () => {
             </div>
             <div className="space-y-1">
               <h4 className="text-xs font-semibold text-[var(--text-dark)]">No batches found</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Create a new batch, define a key, and assign a teacher user.</p>
+              <p className="text-[10px] text-[var(--text-muted)]">Create a new batch, define a key, and assign an expert user.</p>
             </div>
           </div>
         ) : (
@@ -227,8 +227,8 @@ const Batches = () => {
                   <th className="py-4 px-6">Batch ID</th>
                   <th className="py-4 px-6">Batch Name</th>
                   <th className="py-4 px-6">Access Key</th>
-                  <th className="py-4 px-6">Teacher Assigned</th>
-                  <th className="py-4 px-6">Enrolled Students</th>
+                  <th className="py-4 px-6">Expert Assigned</th>
+                  <th className="py-4 px-6">Enrolled Candidates</th>
                   <th className="py-4 px-6">Created On</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
@@ -254,7 +254,7 @@ const Batches = () => {
                     <td className="py-4 px-6 text-[var(--text-dark)]">
                       <span className="flex items-center gap-1.5 font-bold">
                         <Users className="h-4 w-4 text-emerald-500 shrink-0" />
-                        {item.students?.length || 0} students
+                        {item.students?.length || 0} candidates
                       </span>
                     </td>
                     <td className="py-4 px-6 text-[var(--text-muted)]">{formatDate(item.createdAt)}</td>
@@ -303,7 +303,7 @@ const Batches = () => {
             <div className="p-6 border-b border-[var(--border-color)]">
               <h3 className="text-sm font-bold text-[var(--text-dark)] flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-emerald-400" />
-                {editingBatch ? 'Edit Batch Configuration' : 'Create Student Batch'}
+                {editingBatch ? 'Edit Batch Configuration' : 'Create Candidate Batch'}
               </h3>
             </div>
 
@@ -353,9 +353,9 @@ const Batches = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Assign Teacher User</label>
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Assign Expert User</label>
                 {teachers.length === 0 ? (
-                  <p className="text-[10px] text-rose-400 font-bold py-1">Please create a user with role 'Teacher' first in Users panel.</p>
+                  <p className="text-[10px] text-rose-400 font-bold py-1">Please create a user with role 'Expert' first in Users panel.</p>
                 ) : (
                   <select
                     value={formData.teacherId}
@@ -414,7 +414,7 @@ const Batches = () => {
               <div className="bg-[var(--bg-cream)]/40 border border-[var(--border-color)]/60 rounded-xl p-4 space-y-2">
                 <h4 className="text-xs font-extrabold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1">
                   <User className="h-4 w-4 text-emerald-500" />
-                  Assigned Teacher
+                  Assigned Expert
                 </h4>
                 {viewingBatch.teacherId ? (
                   <div className="text-xs space-y-0.5">
@@ -431,10 +431,10 @@ const Batches = () => {
               <div className="space-y-3">
                 <h4 className="text-xs font-extrabold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-emerald-500" />
-                  Enrolled Students Register ({viewingBatch.students?.length || 0})
+                  Enrolled Candidates Register ({viewingBatch.students?.length || 0})
                 </h4>
                 {(!viewingBatch.students || viewingBatch.students.length === 0) ? (
-                  <p className="text-xs text-[var(--text-muted)] bg-[var(--bg-cream)]/10 border border-dashed border-[var(--border-color)]/30 rounded-xl p-4 text-center">No students have enrolled in this batch yet.</p>
+                  <p className="text-xs text-[var(--text-muted)] bg-[var(--bg-cream)]/10 border border-dashed border-[var(--border-color)]/30 rounded-xl p-4 text-center">No candidates have enrolled in this batch yet.</p>
                 ) : (
                   <div className="border border-[var(--border-color)]/60 rounded-xl overflow-hidden text-xs bg-[var(--bg-card)]">
                     <table className="w-full text-left border-collapse">

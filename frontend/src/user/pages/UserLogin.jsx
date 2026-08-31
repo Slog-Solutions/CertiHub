@@ -38,10 +38,10 @@ const UserLogin = () => {
       
       // Verification of role matching activeTab
       if (activeTab === 'student' && data.user.role !== 'Student') {
-        throw new Error('This account does not belong to a Student.');
+        throw new Error('This account does not belong to a Candidate.');
       }
       if (activeTab === 'teacher' && data.user.role !== 'Teacher') {
-        throw new Error('This account does not belong to a Teacher.');
+        throw new Error('This account does not belong to an Expert.');
       }
 
       setSuccess('Logged in successfully!');
@@ -117,7 +117,7 @@ const UserLogin = () => {
             }`}
           >
             <GraduationCap className="h-4 w-4" />
-            Student Portal
+            Candidate Login
           </button>
           <button
             onClick={() => {
@@ -132,7 +132,7 @@ const UserLogin = () => {
             }`}
           >
             <Briefcase className="h-4 w-4" />
-            Teacher Portal
+            Expert Login
           </button>
         </div>
 
@@ -326,7 +326,7 @@ const UserLogin = () => {
                 </>
               ) : (
                 <>
-                  Register Student Account
+                  Register Candidate Account
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
