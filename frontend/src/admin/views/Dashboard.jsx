@@ -63,7 +63,7 @@ const Dashboard = () => {
 
   const cardItems = [
     {
-      title: 'Total Students',
+      title: 'Total Candidates',
       value: cards.totalStudents,
       icon: Users,
       color: 'from-emerald-500/10 to-teal-500/5',
@@ -135,7 +135,7 @@ const Dashboard = () => {
         <div className="glass-panel p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
             <div>
-              <h4 className="text-sm font-bold text-[var(--text-dark)]">Student Registration Trend</h4>
+              <h4 className="text-sm font-bold text-[var(--text-dark)]">Candidate Registration Trend</h4>
               <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-semibold">Monthly enrollments aggregated</p>
             </div>
             <TrendingUp className="h-4 w-4 text-emerald-500" />

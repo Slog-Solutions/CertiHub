@@ -111,10 +111,10 @@ const Notifications = () => {
         <div>
           <h2 className="text-xl font-bold text-[var(--text-dark)] flex items-center gap-2">
             <Bell className="h-5.5 w-5.5 text-emerald-500" />
-            Student Notifications
+            Candidate Notifications
           </h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            Dispatch announcements and notices targeted to active students of specific colleges and courses.
+            Dispatch announcements and notices targeted to active candidates of specific colleges and courses.
           </p>
         </div>
 
@@ -146,9 +146,9 @@ const Notifications = () => {
       <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-xs text-[var(--text-muted)] flex gap-2.5 items-start">
         <Info className="h-4.5 w-4.5 text-emerald-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <span className="font-bold text-emerald-400 block uppercase tracking-wider text-[10px]">Student App Integration Notice</span>
+          <span className="font-bold text-emerald-400 block uppercase tracking-wider text-[10px]">Candidate App Integration Notice</span>
           <p className="leading-relaxed">
-            Notices dispatched here are filtered and targeted by college and course. The student app can query active notices using the student's registered college and course detail. Only students whose registration status is <strong>Active (On)</strong> will fetch these notices.
+            Notices dispatched here are filtered and targeted by college and course. The candidate app can query active notices using the candidate's registered college and course detail. Only candidates whose registration status is <strong>Active (On)</strong> will fetch these notices.
           </p>
         </div>
       </div>
@@ -171,7 +171,7 @@ const Notifications = () => {
             </div>
             <div className="space-y-1">
               <h4 className="text-xs font-semibold text-[var(--text-dark)]">No notices sent yet</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Click "Send Notice" to dispatch announcements to students.</p>
+              <p className="text-[10px] text-[var(--text-muted)]">Click "Send Notice" to dispatch announcements to candidates.</p>
             </div>
           </div>
         ) : (
@@ -235,7 +235,7 @@ const Notifications = () => {
             <div className="p-6 border-b border-[var(--border-color)]">
               <h3 className="text-sm font-bold text-[var(--text-dark)] flex items-center gap-2">
                 <Send className="h-4.5 w-4.5 text-emerald-500" />
-                Dispatch New Student Announcement
+                Dispatch New Candidate Announcement
               </h3>
             </div>
 
@@ -291,7 +291,7 @@ const Notifications = () => {
                 <textarea
                   required
                   rows={4}
-                  placeholder="Type the notice content to send to student app..."
+                  placeholder="Type the notice content to send to candidate app..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2.5 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] focus:border-emerald-500 focus:outline-none resize-none"

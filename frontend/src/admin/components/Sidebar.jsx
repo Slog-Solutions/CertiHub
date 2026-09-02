@@ -53,7 +53,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Batches',         path: '/dashboard/batches', icon: BookOpen },
     { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
     { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
-    { name: "Student's Fee",   path: '/dashboard/fees', icon: CreditCard },
+    { name: "Candidate's Fee",   path: '/dashboard/fees', icon: CreditCard },
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
@@ -66,7 +66,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Fee Collection Report', path: '/dashboard/reports/fee-collection' },
         { name: 'Date wise Fee Collection Report', path: '/dashboard/reports/date-wise-fee' },
         { name: 'Course Report', path: '/dashboard/reports/course' },
-        { name: 'Course wise total student Report', path: '/dashboard/reports/course-students' }
+        { name: 'Course wise total candidate Report', path: '/dashboard/reports/course-students' }
       ]
     },
     { name: 'Daily Backup',    path: '/dashboard/backup', icon: Database },
@@ -76,7 +76,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
     { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
     { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
-    { name: "Student's Fee",   path: '/dashboard/fees', icon: CreditCard },
+    { name: "Candidate's Fee",   path: '/dashboard/fees', icon: CreditCard },
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
@@ -89,7 +89,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Fee Collection Report', path: '/dashboard/reports/fee-collection' },
         { name: 'Date wise Fee Collection Report', path: '/dashboard/reports/date-wise-fee' },
         { name: 'Course Report', path: '/dashboard/reports/course' },
-        { name: 'Course wise total student Report', path: '/dashboard/reports/course-students' }
+        { name: 'Course wise total candidate Report', path: '/dashboard/reports/course-students' }
       ]
     },
   ];

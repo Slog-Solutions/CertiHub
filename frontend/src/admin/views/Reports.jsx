@@ -47,7 +47,7 @@ const Reports = ({ type }) => {
       case 'courses':
         return 'Course Report';
       case 'course-students':
-        return 'Course wise total student Report';
+        return 'Course wise total candidate Report';
       default:
         return 'Report Ledger';
     }
@@ -129,7 +129,7 @@ const Reports = ({ type }) => {
     if (type === 'fee-collection' || type === 'date-wise') {
       return [
         { header: 'Fee Date', accessor: item => item.paidOn ? formatDateToDDMMMYYYY(item.paidOn) : '—' },
-        { header: 'Student Name', accessor: item => item.studentId?.name || '' },
+        { header: 'Candidate Name', accessor: item => item.studentId?.name || '' },
         { header: 'Registration No.', accessor: item => item.studentId?.registrationNo || '' },
         { header: 'Course Fees', accessor: item => item.studentId?.totalFee ?? 0 },
         { header: 'Discount', accessor: item => item.discountAmount ?? 0 },
@@ -152,7 +152,7 @@ const Reports = ({ type }) => {
         { header: 'S.No', accessor: (_, idx) => idx + 1 },
         { header: 'Course Name', accessor: item => item.courseName },
         { header: 'Duration', accessor: item => item.duration },
-        { header: 'Total Students', accessor: item => item.studentCount }
+        { header: 'Total Candidates', accessor: item => item.studentCount }
       ];
     }
     return [];
@@ -299,7 +299,7 @@ const Reports = ({ type }) => {
                     {(type === 'fee-collection' || type === 'date-wise') && (
                       <>
                         <th>Fee Date</th>
-                        <th>Student Name</th>
+                        <th>Candidate Name</th>
                         <th>Registration No.</th>
                         <th>Course Fees</th>
                         <th>Discount</th>
@@ -322,7 +322,7 @@ const Reports = ({ type }) => {
                         <th>S.No</th>
                         <th>Course Name</th>
                         <th>Duration</th>
-                        <th>Total Students</th>
+                        <th>Total Candidates</th>
                       </>
                     )}
                   </tr>

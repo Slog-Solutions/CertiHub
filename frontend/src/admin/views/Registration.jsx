@@ -118,7 +118,7 @@ const Registration = () => {
       });
       
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to fetch student list');
+      setError(err.response?.data?.error || 'Failed to fetch candidate list');
       setLoading(false);
     }
   };
@@ -261,24 +261,24 @@ const Registration = () => {
         isActive: !student.isActive
       });
       setStudents(students.map(s => s._id === student._id ? { ...s, isActive: res.data.isActive } : s));
-      setMessage('Student registration status updated successfully');
+      setMessage('Candidate registration status updated successfully');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to toggle status');
     }
   };
 
   const handleDeleteStudent = async (studentId) => {
-    if (!window.confirm('WARNING: Deleting a student permanently removes their entire records, installments paid, and certificates issued. Proceed?')) {
+    if (!window.confirm('WARNING: Deleting a candidate permanently removes their entire records, installments paid, and certificates issued. Proceed?')) {
       return;
     }
     try {
       setError('');
       setMessage('');
       await api.delete(`/registration/students/${studentId}`);
-      setMessage('Student and all associated records deleted successfully');
+      setMessage('Candidate and all associated records deleted successfully');
       fetchStudents();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete student');
+      setError(err.response?.data?.error || 'Failed to delete candidate');
     }
   };
 
@@ -306,12 +306,12 @@ const Registration = () => {
         await api.put(`/registration/students/${editingStudent._id}`, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        setMessage('Student registration details updated successfully');
+        setMessage('Candidate registration details updated successfully');
       } else {
         await api.post('/registration/register', data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
-        setMessage('Student registered successfully');
+        setMessage('Candidate registered successfully');
       }
       setIsFormOpen(false);
       fetchStudents();
@@ -328,7 +328,7 @@ const Registration = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'Student_Registration_Template.xlsx');
+      link.setAttribute('download', 'Candidate_Registration_Template.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -362,7 +362,7 @@ const Registration = () => {
       });
       setUploadResult(res.data);
       if (res.data.successCount > 0) {
-        setMessage(`Successfully imported ${res.data.successCount} students in bulk.`);
+        setMessage(`Successfully imported ${res.data.successCount} candidates in bulk.`);
         fetchStudents();
       }
     } catch (err) {
@@ -410,7 +410,7 @@ const Registration = () => {
 
   const handleBulkToggle = async (targetActive) => {
     if (selectedIds.length > 0) {
-      if (!window.confirm(`Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for ${selectedIds.length} selected student(s)?`)) return;
+      if (!window.confirm(`Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for ${selectedIds.length} selected candidate(s)?`)) return;
       try {
         setLoading(true);
         setError('');
@@ -419,7 +419,7 @@ const Registration = () => {
           ids: selectedIds,
           isActive: targetActive
         });
-        setMessage(`Successfully updated status for ${selectedIds.length} student(s)`);
+        setMessage(`Successfully updated status for ${selectedIds.length} candidate(s)`);
         setSelectedIds([]);
         fetchStudents();
       } catch (err) {
@@ -428,8 +428,8 @@ const Registration = () => {
       }
     } else {
       const confirmMsg = search
-        ? `Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for all student records matching the search filter "${search}"?`
-        : `Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for ALL student records in the database?`;
+        ? `Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for all candidate records matching the search filter "${search}"?`
+        : `Are you sure you want to toggle status ${targetActive ? 'on' : 'off'} for ALL candidate records in the database?`;
         
       if (!window.confirm(confirmMsg)) return;
 
@@ -443,7 +443,7 @@ const Registration = () => {
           collegeId: filterCollege,
           courseDetailId: filterCourse
         });
-        setMessage(`Successfully updated status for all matching student records.`);
+        setMessage(`Successfully updated status for all matching candidate records.`);
         fetchStudents();
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to update matching records');
@@ -498,8 +498,8 @@ const Registration = () => {
       <>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[var(--border-color)] pb-5">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text-dark)]">Student Registration</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Manage and audit student registrations, candidates and profiles.</p>
+            <h2 className="text-xl font-bold text-[var(--text-dark)]">Candidate Registration</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Manage and audit candidate registrations and profiles.</p>
           </div>
           
           <div className="flex gap-2">
@@ -738,7 +738,7 @@ const Registration = () => {
             <button
               onClick={() => handleBulkToggle(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-500/10 cursor-pointer"
-              title="Bulk toggle status on for selected students or all matching records"
+              title="Bulk toggle status on for selected candidates or all matching records"
             >
               <ToggleRight className="h-3.5 w-3.5 text-white" />
               {selectedIds.length > 0
@@ -748,14 +748,14 @@ const Registration = () => {
             <button
               onClick={() => handleBulkToggle(false)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-rose-500 hover:bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10 cursor-pointer"
-              title="Bulk toggle status off for selected students or all matching records"
+              title="Bulk toggle status off for selected candidates or all matching records"
             >
               <ToggleLeft className="h-3.5 w-3.5 text-white" />
               {selectedIds.length > 0
                 ? `Bulk Toggle Off (${selectedIds.length})`
                 : `Bulk Toggle Off (All ${total})`}
             </button>
-            <ExportButtons data={allStudents} columns={exportColumns} filename="student_registration_list" onlyActiveForExcel={true} />
+            <ExportButtons data={allStudents} columns={exportColumns} filename="candidate_registration_list" onlyActiveForExcel={true} />
           </div>
         </div>
 
@@ -764,7 +764,7 @@ const Registration = () => {
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
               <Loader className="h-8 w-8 animate-spin text-emerald-500" />
-              <span className="text-xs text-[var(--text-muted)]">Loading student registry...</span>
+              <span className="text-xs text-[var(--text-muted)]">Loading candidate registry...</span>
             </div>
           ) : students.length === 0 ? (
             <div className="py-20 text-center flex flex-col items-center justify-center space-y-4">
@@ -772,7 +772,7 @@ const Registration = () => {
                 <UserPlus className="h-6 w-6" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-xs font-semibold text-[var(--text-dark)]">No students registered</h4>
+                <h4 className="text-xs font-semibold text-[var(--text-dark)]">No candidates registered</h4>
                 <p className="text-[10px] text-[var(--text-muted)]">Click "New Registration" to fill up candidate details.</p>
               </div>
             </div>
@@ -790,7 +790,7 @@ const Registration = () => {
                       />
                     </th>
                     <th className="py-4 px-6">Reg No</th>
-                    <th className="py-4 px-6">Student Info</th>
+                    <th className="py-4 px-6">Candidate Info</th>
                     <th className="py-4 px-6">College / Inst.</th>
                     <th className="py-4 px-6">Selected Course</th>
                     <th className="py-4 px-6">Total Fee</th>
@@ -1384,7 +1384,7 @@ const Registration = () => {
             <div className="p-6 border-b border-[var(--border-color)] flex items-center justify-between">
               <h3 className="text-sm font-bold text-[var(--text-dark)] flex items-center gap-2">
                 <Upload className="h-4.5 w-4.5 text-emerald-500" />
-                Bulk Student Upload via Excel
+                Bulk Candidate Upload via Excel
               </h3>
               <button
                 type="button"

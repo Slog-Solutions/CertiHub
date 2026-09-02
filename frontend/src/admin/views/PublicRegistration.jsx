@@ -179,7 +179,7 @@ const PublicRegistration = () => {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/20">
             <UserPlus className="h-6 w-6" />
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-[var(--text-dark)] text-center">Student Registration Portal</h2>
+          <h2 className="mt-4 text-2xl font-bold text-[var(--text-dark)] text-center">Candidate Registration Portal</h2>
           <p className="text-xs text-[var(--text-muted)] mt-1">Submit details to request training certification access</p>
         </div>
 
@@ -321,7 +321,7 @@ const PublicRegistration = () => {
               {/* Form Section 2 */}
               <div className="space-y-4">
                 <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-color)] pb-1.5">
-                  2. Student Institution Details
+                  2. Candidate Institution Details
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

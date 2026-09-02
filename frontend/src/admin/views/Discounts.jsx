@@ -68,7 +68,7 @@ const Discounts = () => {
   };
 
   const handleDeleteDiscount = async (id) => {
-    if (!window.confirm('Are you sure you want to reset this student discount to zero?')) return;
+    if (!window.confirm('Are you sure you want to reset this candidate discount to zero?')) return;
     try {
       setError('');
       setMessage('');
@@ -109,7 +109,7 @@ const Discounts = () => {
 
   const exportColumns = [
     { header: 'Reg No', accessor: d => d.studentId?.registrationNo },
-    { header: 'Student Name', accessor: d => d.studentId?.name },
+    { header: 'Candidate Name', accessor: d => d.studentId?.name },
     { header: 'Total Fee (INR)', accessor: d => d.totalFee },
     { header: 'Discount applied', accessor: d => d.discountAmount },
     { header: 'Dues to Pay (INR)', accessor: d => d.totalToPay }
@@ -180,7 +180,7 @@ const Discounts = () => {
             </div>
             <div className="space-y-1">
               <h4 className="text-xs font-semibold text-[var(--text-dark)]">No discounts applied</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Apply discounts against registered student numbers to adjust balances.</p>
+              <p className="text-[10px] text-[var(--text-muted)]">Apply discounts against registered candidate numbers to adjust balances.</p>
             </div>
           </div>
         ) : (
@@ -189,7 +189,7 @@ const Discounts = () => {
               <thead>
                 <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)] transition-colors duration-300/40">
                   <th className="py-4 px-6">Reg No</th>
-                  <th className="py-4 px-6">Student Name</th>
+                  <th className="py-4 px-6">Candidate Name</th>
                   <th className="py-4 px-6">Course stream</th>
                   <th className="py-4 px-6">Original total</th>
                   <th className="py-4 px-6">Discount Value</th>
@@ -267,7 +267,7 @@ const Discounts = () => {
 
             <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Student Registration Number</label>
+                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Candidate Registration Number</label>
                 <input
                   type="text"
                   required

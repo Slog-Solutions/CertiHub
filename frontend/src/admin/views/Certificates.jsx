@@ -270,7 +270,7 @@ const Certificates = () => {
   const exportColumns = [
     { header: 'Cert ID', accessor: c => c.certificateId },
     { header: 'Reg No', accessor: c => c.studentId?.registrationNo },
-    { header: 'Student Name', accessor: c => c.studentId?.name },
+    { header: 'Candidate Name', accessor: c => c.studentId?.name },
     { header: 'Course Stream', accessor: c => c.courseDetailId?.technologyId?.name },
     { header: 'Issue Date', accessor: c => c.issueDate ? new Date(c.issueDate).toLocaleDateString() : '' },
     { header: 'Status', accessor: c => c.status }
@@ -413,7 +413,7 @@ const Certificates = () => {
                     />
                   </th>
                   <th className="py-4 px-6">Certificate ID</th>
-                  <th className="py-4 px-6">Student Name</th>
+                  <th className="py-4 px-6">Candidate Name</th>
                   <th className="py-4 px-6">Reg No</th>
                   <th className="py-4 px-6">Course stream</th>
                   <th className="py-4 px-6">Issue Date</th>
@@ -532,7 +532,7 @@ const Certificates = () => {
                     </li>
                   </ul>
                   <p className="text-[10px] italic leading-relaxed pt-1 border-t border-[var(--border-color)]/30">
-                    Note: Other columns like Student Name, Phone, Email, College, and Course will be ignored, as candidate information is fetched automatically from the database.
+                    Note: Other columns like Candidate Name, Phone, Email, College, and Course will be ignored, as candidate information is fetched automatically from the database.
                   </p>
                 </div>
 

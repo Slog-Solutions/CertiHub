@@ -273,7 +273,7 @@ const Users = () => {
                         item.role === 'Student' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                       }`}>
-                        {item.role}
+                        {{ Teacher: 'Expert', Student: 'Candidate' }[item.role] || item.role}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -409,8 +409,8 @@ const Users = () => {
                   >
                     <option value="Staff">Staff</option>
                     <option value="Admin">Admin</option>
-                    <option value="Teacher">Teacher</option>
-                    <option value="Student">Student</option>
+                    <option value="Teacher">Expert</option>
+                    <option value="Student">Candidate</option>
                   </select>
                 </div>
               </div>
