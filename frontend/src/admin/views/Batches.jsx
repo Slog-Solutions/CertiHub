@@ -20,7 +20,7 @@ const Batches = () => {
     batchId: '',
     name: '',
     uniqueKey: '',
-    teacherId: ''
+    teachers: [{ teacherId: '', role: 'Lead Instructor' }]
   });
 
   // Batch Detail Viewer State
@@ -60,7 +60,7 @@ const Batches = () => {
       batchId: '',
       name: '',
       uniqueKey: '',
-      teacherId: teachers[0]?._id || ''
+      teachers: [{ teacherId: teachers[0]?._id || '', role: 'Lead Instructor' }]
     });
     setFormError('');
     setIsModalOpen(true);
@@ -68,14 +68,53 @@ const Batches = () => {
 
   const handleOpenEditModal = (batch) => {
     setEditingBatch(batch);
+    let initialTeachers = [];
+    if (Array.isArray(batch.teachers) && batch.teachers.length > 0) {
+      initialTeachers = batch.teachers.map(t => ({
+        teacherId: t.teacherId?._id || t.teacherId || '',
+        role: t.role || 'Instructor'
+      }));
+    } else if (batch.teacherId) {
+      initialTeachers = [{
+        teacherId: batch.teacherId?._id || batch.teacherId || '',
+        role: 'Lead Instructor'
+      }];
+    } else {
+      initialTeachers = [{ teacherId: teachers[0]?._id || '', role: 'Lead Instructor' }];
+    }
+
     setFormData({
       batchId: batch.batchId,
       name: batch.name,
       uniqueKey: batch.uniqueKey,
-      teacherId: batch.teacherId?._id || ''
+      teachers: initialTeachers
     });
     setFormError('');
     setIsModalOpen(true);
+  };
+
+  const handleAddTeacherRow = () => {
+    const defaultTeacherId = teachers[0]?._id || '';
+    setFormData(prev => ({
+      ...prev,
+      teachers: [...prev.teachers, { teacherId: defaultTeacherId, role: 'Instructor' }]
+    }));
+  };
+
+  const handleRemoveTeacherRow = (index) => {
+    if (formData.teachers.length <= 1) return;
+    setFormData(prev => ({
+      ...prev,
+      teachers: prev.teachers.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleTeacherChange = (index, field, value) => {
+    setFormData(prev => {
+      const updated = [...prev.teachers];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, teachers: updated };
+    });
   };
 
   const [formError, setFormError] = useState('');
@@ -88,22 +127,35 @@ const Batches = () => {
     setMessage('');
     setSubmitting(true);
 
-    if (!formData.batchId || !formData.name || !formData.uniqueKey || !formData.teacherId) {
-      setFormError('All fields are required.');
+    if (!formData.batchId || !formData.name || !formData.uniqueKey) {
+      setFormError('Batch ID, Name, and Passcode are required.');
+      setSubmitting(false);
+      return;
+    }
+
+    const hasInvalidTeacher = formData.teachers.some(t => !t.teacherId || !t.role.trim());
+    if (hasInvalidTeacher) {
+      setFormError('Please select a teacher and specify their role for all assigned teachers.');
       setSubmitting(false);
       return;
     }
 
     try {
+      const payload = {
+        name: formData.name,
+        uniqueKey: formData.uniqueKey,
+        teachers: formData.teachers,
+        teacherId: formData.teachers[0]?.teacherId || ''
+      };
+
       if (editingBatch) {
-        await api.put(`/batches/${editingBatch._id}`, {
-          name: formData.name,
-          uniqueKey: formData.uniqueKey,
-          teacherId: formData.teacherId
-        });
+        await api.put(`/batches/${editingBatch._id}`, payload);
         setMessage('Batch updated successfully');
       } else {
-        await api.post('/batches', formData);
+        await api.post('/batches', {
+          ...payload,
+          batchId: formData.batchId
+        });
         setMessage('Batch created successfully');
       }
       setIsModalOpen(false);
@@ -242,9 +294,18 @@ const Batches = () => {
                     <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.name}</td>
                     <td className="py-4 px-6 font-mono text-[var(--text-muted)]">{item.uniqueKey}</td>
                     <td className="py-4 px-6 font-medium text-[var(--text-dark)]">
-                      {item.teacherId ? (
+                      {item.teachers && item.teachers.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {item.teachers.map((t, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 text-xs">
+                              <span className="font-semibold text-[var(--text-dark)]">{t.teacherId?.name || 'Teacher'}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">{t.role || 'Instructor'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : item.teacherId ? (
                         <div>
-                          <p>{item.teacherId.name}</p>
+                          <p className="font-semibold">{item.teacherId.name}</p>
                           <p className="text-[10px] text-[var(--text-muted)]">{item.teacherId.email}</p>
                         </div>
                       ) : (
@@ -352,20 +413,64 @@ const Batches = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">Assign Teacher User</label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                    Assigned Teachers & Roles
+                  </label>
+                  {teachers.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleAddTeacherRow}
+                      className="text-xs font-bold text-emerald-500 hover:text-emerald-400 flex items-center gap-1 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-1 rounded-md transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add Teacher
+                    </button>
+                  )}
+                </div>
+
                 {teachers.length === 0 ? (
                   <p className="text-[10px] text-rose-400 font-bold py-1">Please create a user with role 'Teacher' first in Users panel.</p>
                 ) : (
-                  <select
-                    value={formData.teacherId}
-                    onChange={(e) => setFormData({ ...formData, teacherId: e.target.value })}
-                    className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
-                  >
-                    {teachers.map(t => (
-                      <option key={t._id} value={t._id}>{t.name} ({t.username})</option>
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    {formData.teachers.map((t, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-[var(--bg-cream)]/50 border border-[var(--border-color)] p-2.5 rounded-xl">
+                        <div className="flex-1 min-w-0">
+                          <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block mb-1">Teacher</label>
+                          <select
+                            value={t.teacherId}
+                            onChange={(e) => handleTeacherChange(idx, 'teacherId', e.target.value)}
+                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2 text-xs text-[var(--text-dark)] focus:border-emerald-500 focus:outline-none"
+                          >
+                            {teachers.map(teacher => (
+                              <option key={teacher._id} value={teacher._id}>{teacher.name} ({teacher.username})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <label className="text-[9px] font-bold text-[var(--text-muted)] uppercase block mb-1">Role of Teacher</label>
+                          <input
+                            type="text"
+                            required
+                            value={t.role}
+                            onChange={(e) => handleTeacherChange(idx, 'role', e.target.value)}
+                            placeholder="e.g. Lead Instructor, Lab Assistant"
+                            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-cream)] p-2 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                        {formData.teachers.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTeacherRow(idx)}
+                            className="mt-4 p-2 text-rose-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="Remove Teacher"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     ))}
-                  </select>
+                  </div>
                 )}
               </div>
 
@@ -411,12 +516,26 @@ const Batches = () => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Teacher Info Card */}
-              <div className="bg-[var(--bg-cream)]/40 border border-[var(--border-color)]/60 rounded-xl p-4 space-y-2">
+              <div className="bg-[var(--bg-cream)]/40 border border-[var(--border-color)]/60 rounded-xl p-4 space-y-3">
                 <h4 className="text-xs font-extrabold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1">
                   <User className="h-4 w-4 text-emerald-500" />
-                  Assigned Teacher
+                  Assigned Teachers & Roles
                 </h4>
-                {viewingBatch.teacherId ? (
+                {viewingBatch.teachers && viewingBatch.teachers.length > 0 ? (
+                  <div className="space-y-2">
+                    {viewingBatch.teachers.map((t, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-[var(--bg-card)] border border-[var(--border-color)]/40 p-2.5 rounded-lg text-xs">
+                        <div>
+                          <p className="font-bold text-[var(--text-dark)]">{t.teacherId?.name || 'Teacher'}</p>
+                          <p className="text-[10px] text-[var(--text-muted)]">{t.teacherId?.email}</p>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          {t.role || 'Instructor'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : viewingBatch.teacherId ? (
                   <div className="text-xs space-y-0.5">
                     <p className="font-bold text-[var(--text-dark)]">{viewingBatch.teacherId.name}</p>
                     <p className="text-[var(--text-muted)]">Username: {viewingBatch.teacherId.username}</p>

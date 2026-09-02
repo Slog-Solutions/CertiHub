@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Firebase Admin SDK Service Account (NEVER commit this!)
+config/firebase-service-account.json
+
 # Dependencies
 node_modules/
 

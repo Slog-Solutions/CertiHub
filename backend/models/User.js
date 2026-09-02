@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  generatedPassword: {
+    type: String,
+    default: ''
+  },
   name: {
     type: String,
     required: true
@@ -36,6 +40,34 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  fcmToken: {
+    type: String,
+    default: null
+  },
+  dob: {
+    type: Date,
+    default: null
+  },
+  gender: {
+    type: String,
+    default: ''
+  },
+  state: {
+    type: String,
+    default: ''
+  },
+  branch: {
+    type: String,
+    default: ''
+  },
+  year: {
+    type: String,
+    default: ''
+  },
+  technology: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
