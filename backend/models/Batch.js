@@ -20,8 +20,20 @@ const batchSchema = new mongoose.Schema({
   teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
+  teachers: [{
+    teacherId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      default: 'Instructor',
+      trim: true
+    }
+  }],
   students: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -66,6 +78,71 @@ const batchSchema = new mongoose.Schema({
     message: {
       type: String,
       required: true
+    },
+    date: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  curriculum: [{
+    title: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    description: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    subtopics: [{
+      title: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      isCompleted: {
+        type: Boolean,
+        default: false
+      },
+      completedAt: {
+        type: Date,
+        default: null
+      }
+    }],
+    order: {
+      type: Number,
+      default: 0
+    },
+    isCompleted: {
+      type: Boolean,
+      default: false
+    },
+    completedAt: {
+      type: Date,
+      default: null
+    }
+  }],
+  feedback: [{
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    studentName: {
+      type: String,
+      default: ''
+    },
+    rating: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 5
+    },
+    review: {
+      type: String,
+      default: '',
+      trim: true
     },
     date: {
       type: Date,

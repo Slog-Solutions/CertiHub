@@ -35,7 +35,7 @@ const UserLogin = () => {
 
     try {
       const data = await login(loginData.username, loginData.password);
-      
+
       // Verification of role matching activeTab
       if (activeTab === 'student' && data.user.role !== 'Student') {
         throw new Error('This account does not belong to a Candidate.');
@@ -45,7 +45,7 @@ const UserLogin = () => {
       }
 
       setSuccess('Logged in successfully!');
-      
+
       // Redirect based on role
       setTimeout(() => {
         if (data.user.role === 'Student') {
@@ -75,7 +75,7 @@ const UserLogin = () => {
     try {
       await api.post('/auth/register-student', registerData);
       setSuccess('Registration successful! Please log in below.');
-      
+
       // Shift to login mode and pre-fill credentials
       setLoginData({ username: registerData.username, password: '' });
       setStudentMode('login');
@@ -110,14 +110,13 @@ const UserLogin = () => {
               setError('');
               setSuccess('');
             }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-              activeTab === 'student'
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${activeTab === 'student'
                 ? 'bg-[var(--bg-card)] text-emerald-500 shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-dark)]'
-            }`}
+              }`}
           >
             <GraduationCap className="h-4 w-4" />
-            Candidate Login
+            Candidate Portal
           </button>
           <button
             onClick={() => {
@@ -125,14 +124,13 @@ const UserLogin = () => {
               setError('');
               setSuccess('');
             }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-              activeTab === 'teacher'
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${activeTab === 'teacher'
                 ? 'bg-[var(--bg-card)] text-emerald-500 shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-dark)]'
-            }`}
+              }`}
           >
             <Briefcase className="h-4 w-4" />
-            Expert Login
+            Expert Portal
           </button>
         </div>
 

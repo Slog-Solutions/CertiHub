@@ -223,7 +223,9 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/batches', require('./routes/batches'));
 app.use('/api/projects', require('./routes/projects'));
 app.use('/api/custom-courses', require('./routes/customCourses'));
-
+app.use('/api/queries', require('./routes/queries'));
+app.use('/api/assignments', require('./routes/assignments'));
+app.use('/api/push', require('./routes/push'));
 
 // Dummy endpoints for frontend CMS components to prevent 404 console errors
 app.use('/api/hero-slides', (req, res) => res.json([]));
