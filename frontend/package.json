@@ -46,6 +46,7 @@
     "firebase": "^11.9.1",
     "framer-motion": "^12.23.12",
     "genkit": "^1.14.1",
+    "gsap": "^3.15.0",
     "keen-slider": "^6.8.6",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.475.0",

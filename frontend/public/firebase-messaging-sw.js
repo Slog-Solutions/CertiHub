@@ -32,20 +32,25 @@ try {
     messaging.onBackgroundMessage((payload) => {
       console.log('[firebase-messaging-sw.js] Background message received:', payload);
 
-      const notificationTitle = payload.notification?.title || '📢 New Class Announcement!';
-      const notificationBody  = payload.notification?.body  || 'Your instructor posted something new.';
+      // Firebase Web SDK automatically displays notifications when payload.notification is present.
+      // Only invoke showNotification manually if payload.notification is NOT provided (data-only push message).
+      if (!payload.notification) {
+        const notificationTitle = payload.data?.title || '📢 New Class Announcement!';
+        const notificationBody  = payload.data?.body || payload.data?.message || 'Your instructor posted something new.';
+        const uniqueTag = payload.data?.announcementId || payload.data?.batchId || payload.data?.type || notificationTitle;
 
-      self.registration.showNotification(notificationTitle, {
-        body:       notificationBody,
-        icon:       '/favicon.ico',
-        badge:      '/favicon.ico',
-        tag:        payload.data?.type === 'direct_message' ? 'direct-msg' : 'class-announcement',
-        data:       payload.data || {},
-        requireInteraction: false,
-        actions: [
-          { action: 'view', title: 'View Now' }
-        ]
-      });
+        self.registration.showNotification(notificationTitle, {
+          body:       notificationBody,
+          icon:       '/favicon.ico',
+          badge:      '/favicon.ico',
+          tag:        uniqueTag,
+          data:       payload.data || {},
+          requireInteraction: false,
+          actions: [
+            { action: 'view', title: 'View Now' }
+          ]
+        });
+      }
     });
 
     // Handle notification click — open/focus the app tab

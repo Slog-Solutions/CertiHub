@@ -71,12 +71,8 @@ const sendToToken = async (token, title, body, data = {}) => {
         Object.entries(data).map(([k, v]) => [k, String(v)])
       ),
       webpush: {
-        notification: {
-          title,
-          body,
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          click_action: '/'
+        fcmOptions: {
+          link: '/'
         }
       }
     };
@@ -128,12 +124,8 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
         notification: { title, body },
         data: dataStringified,
         webpush: {
-          notification: {
-            title,
-            body,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
-            click_action: '/'
+          fcmOptions: {
+            link: '/'
           }
         }
       };

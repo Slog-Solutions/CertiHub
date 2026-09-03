@@ -41,6 +41,34 @@ router.patch('/fcm-token', requireAuth, async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────────────
+   DELETE /api/push/fcm-token
+   Revoke / clear caller's FCM device token on logout.
+   Accessible by any authenticated user.
+───────────────────────────────────────────────────────────── */
+router.delete('/fcm-token', requireAuth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { fcmToken: null });
+    console.log(`[FCM] Token revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
+    res.json({ success: true, message: 'FCM token revoked successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/push/logout-fcm (Alias for token deletion on logout)
+───────────────────────────────────────────────────────────── */
+router.post('/logout-fcm', requireAuth, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { fcmToken: null });
+    console.log(`[FCM] Token revoked via logout-fcm endpoint for user: ${req.user.name}`);
+    res.json({ success: true, message: 'FCM token removed.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────
    GET /api/push/my-notifications
    Fetch specific direct notifications sent to the candidate by experts.
    Access: Student only (or any authenticated user)
@@ -95,8 +123,14 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
   }
 
   try {
-    // Verify teacher owns this batch
-    const batch = await Batch.findOne({ _id: req.params.batchId, teacherId: req.user._id });
+    // Verify teacher is assigned to this batch
+    const batch = await Batch.findOne({
+      _id: req.params.batchId,
+      $or: [
+        { teacherId: req.user._id },
+        { 'teachers.teacherId': req.user._id }
+      ]
+    });
     if (!batch) {
       return res.status(404).json({ error: 'Batch not found or not assigned to you.' });
     }
@@ -145,7 +179,10 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
   try {
     // Verify teacher has at least one shared batch with this student
     const sharedBatch = await Batch.findOne({
-      teacherId: req.user._id,
+      $or: [
+        { teacherId: req.user._id },
+        { 'teachers.teacherId': req.user._id }
+      ],
       students: req.params.studentId
     });
 
