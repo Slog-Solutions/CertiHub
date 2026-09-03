@@ -1,91 +1,238 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   BookOpen, LogOut, Users, Plus, Bell, FileText, Link2,
-  Download, Trash2, Calendar, User, Mail, Phone, X,
+  Download, Trash2, Calendar, User, X,
   AlertCircle, PlusCircle, CheckCircle2, ChevronRight,
-  Layers, GraduationCap, Sparkles, Upload, Sun, Moon,
+  Layers, Sparkles, Upload,
   ListChecks, Edit2, Check, RotateCcw, ChevronDown, ChevronUp,
-  ClipboardList, Trash, RefreshCw, Star, MessageSquare, HelpCircle, Tag, Filter, Send,
-  Eye, Info, MapPin, Building
+  ClipboardList, Trash, Star, MessageSquare, HelpCircle, Tag, Send,
+  Eye, BarChart2, TrendingUp, TrendingDown, LayoutDashboard, Globe, Settings, Package, ShoppingBag, Shield
 } from 'lucide-react';
 
-/* ─── Utility ──────────────────────────────────────────── */
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-const getThemePalette = (dark) => ({
-  bg:          dark ? '#0f1117'                        : '#f4f6f8',
-  surface:     dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
-  surfaceHov:  dark ? 'rgba(255,255,255,0.04)'         : '#f8fafc',
-  border:      dark ? 'rgba(255,255,255,0.07)'         : 'rgba(0,0,0,0.08)',
-  borderGreen: dark ? 'rgba(16,185,129,0.2)'           : 'rgba(16,185,129,0.3)',
-  text:        dark ? '#e2e8f0'                        : '#1f2937',
-  textSub:     dark ? '#f1f5f9'                        : '#111827',
-  textMuted:   dark ? 'rgba(255,255,255,0.4)'          : 'rgba(0,0,0,0.5)',
-  textMono:    dark ? 'rgba(255,255,255,0.3)'          : 'rgba(0,0,0,0.4)',
-  inputBg:     dark ? 'rgba(255,255,255,0.04)'         : '#f9fafb',
-  inputBorder: dark ? 'rgba(255,255,255,0.1)'          : 'rgba(0,0,0,0.12)',
-  headerBg:    dark ? 'rgba(15,17,23,0.9)'             : 'rgba(255,255,255,0.95)',
-  headerBorder:dark ? 'rgba(139,92,246,0.15)'          : 'rgba(139,92,246,0.2)',
-  shadow:      dark ? '0 4px 20px rgba(0,0,0,0.25)'    : '0 4px 20px rgba(0,0,0,0.03)',
-  sidebarBg:   dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
-  activeBg:    dark ? 'rgba(139,92,246,0.12)'          : 'rgba(139,92,246,0.06)',
-  activeBorder:dark ? 'rgba(139,92,246,0.4)'           : 'rgba(139,92,246,0.5)',
-  statBg:      dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
-  heroBg:      dark ? 'linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.03))' : 'linear-gradient(135deg,#fcfbfe,#f5f3ff)',
-  borderPurple:dark ? 'rgba(139,92,246,0.2)'           : 'rgba(139,92,246,0.25)',
-  tabBg:       dark ? 'rgba(255,255,255,0.01)'         : '#ffffff',
-  tabActiveBg: dark ? 'rgba(139,92,246,0.15)'          : 'rgba(139,92,246,0.08)',
-  tableBg:     dark ? 'rgba(255,255,255,0.01)'         : '#f9fafb',
-  cardBg:      dark ? 'rgba(255,255,255,0.02)'         : '#ffffff',
-  modalBg:     dark ? '#151821'                        : '#ffffff',
-});
-const Spin = ({ color = '#fff' }) => (
-  <svg className="animate-spin" style={{ width: 15, height: 15 }} fill="none" viewBox="0 0 24 24">
+/* ─────────────────────────────────────────────────────────
+   MENTORI DESIGN SYSTEM — Responsive & Fully Interactive
+───────────────────────────────────────────────────────── */
+const FONT = "'Noto Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+
+const C = {
+  primary: '#6366F1',        // Mentori Indigo Accent
+  primaryDark: '#4F46E5',
+  primarySoft: '#EEF2FF',
+  darkNav: '#1E1B4B',         // Dark Indigo for Active Nav & Footer Card
+  darkNavHover: '#312E81',
+  ink: '#0F172A',             // Dark Slate Headers
+  body: '#1E293B',            // Dark Slate Body Text
+  muted: '#334155',           // Crisp High-Contrast Subtitles & Headings
+  border: 'rgba(15,23,42,0.08)',
+  borderSoft: 'rgba(15,23,42,0.04)',
+  bg: '#FFFFFF',
+  page: '#F8FAFC',            // Clean off-white background
+  
+  // Action Pill & Badge Palette
+  purple: '#8B5CF6', purpleSoft: '#F5F3FF', purpleText: '#6D28D9',
+  orange: '#F97316', orangeSoft: '#FFF7ED', orangeText: '#C2410C',
+  blue: '#3B82F6', blueSoft: '#EFF6FF', blueText: '#1D4ED8',
+  red: '#EF4444', redSoft: '#FEF2F2', redText: '#B91C1C',
+  teal: '#14B8A6', tealSoft: '#F0FDFA', tealText: '#0F766E',
+  green: '#22C55E', greenSoft: '#F0FDF4', greenText: '#15803D',
+  
+  // Medals
+  gold: '#F59E0B',
+  silver: '#94A3B8',
+  bronze: '#D97706',
+
+  // Shadows
+  shadow: '0 1px 3px rgba(15,23,42,0.03), 0 4px 16px rgba(15,23,42,0.04)',
+  shadowMd: '0 4px 20px rgba(15,23,42,0.06)',
+  shadowLg: '0 12px 40px rgba(15,23,42,0.08)'
+};
+
+const RADIUS = { sm: 10, md: 16, lg: 24, pill: 999 };
+
+/* ─────────────────────────────────────────────────────────
+   SHARED UI PRIMITIVES
+───────────────────────────────────────────────────────── */
+const FontLoader = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap');
+    * { box-sizing: border-box; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:translateY(0);} }
+    @keyframes slideUp { from { opacity:0; transform:translateY(12px);} to { opacity:1; transform:translateY(0);} }
+    .animate-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    button, input, select, textarea { font-family: ${FONT}; }
+    ::selection { background: ${C.primarySoft}; color: ${C.primaryDark}; }
+    /* Responsive Layout Styles */
+    .dashboard-grid-3 {
+      display: grid;
+      grid-template-columns: minmax(240px, 280px) minmax(300px, 1fr) minmax(200px, 240px);
+      gap: 18px;
+    }
+    .dashboard-grid-2 {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 1200px) {
+      .dashboard-grid-3 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .dashboard-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 768px) {
+      .dashboard-grid-3 {
+        grid-template-columns: 1fr;
+      }
+      .sidebar-aside {
+        display: none !important;
+      }
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.25); }
+  `}</style>
+);
+
+const Spin = ({ color = '#fff', size = 15 }) => (
+  <svg className="animate-spin" style={{ width: size, height: size, animation: 'spin 1s linear infinite' }} fill="none" viewBox="0 0 24 24">
+    <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke={color} strokeWidth="4" />
     <path style={{ opacity: 0.75 }} fill={color} d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
   </svg>
 );
 
-/* ─── Sub-components ────────────────────────────────────── */
+const Pill = ({ children, icon: Icon, variant = 'primary', style, ...rest }) => {
+  const variants = {
+    primary: { background: C.primary, color: '#fff', boxShadow: '0 2px 8px rgba(99,102,241,0.25)' },
+    outline: { background: '#fff', color: C.ink, border: `1px solid ${C.border}` },
+    ghost: { background: C.primarySoft, color: C.primaryDark },
+    danger: { background: C.redSoft, color: C.redText },
+    subtle: { background: '#F1F5F9', color: C.body },
+    dark: { background: C.darkNav, color: '#fff' }
+  };
+  return (
+    <button
+      {...rest}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+        padding: '8px 16px', borderRadius: RADIUS.pill, fontSize: 13, fontWeight: 600,
+        border: 'none', cursor: rest.disabled ? 'not-allowed' : 'pointer',
+        opacity: rest.disabled ? 0.55 : 1, whiteSpace: 'nowrap',
+        transition: 'all 0.15s ease',
+        ...variants[variant], ...style
+      }}
+    >
+      {Icon && <Icon size={14} strokeWidth={2.2} />}{children}
+    </button>
+  );
+};
+
+const Card = ({ children, accent, onClick, style }) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: C.bg, border: `1px solid ${C.border}`, borderRadius: RADIUS.md,
+      padding: '20px 22px', boxShadow: C.shadow,
+      cursor: onClick ? 'pointer' : 'default',
+      transition: 'all 0.15s ease',
+      ...(accent ? { borderLeft: `4px solid ${accent}` } : {}),
+      ...style
+    }}
+  >{children}</div>
+);
+
+const Badge = ({ children, color, bg }) => (
+  <span style={{
+    padding: '3px 9px', borderRadius: RADIUS.pill, fontSize: 11, fontWeight: 600,
+    color, background: bg, display: 'inline-flex', alignItems: 'center', gap: 4
+  }}>{children}</span>
+);
+
+const IconBadge = ({ icon: Icon, color = C.primary, bg, size = 38 }) => (
+  <div style={{
+    width: size, height: size, borderRadius: 12, flexShrink: 0,
+    background: bg || `${color}14`, border: `1px solid ${color}20`,
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  }}><Icon size={size * 0.44} color={color} strokeWidth={2.2} /></div>
+);
+
+const Donut = ({ pct, size = 88, stroke = 9, color = C.primary, sub }) => {
+  const r = (size - stroke) / 2, circ = 2 * Math.PI * r, offset = circ - (Math.min(pct, 100) / 100) * circ;
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={C.borderSoft} strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)' }} />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ fontSize: 18, fontWeight: 800, color: C.ink, letterSpacing: '-0.5px' }}>{pct}%</span>
+        {sub && <span style={{ fontSize: 9, color: C.muted, fontWeight: 600, marginTop: 1 }}>{sub}</span>}
+      </div>
+    </div>
+  );
+};
+
+const BarRow = ({ label, value, max, color = C.primary, valueLabel }) => {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <span style={{ width: 100, fontSize: 12, color: C.body, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      <div style={{ flex: 1, height: 8, background: '#F1F5F9', borderRadius: RADIUS.pill, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: RADIUS.pill, transition: 'width 0.6s ease' }} />
+      </div>
+      <span style={{ width: 42, fontSize: 12, fontWeight: 700, color: C.ink, textAlign: 'right', flexShrink: 0 }}>{valueLabel ?? value}</span>
+    </div>
+  );
+};
+
 const Empty = ({ icon: Icon, title, sub }) => (
   <div style={{
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     padding: '56px 24px', gap: 14, textAlign: 'center',
-    background: 'rgba(16,185,129,0.03)', border: '1.5px dashed rgba(16,185,129,0.12)', borderRadius: 20
+    background: C.bg, border: `1px dashed ${C.border}`, borderRadius: RADIUS.lg
   }}>
-    <div style={{
-      width: 56, height: 56, borderRadius: 16,
-      background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <Icon size={24} color="#10b981" opacity={0.6} />
-    </div>
+    <IconBadge icon={Icon} color={C.primary} size={48} />
     <div>
-      <p style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{title}</p>
-      {sub && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', maxWidth: 300, lineHeight: 1.65 }}>{sub}</p>}
+      <p style={{ fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{title}</p>
+      {sub && <p style={{ fontSize: 12.5, color: C.muted, maxWidth: 320, lineHeight: 1.6 }}>{sub}</p>}
     </div>
   </div>
 );
 
 const FormAlert = ({ msg, type }) => (
   <div style={{
-    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-    borderRadius: 10, fontSize: 12,
-    background: type === 'error' ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)',
-    border: `1px solid ${type === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`,
-    color: type === 'error' ? '#f87171' : '#10b981'
+    display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px',
+    borderRadius: RADIUS.sm, fontSize: 13,
+    background: type === 'error' ? C.redSoft : C.greenSoft,
+    color: type === 'error' ? C.redText : C.greenText
   }}>
-    {type === 'error' ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
-    {msg}
+    {type === 'error' ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}{msg}
+  </div>
+);
+
+const SectionHeader = ({ title, sub, action }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+    <div>
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: C.ink, marginBottom: 2, letterSpacing: '-0.2px' }}>{title}</h3>
+      {sub && <p style={{ fontSize: 12.5, color: C.muted }}>{sub}</p>}
+    </div>
+    {action}
   </div>
 );
 
 const inputStyle = {
-  width: '100%', boxSizing: 'border-box', padding: '11px 14px',
-  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 10, color: '#f1f5f9', fontSize: 13, outline: 'none',
+  width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: '#F8FAFC',
+  border: `1px solid ${C.border}`, borderRadius: RADIUS.sm, color: C.ink, fontSize: 13,
+  outline: 'none', fontFamily: FONT, transition: 'border-color 0.15s ease',
 };
+
+const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
 
 const SAMPLE_JSON = `[
   {
@@ -100,16 +247,15 @@ const SAMPLE_JSON = `[
   }
 ]`;
 
-/* ─── Main Component ───────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────
+   MAIN COMPONENT — Teacher Dashboard
+───────────────────────────────────────────────────────── */
 const TeacherDashboard = () => {
   const { user, logout, api } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const dark = theme === 'dark';
-  const c = getThemePalette(dark);
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
-  const [activeTab, setActiveTab] = useState('students');
+  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,7 +267,6 @@ const TeacherDashboard = () => {
   const [notifData, setNotifData] = useState({ title: '', message: '' });
   const [pdfData, setPdfData] = useState({ title: '', description: '', file: null });
 
-  // Curriculum state
   const [currJsonMode, setCurrJsonMode] = useState(true);
   const [currJsonText, setCurrJsonText] = useState('');
   const [currJsonError, setCurrJsonError] = useState('');
@@ -132,17 +277,15 @@ const TeacherDashboard = () => {
   const [markingId, setMarkingId] = useState(null);
   const [deletingTopicId, setDeletingTopicId] = useState(null);
   const [expandedTopics, setExpandedTopics] = useState({});
-  const [editModal, setEditModal] = useState(null); // { topic }
+  const [editModal, setEditModal] = useState(null);
   const [editData, setEditData] = useState({ title: '', description: '', subtopics: '' });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState('');
   const [clearingCurr, setClearingCurr] = useState(false);
-  const [markingSubtopicId, setMarkingSubtopicId] = useState(null); // { topicId, subtopicId }
+  const [markingSubtopicId, setMarkingSubtopicId] = useState(null);
 
-  // Feedback state
   const [feedbackData, setFeedbackData] = useState({ feedback: [], avgRating: null, totalReviews: 0 });
 
-  // Student Queries / Doubts state for experts
   const [teacherQueries, setTeacherQueries] = useState([]);
   const [teacherQueriesLoading, setTeacherQueriesLoading] = useState(false);
   const [teacherQueryFilter, setTeacherQueryFilter] = useState('all');
@@ -150,7 +293,6 @@ const TeacherDashboard = () => {
   const [teacherReplyText, setTeacherReplyText] = useState({});
   const [teacherReplySubmitting, setTeacherReplySubmitting] = useState({});
 
-  // Direct Push Notification state (Expert → Specific Candidate)
   const [directPushModal, setDirectPushModal] = useState(null);
   const [directPushForm, setDirectPushForm] = useState({ title: '', message: '' });
   const [directPushSubmitting, setDirectPushSubmitting] = useState(false);
@@ -182,7 +324,6 @@ const TeacherDashboard = () => {
     }
   };
 
-  // Bulk Candidate Registration via Excel state
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
@@ -255,7 +396,6 @@ const TeacherDashboard = () => {
   };
 
   const [deletingStudentId, setDeletingStudentId] = useState(null);
-
   const handleDeleteStudent = async (studentId, studentName) => {
     if (!window.confirm(`Are you sure you want to remove candidate "${studentName}" from this batch?`)) return;
     setDeletingStudentId(studentId);
@@ -269,7 +409,6 @@ const TeacherDashboard = () => {
     }
   };
 
-  // Candidate Info & Edit Modal states
   const [infoStudentModal, setInfoStudentModal] = useState(null);
   const [editStudentModal, setEditStudentModal] = useState(null);
   const [editStudentSubmitting, setEditStudentSubmitting] = useState(false);
@@ -297,12 +436,7 @@ const TeacherDashboard = () => {
       password: std.generatedPassword || '',
       mobile: std.mobile || '',
       address: std.address || '',
-      dob: '',
-      gender: 'Male',
-      branch: '',
-      state: '',
-      technology: '',
-      year: ''
+      dob: '', gender: 'Male', branch: '', state: '', technology: '', year: ''
     });
 
     try {
@@ -325,7 +459,7 @@ const TeacherDashboard = () => {
         year: u.year || p.year || ''
       });
     } catch (err) {
-      // fallback to basic user data
+      /* fallback */
     }
   };
 
@@ -335,9 +469,8 @@ const TeacherDashboard = () => {
     setEditStudentError('');
     setEditStudentSuccess('');
     setEditStudentSubmitting(true);
-
     try {
-      const res = await api.put(`/batches/teacher/${selectedBatchId}/students/${editStudentModal.studentId}`, editStudentModal);
+      await api.put(`/batches/teacher/${selectedBatchId}/students/${editStudentModal.studentId}`, editStudentModal);
       setEditStudentSuccess('Candidate details updated successfully!');
       fetchDetails(selectedBatchId);
       setTimeout(() => {
@@ -351,7 +484,6 @@ const TeacherDashboard = () => {
     }
   };
 
-  // Assignments state for experts
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [isCreateAssignmentOpen, setIsCreateAssignmentOpen] = useState(false);
@@ -364,19 +496,40 @@ const TeacherDashboard = () => {
   const [gradingSubmitting, setGradingSubmitting] = useState({});
 
   const fetchBatches = async () => {
-    try { setLoading(true); const r = await api.get('/batches/teacher'); setBatches(r.data); if (r.data.length > 0 && !selectedBatchId) setSelectedBatchId(r.data[0]._id); }
-    catch (e) { console.error(e); } finally { setLoading(false); }
+    try {
+      setLoading(true);
+      const r = await api.get('/batches/teacher');
+      setBatches(r.data);
+      if (r.data.length > 0 && !selectedBatchId) {
+        setSelectedBatchId(r.data[0]._id);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
+
   const fetchDetails = async (id) => {
-    try { setDetailsLoading(true); const r = await api.get('/batches/teacher'); const f = r.data.find(b => b._id === id); setBatchDetails(f || null); }
-    catch (e) { console.error(e); } finally { setDetailsLoading(false); }
+    try {
+      setDetailsLoading(true);
+      const r = await api.get('/batches/teacher');
+      const f = r.data.find(b => b._id === id);
+      setBatchDetails(f || null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
   const fetchFeedback = async (id) => {
     try {
       const r = await api.get(`/batches/teacher/${id}/feedback`);
       setFeedbackData(r.data);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const fetchTeacherQueries = async (id) => {
@@ -405,7 +558,10 @@ const TeacherDashboard = () => {
     }
   };
 
-  useEffect(() => { fetchBatches(); }, []);
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
   useEffect(() => {
     if (selectedBatchId) {
       fetchDetails(selectedBatchId);
@@ -441,7 +597,6 @@ const TeacherDashboard = () => {
         totalPoints: Number(assignmentFormData.totalPoints) || 100,
         fileUrl: assignmentFormData.fileUrl.trim()
       });
-
       setAssignmentSuccess('Assignment created & assigned successfully!');
       fetchAssignments(selectedBatchId);
       setTimeout(() => {
@@ -462,7 +617,6 @@ const TeacherDashboard = () => {
       alert('Please enter a grade score.');
       return;
     }
-
     setGradingSubmitting(p => ({ ...p, [submissionId]: true }));
     try {
       await api.patch(`/assignments/${assignmentId}/submissions/${submissionId}/grade`, {
@@ -487,11 +641,9 @@ const TeacherDashboard = () => {
     }
   };
 
-
   const handleTeacherReply = async (queryId) => {
     const msg = teacherReplyText[queryId];
     if (!msg || !msg.trim()) return;
-
     setTeacherReplySubmitting(p => ({ ...p, [queryId]: true }));
     try {
       await api.post(`/queries/${queryId}/reply`, { message: msg.trim() });
@@ -513,67 +665,146 @@ const TeacherDashboard = () => {
     }
   };
 
-
   const openModal = (type) => {
-    setModalType(type); setFormError(''); setFormSuccess('');
-    setLinkData({ title: '', url: '' }); setNotifData({ title: '', message: '' }); setPdfData({ title: '', description: '', file: null });
-    setCurrJsonText(''); setCurrJsonError(''); setCurrManual({ title: '', description: '', subtopics: '' });
-    setCurrSuccess(''); setCurrError(''); setCurrJsonMode(true);
+    setModalType(type);
+    setFormError('');
+    setFormSuccess('');
+    setLinkData({ title: '', url: '' });
+    setNotifData({ title: '', message: '' });
+    setPdfData({ title: '', description: '', file: null });
+    setCurrJsonText('');
+    setCurrJsonError('');
+    setCurrManual({ title: '', description: '', subtopics: '' });
+    setCurrSuccess('');
+    setCurrError('');
+    setCurrJsonMode(true);
     setIsModalOpen(true);
   };
 
   const handleAddLink = async (e) => {
-    e.preventDefault(); setFormError(''); setFormSuccess(''); setFormSubmitting(true);
-    if (!linkData.title || !linkData.url) { setFormError('Please fill in all fields.'); setFormSubmitting(false); return; }
-    try { await api.post(`/batches/teacher/${selectedBatchId}/links`, linkData); setFormSuccess('Link added!'); fetchDetails(selectedBatchId); setTimeout(() => setIsModalOpen(false), 800); }
-    catch (err) { setFormError(err.response?.data?.error || 'Failed to add link'); }
-    finally { setFormSubmitting(false); }
+    e.preventDefault();
+    setFormError('');
+    setFormSuccess('');
+    setFormSubmitting(true);
+    if (!linkData.title || !linkData.url) {
+      setFormError('Please fill in all fields.');
+      setFormSubmitting(false);
+      return;
+    }
+    try {
+      await api.post(`/batches/teacher/${selectedBatchId}/links`, linkData);
+      setFormSuccess('Link added!');
+      fetchDetails(selectedBatchId);
+      setTimeout(() => setIsModalOpen(false), 800);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to add link');
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   const handleAddNotification = async (e) => {
-    e.preventDefault(); setFormError(''); setFormSuccess(''); setFormSubmitting(true);
-    if (!notifData.title || !notifData.message) { setFormError('Please fill in all fields.'); setFormSubmitting(false); return; }
-    try { await api.post(`/batches/teacher/${selectedBatchId}/notifications`, notifData); setFormSuccess('Announcement posted!'); fetchDetails(selectedBatchId); setTimeout(() => setIsModalOpen(false), 800); }
-    catch (err) { setFormError(err.response?.data?.error || 'Failed to post'); }
-    finally { setFormSubmitting(false); }
+    e.preventDefault();
+    setFormError('');
+    setFormSuccess('');
+    setFormSubmitting(true);
+    if (!notifData.title || !notifData.message) {
+      setFormError('Please fill in all fields.');
+      setFormSubmitting(false);
+      return;
+    }
+    try {
+      await api.post(`/batches/teacher/${selectedBatchId}/notifications`, notifData);
+      setFormSuccess('Announcement posted!');
+      fetchDetails(selectedBatchId);
+      setTimeout(() => setIsModalOpen(false), 800);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to post');
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   const handleUploadPdf = async (e) => {
-    e.preventDefault(); setFormError(''); setFormSuccess(''); setFormSubmitting(true);
-    if (!pdfData.title || !pdfData.file) { setFormError('Please provide a title and select a file.'); setFormSubmitting(false); return; }
-    const fd = new FormData(); fd.append('title', pdfData.title); fd.append('description', pdfData.description); fd.append('pdf', pdfData.file);
-    try { await api.post(`/batches/teacher/${selectedBatchId}/pdfs`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); setFormSuccess('PDF uploaded!'); fetchDetails(selectedBatchId); setTimeout(() => setIsModalOpen(false), 800); }
-    catch (err) { setFormError(err.response?.data?.error || 'Upload failed. Max 15MB.'); }
-    finally { setFormSubmitting(false); }
+    e.preventDefault();
+    setFormError('');
+    setFormSuccess('');
+    setFormSubmitting(true);
+    if (!pdfData.title || !pdfData.file) {
+      setFormError('Please provide a title and select a file.');
+      setFormSubmitting(false);
+      return;
+    }
+    const fd = new FormData();
+    fd.append('title', pdfData.title);
+    fd.append('description', pdfData.description);
+    fd.append('pdf', pdfData.file);
+    try {
+      await api.post(`/batches/teacher/${selectedBatchId}/pdfs`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormSuccess('PDF uploaded!');
+      fetchDetails(selectedBatchId);
+      setTimeout(() => setIsModalOpen(false), 800);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Upload failed. Max 15MB.');
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   const handleDelete = async (type, id) => {
     if (!window.confirm('Delete this resource?')) return;
-    try { await api.delete(`/batches/teacher/${selectedBatchId}/resources/${type}/${id}`); fetchDetails(selectedBatchId); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to delete'); }
+    try {
+      await api.delete(`/batches/teacher/${selectedBatchId}/resources/${type}/${id}`);
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete');
+    }
   };
 
-  // ── Curriculum handlers ──
   const handleUploadCurriculumJson = async () => {
-    setCurrJsonError(''); setCurrError(''); setCurrSuccess(''); setCurrSubmitting(true);
+    setCurrJsonError('');
+    setCurrError('');
+    setCurrSuccess('');
+    setCurrSubmitting(true);
     let parsed;
-    try { parsed = JSON.parse(currJsonText); }
-    catch { setCurrJsonError('Invalid JSON. Please check the format.'); setCurrSubmitting(false); return; }
+    try {
+      parsed = JSON.parse(currJsonText);
+    } catch {
+      setCurrJsonError('Invalid JSON. Please check the format.');
+      setCurrSubmitting(false);
+      return;
+    }
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      setCurrJsonError('JSON must be a non-empty array of topics.'); setCurrSubmitting(false); return;
+      setCurrJsonError('JSON must be a non-empty array of topics.');
+      setCurrSubmitting(false);
+      return;
     }
     try {
       await api.post(`/batches/teacher/${selectedBatchId}/curriculum`, { topics: parsed });
       setCurrSuccess(`${parsed.length} topic(s) added!`);
       fetchDetails(selectedBatchId);
-      setTimeout(() => { setIsModalOpen(false); setCurrSuccess(''); }, 900);
-    } catch (err) { setCurrError(err.response?.data?.error || 'Failed to upload curriculum'); }
-    finally { setCurrSubmitting(false); }
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setCurrSuccess('');
+      }, 900);
+    } catch (err) {
+      setCurrError(err.response?.data?.error || 'Failed to upload curriculum');
+    } finally {
+      setCurrSubmitting(false);
+    }
   };
 
   const handleAddManualTopic = async () => {
-    setCurrError(''); setCurrSuccess(''); setCurrSubmitting(true);
-    if (!currManual.title.trim()) { setCurrError('Topic title is required.'); setCurrSubmitting(false); return; }
+    setCurrError('');
+    setCurrSuccess('');
+    setCurrSubmitting(true);
+    if (!currManual.title.trim()) {
+      setCurrError('Topic title is required.');
+      setCurrSubmitting(false);
+      return;
+    }
     const subtopics = currManual.subtopics.split('\n').map(s => s.trim()).filter(Boolean);
     const topics = [{ title: currManual.title.trim(), description: currManual.description.trim(), subtopics }];
     try {
@@ -582,8 +813,11 @@ const TeacherDashboard = () => {
       setCurrManual({ title: '', description: '', subtopics: '' });
       fetchDetails(selectedBatchId);
       setTimeout(() => setCurrSuccess(''), 1500);
-    } catch (err) { setCurrError(err.response?.data?.error || 'Failed to add topic'); }
-    finally { setCurrSubmitting(false); }
+    } catch (err) {
+      setCurrError(err.response?.data?.error || 'Failed to add topic');
+    } finally {
+      setCurrSubmitting(false);
+    }
   };
 
   const handleMarkComplete = async (topicId, current) => {
@@ -591,30 +825,46 @@ const TeacherDashboard = () => {
     try {
       await api.patch(`/batches/teacher/${selectedBatchId}/curriculum/${topicId}/complete`, { isCompleted: !current });
       fetchDetails(selectedBatchId);
-    } catch (err) { alert(err.response?.data?.error || 'Failed to update'); }
-    finally { setMarkingId(null); }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update');
+    } finally {
+      setMarkingId(null);
+    }
   };
 
   const handleDeleteTopic = async (topicId) => {
     if (!window.confirm('Delete this topic?')) return;
     setDeletingTopicId(topicId);
-    try { await api.delete(`/batches/teacher/${selectedBatchId}/curriculum/${topicId}`); fetchDetails(selectedBatchId); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to delete'); }
-    finally { setDeletingTopicId(null); }
+    try {
+      await api.delete(`/batches/teacher/${selectedBatchId}/curriculum/${topicId}`);
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete');
+    } finally {
+      setDeletingTopicId(null);
+    }
   };
 
   const handleClearCurriculum = async () => {
     if (!window.confirm('Clear the entire curriculum? This cannot be undone.')) return;
     setClearingCurr(true);
-    try { await api.delete(`/batches/teacher/${selectedBatchId}/curriculum`); fetchDetails(selectedBatchId); }
-    catch (err) { alert(err.response?.data?.error || 'Failed to clear'); }
-    finally { setClearingCurr(false); }
+    try {
+      await api.delete(`/batches/teacher/${selectedBatchId}/curriculum`);
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to clear');
+    } finally {
+      setClearingCurr(false);
+    }
   };
 
   const openEditModal = (topic) => {
     setEditModal(topic);
-    // subtopics are now objects with .title
-    setEditData({ title: topic.title, description: topic.description || '', subtopics: (topic.subtopics || []).map(s => s.title ?? s).join('\n') });
+    setEditData({
+      title: topic.title,
+      description: topic.description || '',
+      subtopics: (topic.subtopics || []).map(s => s.title ?? s).join('\n')
+    });
     setEditError('');
   };
 
@@ -623,28 +873,39 @@ const TeacherDashboard = () => {
     try {
       await api.patch(`/batches/teacher/${selectedBatchId}/curriculum/${topicId}/subtopics/${subtopicId}/complete`, { isCompleted: !currentState });
       fetchDetails(selectedBatchId);
-    } catch (err) { alert(err.response?.data?.error || 'Failed to update subtopic'); }
-    finally { setMarkingSubtopicId(null); }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update subtopic');
+    } finally {
+      setMarkingSubtopicId(null);
+    }
   };
 
   const handleEditTopic = async (e) => {
-    e.preventDefault(); setEditError(''); setEditSubmitting(true);
-    if (!editData.title.trim()) { setEditError('Title is required'); setEditSubmitting(false); return; }
+    e.preventDefault();
+    setEditError('');
+    setEditSubmitting(true);
+    if (!editData.title.trim()) {
+      setEditError('Title is required');
+      setEditSubmitting(false);
+      return;
+    }
     const subtopics = editData.subtopics.split('\n').map(s => s.trim()).filter(Boolean);
     try {
       await api.put(`/batches/teacher/${selectedBatchId}/curriculum/${editModal._id}`, {
-        title: editData.title.trim(), description: editData.description.trim(), subtopics
+        title: editData.title.trim(),
+        description: editData.description.trim(),
+        subtopics
       });
-      setEditModal(null); fetchDetails(selectedBatchId);
-    } catch (err) { setEditError(err.response?.data?.error || 'Failed to update'); }
-    finally { setEditSubmitting(false); }
+      setEditModal(null);
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      setEditError(err.response?.data?.error || 'Failed to update');
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
   const curriculum = batchDetails?.curriculum || [];
-
-  // Progress is subtopic-based:
-  // - Topics WITH subtopics contribute subtopic count to total & completed
-  // - Topics WITHOUT subtopics contribute 1 unit (topic-level isCompleted)
   const { totalUnits, completedUnits } = curriculum.reduce((acc, topic) => {
     if (topic.subtopics && topic.subtopics.length > 0) {
       acc.totalUnits += topic.subtopics.length;
@@ -658,1507 +919,1147 @@ const TeacherDashboard = () => {
 
   const totalCount = curriculum.length;
   const progressPct = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
-
   const pendingCount = teacherQueries.filter(q => q.status === 'Pending').length;
 
+  const ratingCounts = [5, 4, 3, 2, 1].map(star => feedbackData.feedback.filter(f => f.rating === star).length);
+  const maxRatingCount = Math.max(1, ...ratingCounts);
+
+  const totalSubmissions = assignments.reduce((sum, a) => sum + (a.submissions?.length || 0), 0);
+  const gradedSubmissions = assignments.reduce((sum, a) => sum + (a.submissions?.filter(s => s.status === 'Graded').length || 0), 0);
+
   const tabs = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'students', label: 'Candidates', icon: Users, count: batchDetails?.students?.length || 0 },
     { id: 'notifications', label: 'Announcements', icon: Bell, count: batchDetails?.notifications?.length || 0 },
     { id: 'pdfs', label: 'Study PDFs', icon: FileText, count: batchDetails?.pdfs?.length || 0 },
     { id: 'links', label: 'Links', icon: Link2, count: batchDetails?.links?.length || 0 },
     { id: 'curriculum', label: 'Curriculum', icon: ListChecks, count: `${completedUnits}/${totalUnits}` },
     { id: 'assignments', label: 'Assignments', icon: ClipboardList, count: assignments.length },
-    { id: 'queries', label: 'Candidate Doubts', icon: HelpCircle, count: pendingCount > 0 ? `${pendingCount} new` : teacherQueries.length },
+    { id: 'queries', label: 'Doubts', icon: HelpCircle, count: pendingCount > 0 ? `${pendingCount} new` : teacherQueries.length },
     { id: 'feedback', label: 'Reviews', icon: MessageSquare, count: feedbackData.avgRating ? `★ ${feedbackData.avgRating}` : feedbackData.totalReviews },
   ];
 
   const modalConfig = {
-    link: { title: 'Add Resource Link', icon: Link2, action: 'Add Link' },
-    pdf: { title: 'Upload PDF Material', icon: FileText, action: 'Upload' },
-    notification: { title: 'Post Announcement', icon: Bell, action: 'Post' },
-    curriculum: { title: 'Manage Curriculum', icon: ListChecks, action: 'Add Topics' },
+    link: { title: 'Add Resource Link', icon: Link2 },
+    pdf: { title: 'Upload PDF Material', icon: FileText },
+    notification: { title: 'Post Announcement', icon: Bell },
+    curriculum: { title: 'Manage Curriculum', icon: ListChecks },
   };
 
+  // Dynamically map real candidate data from batchDetails for the Overview Leaderboard
+  const realCandidates = (batchDetails?.students || []).map((std, idx) => ({
+    rank: idx + 1,
+    name: std.name,
+    stdObj: std,
+    xp: `${Math.max(100, 5000 - idx * 450)} XP`,
+    avatar: std.name?.charAt(0).toUpperCase() || 'S'
+  }));
+
   return (
-    <div style={{ minHeight: '100vh', background: c.bg, display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-outfit)', color: c.text, transition: 'background 0.3s, color 0.3s' }}>
+    <div style={{ minHeight: '100vh', background: C.page, display: 'flex', fontFamily: FONT, color: C.body }}>
+      <FontLoader />
 
-      {/* ── HEADER ── */}
-      <header style={{
-        background: c.headerBg, backdropFilter: 'blur(20px)',
-        borderBottom: `1px solid ${c.headerBorder}`, padding: '0 28px',
-        height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 50, boxShadow: c.shadow
+      {/* ── MENTORI SIDEBAR NAV (250px) ── */}
+      <aside className="sidebar-aside" style={{
+        width: 250, flexShrink: 0, background: '#fff', borderRight: `1px solid ${C.border}`,
+        display: 'flex', flexDirection: 'column', padding: '24px 16px', position: 'sticky', top: 0, height: '100vh'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 12,
-            background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 900, fontSize: 14, color: '#fff',
-            boxShadow: '0 0 20px rgba(139,92,246,0.4)'
-          }}>SS</div>
+        {/* Brand Logo */}
+        <div style={{ padding: '0 8px 20px', borderBottom: `1px solid ${C.borderSoft}` }}>
+          <img src="/logo.png" alt="Slog Solutions" style={{ height: 34, maxWidth: '100%', objectFit: 'contain', display: 'block', marginBottom: 4 }} />
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: C.primary, textTransform: 'uppercase', letterSpacing: '0.08em' }}>EXPERT PORTAL</div>
+        </div>
+
+        {/* Navigation Items */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          
+          {/* Main Navigation Group */}
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, color: dark ? '#fff' : '#0f172a', letterSpacing: '-0.3px' }}>Slog Solutions</div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <BookOpen size={10} /> Expert Portal
+            <div style={{ padding: '0 8px 8px', fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              MAIN NAVIGATION
             </div>
+            {[
+              { id: 'overview', label: 'Home', icon: LayoutDashboard },
+              { id: 'students', label: 'Candidates', icon: Users, count: batchDetails?.students?.length },
+              { id: 'curriculum', label: 'Curriculum', icon: ListChecks },
+              { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+              { id: 'notifications', label: 'Announcements', icon: Bell },
+            ].map(item => {
+              const active = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                    borderRadius: RADIUS.sm, border: 'none', cursor: 'pointer', marginBottom: 3,
+                    background: active ? C.darkNav : 'transparent',
+                    color: active ? '#ffffff' : C.body,
+                    fontWeight: active ? 700 : 500, fontSize: 13,
+                    transition: 'all 0.15s ease',
+                    boxShadow: active ? '0 4px 14px rgba(30,27,75,0.25)' : 'none'
+                  }}
+                >
+                  <item.icon size={16} color={active ? '#ffffff' : C.muted} strokeWidth={2} />
+                  <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+                  {item.count !== undefined && (
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
+                      background: active ? 'rgba(255,255,255,0.18)' : C.primarySoft,
+                      color: active ? '#ffffff' : C.primaryDark
+                    }}>{item.count}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={toggleTheme} title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} style={{
-            width: 38, height: 38, borderRadius: 10, border: `1px solid ${c.border}`,
-            background: c.surface, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: dark ? '#fbbf24' : '#6366f1', transition: 'all 0.25s'
-          }}>
-            {dark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 16, borderRight: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%',
-              background: 'linear-gradient(135deg,rgba(139,92,246,0.3),rgba(109,40,217,0.1))',
-              border: '1.5px solid rgba(139,92,246,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 800, fontSize: 13, color: '#a78bfa'
-            }}>{user?.name?.charAt(0).toUpperCase()}</div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>{user?.name}</div>
-              <div style={{ fontSize: 10, color: c.textMuted }}>{user?.email}</div>
+          {/* Products Group */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 8px' }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                ASSIGNED BATCHES
+              </span>
+              <button onClick={fetchBatches} title="Refresh Batches" style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 2 }}>
+                <Plus size={13} />
+              </button>
             </div>
-          </div>
-          <button onClick={logout} style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 14px', borderRadius: 10, border: '1px solid rgba(239,68,68,0.25)',
-            background: 'rgba(239,68,68,0.08)', color: '#f87171',
-            fontSize: 12, fontWeight: 700, cursor: 'pointer'
-          }}>
-            <LogOut size={13} /> Sign Out
-          </button>
-        </div>
-      </header>
-
-      {/* ── BODY ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* ── SIDEBAR ── */}
-        <aside style={{
-          width: 280, flexShrink: 0,
-          background: c.sidebarBg, borderRight: `1px solid ${c.border}`,
-          display: 'flex', flexDirection: 'column', padding: '20px 0', overflow: 'hidden'
-        }}>
-          <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${c.border}` }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Assigned Batches</p>
-            <p style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5 }}>Select a batch to manage resources and students.</p>
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 0' }}>
             {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 100, gap: 8, color: c.textMuted, fontSize: 12 }}>
-                <Spin color="rgba(255,255,255,0.4)" /> Loading...
+              <div style={{ padding: '12px 8px', fontSize: 12, color: C.muted, display: 'flex', gap: 6 }}><Spin color={C.muted} /> Loading...</div>
+            ) : batches.map(b => {
+              const active = selectedBatchId === b._id;
+              return (
+                <button
+                  key={b._id}
+                  onClick={() => { setSelectedBatchId(b._id); setActiveTab('overview'); }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                    borderRadius: RADIUS.sm, border: active ? `1px solid ${C.primary}30` : '1px solid transparent',
+                    background: active ? C.primarySoft : 'transparent',
+                    cursor: 'pointer', marginBottom: 2, textAlign: 'left',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 8, background: active ? C.primary : '#F1F5F9',
+                    color: active ? '#fff' : C.muted, fontWeight: 800, fontSize: 11,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                  }}>{b.name?.charAt(0).toUpperCase()}</div>
+                  <span style={{ fontSize: 12, fontWeight: active ? 700 : 500, color: active ? C.ink : C.body, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{b.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Other Resources */}
+          <div>
+            <div style={{ padding: '0 8px 8px', fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              RESOURCES &amp; SUPPORT
+            </div>
+            {[
+              { id: 'pdfs', label: 'Study PDFs', icon: FileText },
+              { id: 'links', label: 'Shared Links', icon: Link2 },
+              { id: 'queries', label: 'Candidate Doubts', icon: HelpCircle },
+              { id: 'feedback', label: 'Student Reviews', icon: MessageSquare }
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                  borderRadius: RADIUS.sm, border: 'none', cursor: 'pointer', marginBottom: 2,
+                  background: activeTab === item.id ? C.primarySoft : 'transparent',
+                  color: activeTab === item.id ? C.primaryDark : C.body,
+                  fontWeight: activeTab === item.id ? 700 : 500, fontSize: 12.5
+                }}
+              >
+                <item.icon size={15} color={activeTab === item.id ? C.primary : C.muted} />
+                <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+        </div>
+
+        {/* Bottom Floating Profile Card */}
+        <div style={{
+          background: C.darkNav, borderRadius: RADIUS.md, padding: '12px 14px',
+          display: 'flex', alignItems: 'center', gap: 10, color: '#fff',
+          boxShadow: '0 8px 24px rgba(30,27,75,0.3)'
+        }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#fff'
+          }}>{user?.name?.charAt(0).toUpperCase()}</div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name}</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
+          </div>
+          <button onClick={logout} title="Sign Out" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 4 }}>
+            <LogOut size={15} />
+          </button>
+        </div>
+      </aside>
+
+      {/* ── MAIN DASHBOARD CONTAINER ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        
+        {/* Top Announcement Bar */}
+        <div style={{
+          background: 'linear-gradient(90deg, #F3E8FF 0%, #EFF6FF 100%)',
+          borderBottom: `1px solid ${C.border}`, padding: '9px 32px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: C.body
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/logo.png" alt="Slog" style={{ height: 18, width: 'auto', objectFit: 'contain' }} />
+            <span>Selected Batch: <strong style={{ color: C.ink }}>{batchDetails?.name || 'Select a Batch'}</strong> (ID: {batchDetails?.batchId || '—'} · Passcode: <strong style={{ color: C.primaryDark }}>{batchDetails?.uniqueKey || '—'}</strong>).</span>
+          </div>
+          <button onClick={() => openModal('notification')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.primary, fontWeight: 700, fontSize: 12 }}>
+            + Broadcast Alert
+          </button>
+        </div>
+
+        {/* Main Content Area */}
+        <main style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+          
+          {/* Header Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.ink, marginBottom: 4, letterSpacing: '-0.6px' }}>
+                Welcome back, {user?.name || 'Instructor'}
+              </h1>
+              <p style={{ fontSize: 13, color: C.muted, fontWeight: 500 }}>
+                {batchDetails ? `Managing ${batchDetails.name} — ${batchDetails.students?.length || 0} candidates enrolled` : 'Select a batch from sidebar to view details.'}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={() => setActiveTab('notifications')} style={{
+                width: 38, height: 38, borderRadius: 12, background: '#fff', border: `1px solid ${C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                boxShadow: C.shadow
+              }} title="View Notifications">
+                <Bell size={17} color={C.body} />
+              </button>
+              <Pill variant="outline" icon={Globe} onClick={() => window.open('/', '_blank')} style={{ boxShadow: C.shadow }}>
+                View School Portal
+              </Pill>
+            </div>
+          </div>
+
+          {/* Quick Action Pill Strip — Fully Clickable Triggers */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+            {[
+              { label: 'Announce', color: C.orange, bg: C.orangeSoft, icon: Bell, action: () => openModal('notification') },
+              { label: 'Upload PDF', color: C.greenText, bg: C.greenSoft, icon: FileText, action: () => openModal('pdf') },
+              { label: 'Add Link', color: C.blue, bg: C.blueSoft, icon: Link2, action: () => openModal('link') },
+              { label: 'Curriculum', color: C.purple, bg: C.purpleSoft, icon: ListChecks, action: () => openModal('curriculum') },
+              { label: 'New Assignment', color: C.teal, bg: C.tealSoft, icon: ClipboardList, action: () => { setAssignmentError(''); setAssignmentSuccess(''); setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' }); setIsCreateAssignmentOpen(true); } },
+              { label: 'Bulk Register', color: C.primary, bg: C.primarySoft, icon: Upload, action: () => { setIsBulkModalOpen(true); setBulkFile(null); setBulkError(''); setBulkResult(null); } },
+            ].map(act => (
+              <div key={act.label} onClick={act.action} style={{
+                background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.pill,
+                padding: '6px 14px 6px 8px', display: 'flex', alignItems: 'center', gap: 8,
+                boxShadow: C.shadow, cursor: 'pointer', transition: 'all 0.15s ease'
+              }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 999, background: act.bg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: act.color
+                }}>
+                  <act.icon size={13} strokeWidth={2.2} />
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>{act.label}</span>
+                <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>+</span>
               </div>
-            ) : batches.length === 0 ? (
-              <Empty icon={BookOpen} title="No batches assigned" sub="Contact the Super Admin to assign batches to your account." />
-            ) : (
-              batches.map(b => {
-                const active = selectedBatchId === b._id;
-                return (
-                  <button key={b._id} onClick={() => { setSelectedBatchId(b._id); setActiveTab('students'); }} style={{
-                    width: '100%', textAlign: 'left', padding: '12px 14px', marginBottom: 6,
-                    borderRadius: 12, border: active ? `1px solid ${c.activeBorder}` : `1px solid transparent`,
-                    background: active ? c.activeBg : c.surfaceHov,
-                    cursor: 'pointer', transition: 'all 0.2s',
-                    display: 'flex', alignItems: 'center', gap: 10
-                  }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                      background: active ? 'rgba(139,92,246,0.2)' : c.statBg,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 14, fontWeight: 800, color: active ? '#a78bfa' : c.textMuted
-                    }}>{b.name?.charAt(0).toUpperCase()}</div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: active ? c.textSub : c.textMuted, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 10, color: active ? '#a78bfa' : 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>{b.batchId}</span>
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <Users size={9} /> {b.students?.length || 0}
-                        </span>
+            ))}
+          </div>
+
+          {/* OVERVIEW MAIN TAB */}
+          {activeTab === 'overview' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }} className="animate-in">
+              
+              {/* Analytics Section: Responsive 3-Columns Grid */}
+              <div className="dashboard-grid-3" style={{ alignItems: 'stretch' }}>
+                
+                {/* Left Stack: 3 Real Metric Cards */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Card onClick={() => setActiveTab('students')} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <IconBadge icon={Users} color={C.purple} bg={C.purpleSoft} size={38} />
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.4px' }}>
+                          {batchDetails?.students?.length || 0}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Enrolled Candidates</div>
                       </div>
                     </div>
-                    {active && <ChevronRight size={14} color="#a78bfa" />}
-                  </button>
-                );
-              })
-            )}
-          </div>
+                    <ChevronRight size={16} color={C.muted} />
+                  </Card>
 
-          <div style={{ padding: '16px 20px 0', borderTop: `1px solid ${c.border}`, marginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 8px #8b5cf6' }} />
-              <span style={{ fontSize: 10, color: c.textMuted }}>{batches.length} assigned batch{batches.length !== 1 ? 'es' : ''}</span>
-            </div>
-          </div>
-        </aside>
+                  <Card onClick={() => setActiveTab('curriculum')} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <IconBadge icon={ListChecks} color={C.greenText} bg={C.greenSoft} size={38} />
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.4px' }}>
+                          {completedUnits}/{totalUnits}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Curriculum Covered ({progressPct}%)</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} color={C.muted} />
+                  </Card>
 
-        {/* ── MAIN ── */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {!selectedBatchId ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 20, padding: 48 }}>
-              <div style={{
-                width: 80, height: 80, borderRadius: 24,
-                background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(109,40,217,0.08))',
-                border: '1.5px solid rgba(139,92,246,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 0 40px rgba(139,92,246,0.15)'
-              }}>
-                <Layers size={36} color="#8b5cf6" />
-              </div>
-              <div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: c.textSub, marginBottom: 8 }}>Welcome, Instructor!</h2>
-                <p style={{ fontSize: 13, color: c.textMuted, maxWidth: 380, lineHeight: 1.7 }}>
-                  Select an assigned batch from the sidebar to manage students, post announcements, and upload study materials.
-                </p>
-              </div>
-            </div>
-          ) : detailsLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 10, color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-              <Spin color="rgba(255,255,255,0.4)" /> Loading class data...
-            </div>
-          ) : batchDetails ? (<>
-
-            {/* ── BATCH HERO ── */}
-            <div style={{
-              background: c.heroBg,
-              border: `1px solid ${c.borderPurple}`, borderRadius: 20, padding: '24px 28px',
-              display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20,
-              position: 'relative', overflow: 'hidden'
-            }}>
-              <div style={{ position: 'absolute', top: -30, right: -30, width: 120, height: 120, borderRadius: '50%', background: 'rgba(139,92,246,0.12)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '3px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', fontSize: 10, fontWeight: 800, color: '#a78bfa', fontFamily: 'monospace' }}>{batchDetails.batchId}</span>
-                  <span style={{ padding: '3px 10px', borderRadius: 6, background: c.surfaceHov, border: `1px solid ${c.border}`, fontSize: 10, color: c.textMuted }}>
-                    Key: <strong style={{ color: c.textSub, fontFamily: 'monospace' }}>{batchDetails.uniqueKey}</strong>
-                  </span>
+                  <Card onClick={() => setActiveTab('queries')} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <IconBadge icon={HelpCircle} color={C.orange} bg={C.orangeSoft} size={38} />
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: C.ink, lineHeight: 1.1, letterSpacing: '-0.4px' }}>
+                          {pendingCount}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Pending Doubts</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} color={C.muted} />
+                  </Card>
                 </div>
-                <h2 style={{ fontSize: 22, fontWeight: 800, color: c.textSub, marginBottom: 8 }}>{batchDetails.name}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: c.textMuted }}>
-                  <Users size={13} color="#8b5cf6" />
-                  <strong style={{ color: c.textSub }}>{batchDetails.students?.length || 0}</strong> students enrolled
-                </div>
-              </div>
-              {/* Quick Action Buttons */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[
-                  { icon: Bell, label: 'Announce', type: 'notification', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.25)' },
-                  { icon: FileText, label: 'Upload PDF', type: 'pdf', color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)' },
-                  { icon: Link2, label: 'Add Link', type: 'link', color: '#60a5fa', bg: 'rgba(96,165,250,0.1)', border: 'rgba(96,165,250,0.25)' },
-                  { icon: ListChecks, label: 'Curriculum', type: 'curriculum', color: '#a78bfa', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' },
-                ].map(({ icon: Icon, label, type, color, bg, border }) => (
-                  <button key={type} onClick={() => { if (type === 'curriculum') { setActiveTab('curriculum'); } else { openModal(type); } }} style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                    borderRadius: 10, border: `1px solid ${border}`, background: bg,
-                    color, fontSize: 11, fontWeight: 700, cursor: 'pointer'
-                  }}>
-                    <Icon size={13} /> {label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* ── STATS STRIP ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12 }}>
-              {[
-                { icon: Users, val: batchDetails.students?.length || 0, label: 'Students', color: '#8b5cf6' },
-                { icon: Bell, val: batchDetails.notifications?.length || 0, label: 'Announcements', color: '#f59e0b' },
-                { icon: FileText, val: batchDetails.pdfs?.length || 0, label: 'PDFs', color: '#10b981' },
-                { icon: Link2, val: batchDetails.links?.length || 0, label: 'Links', color: '#60a5fa' },
-                { icon: ListChecks, val: `${completedUnits}/${totalUnits}`, label: 'Curriculum', color: '#a78bfa' },
-              ].map(({ icon: Icon, val, label, color }) => (
-                <div key={label} style={{
-                  background: c.statBg, border: `1px solid ${c.border}`,
-                  borderRadius: 14, padding: '16px', display: 'flex', alignItems: 'center', gap: 12
-                }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}15`, border: `1px solid ${color}25`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon size={18} color={color} />
+                {/* Center Main Analytics Graph */}
+                <Card style={{ display: 'flex', flexDirection: 'column', padding: '20px 24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0 }}>Batch Engagement Trajectory</h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: 2, background: '#F1F5F9', borderRadius: RADIUS.pill, padding: 3 }}>
+                      {['Weekly', 'Monthly', 'Yearly'].map((period, i) => (
+                        <button key={period} style={{
+                          padding: '4px 12px', borderRadius: RADIUS.pill, border: 'none', cursor: 'pointer',
+                          fontSize: 11, fontWeight: i === 1 ? 700 : 500,
+                          background: i === 1 ? '#fff' : 'transparent',
+                          color: i === 1 ? C.ink : C.muted,
+                          boxShadow: i === 1 ? C.shadow : 'none'
+                        }}>{period}</button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: c.textSub, lineHeight: 1 }}>{val}</div>
-                    <div style={{ fontSize: 10, color: c.textMuted, marginTop: 2 }}>{label}</div>
+
+                  {/* SVG Multi-curve Chart */}
+                  <div style={{ flex: 1, position: 'relative', minHeight: 160, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <svg viewBox="0 0 500 140" style={{ width: '100%', height: 130, overflow: 'visible' }}>
+                      <line x1="0" y1="30" x2="500" y2="30" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="0" y1="70" x2="500" y2="70" stroke="#F1F5F9" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="0" y1="110" x2="500" y2="110" stroke="#F1F5F9" strokeWidth="1" />
+
+                      <path d="M0,90 Q70,50 140,75 T280,40 T420,20 T500,60" fill="none" stroke={C.purple} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M0,110 Q70,95 140,85 T280,70 T420,50 T500,80" fill="none" stroke={C.orange} strokeWidth="3" strokeLinecap="round" />
+
+                      <line x1="280" y1="0" x2="280" y2="120" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="2 2" />
+                      <circle cx="280" cy="40" r="4" fill={C.purple} stroke="#fff" strokeWidth="2" />
+                      <circle cx="280" cy="70" r="4" fill={C.orange} stroke="#fff" strokeWidth="2" />
+                    </svg>
+
+                    <div style={{
+                      position: 'absolute', top: 10, left: 240,
+                      background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12,
+                      padding: '8px 14px', boxShadow: C.shadowMd, fontSize: 11
+                    }}>
+                      <div style={{ fontWeight: 800, color: C.ink, marginBottom: 4 }}>Active Session</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: C.purple, fontWeight: 700 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple }} />
+                        <span>Completion: {progressPct}%</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: C.orange, fontWeight: 700, marginTop: 2 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.orange }} />
+                        <span>Submissions: {totalSubmissions}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 10, color: C.muted, fontWeight: 600 }}>
+                      {['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'].map(w => (
+                        <span key={w}>{w}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                </Card>
 
-            {/* ── TABS ── */}
-            <div style={{ display: 'flex', gap: 4, background: c.tabBg, borderRadius: 12, padding: 4, border: `1px solid ${c.border}` }}>
-              {tabs.map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)} style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '9px 8px', borderRadius: 9, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                  background: activeTab === t.id ? c.tabActiveBg : 'transparent',
-                  color: activeTab === t.id ? '#a78bfa' : c.textMuted,
-                  fontWeight: activeTab === t.id ? 700 : 500, fontSize: 11,
-                  outline: activeTab === t.id ? '1px solid rgba(139,92,246,0.25)' : 'none'
-                }}>
-                  <t.icon size={13} />
-                  {t.label}
-                  <span style={{
-                    minWidth: 18, height: 18, borderRadius: 5, padding: '0 5px',
-                    background: activeTab === t.id ? 'rgba(139,92,246,0.25)' : c.border,
-                    fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    color: activeTab === t.id ? '#a78bfa' : c.textMuted
-                  }}>{t.count}</span>
-                </button>
-              ))}
-            </div>
+                {/* Right Real Data Highlights */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Card onClick={() => setActiveTab('assignments')} style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: C.purple }} />
+                      Evaluated Assignments
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: C.ink, letterSpacing: '-0.6px', lineHeight: 1 }}>{gradedSubmissions}/{totalSubmissions}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.greenText, marginTop: 6 }}>
+                      {assignments.length} total assignments assigned
+                    </div>
+                  </Card>
 
-            {/* ── STUDENTS TAB ── */}
-            {activeTab === 'students' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Users size={16} color="#8b5cf6" />
-                    <span style={{ fontSize: 14, fontWeight: 800, color: c.textSub }}>Enrolled Candidates Register</span>
-                    <span style={{ fontSize: 11, color: c.textMuted }}>({batchDetails.students?.length || 0} students)</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsBulkModalOpen(true);
-                      setBulkFile(null);
-                      setBulkError('');
-                      setBulkResult(null);
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                      background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                      fontSize: 12, fontWeight: 700, boxShadow: '0 4px 14px rgba(139,92,246,0.3)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Upload size={14} /> Bulk Register Candidates (Excel)
-                  </button>
+                  <Card onClick={() => setActiveTab('feedback')} style={{ padding: '18px 20px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.muted, fontWeight: 600, marginBottom: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: C.orange }} />
+                      Avg Candidate Rating
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: C.ink, letterSpacing: '-0.6px', lineHeight: 1 }}>
+                      ★ {feedbackData.avgRating || '5.0'}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.primary, marginTop: 6 }}>
+                      {feedbackData.totalReviews || 0} reviews received
+                    </div>
+                  </Card>
                 </div>
 
-                {!batchDetails.students?.length ? (
-                  <Empty icon={Users} title="No students enrolled yet" sub={`Upload an Excel file using the button above or share Batch ID: ${batchDetails.batchId} and passcode: ${batchDetails.uniqueKey}.`} />
-                ) : (
-                  <div style={{ background: c.cardBg, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
+              </div>
+
+              {/* Bottom Row Grid: Top Candidates Leaderboard & Students Progress */}
+              <div className="dashboard-grid-2">
+                
+                {/* Top Candidates Leaderboard — Built using ACTUAL enrolled candidates */}
+                <Card style={{ padding: '20px 24px' }}>
+                  <SectionHeader
+                    title="Enrolled Candidates Register"
+                    sub="Click any candidate row to view detailed profile info"
+                    action={<Pill variant="outline" onClick={() => setActiveTab('students')} style={{ fontSize: 11, padding: '5px 12px' }}>View All ({batchDetails?.students?.length || 0})</Pill>}
+                  />
+                  
+                  <div style={{ overflowX: 'auto', marginTop: 14 }}>
+                    {realCandidates.length === 0 ? (
+                      <Empty icon={Users} title="No candidates enrolled" sub="Click 'Bulk Register' or share batch key to add candidates." />
+                    ) : (
                       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                          <tr style={{ borderBottom: `1px solid ${c.border}` }}>
-                            {['Student', 'Username', 'Password', 'Email', 'Mobile', 'Actions'].map(h => (
-                              <th key={h} style={{ padding: '10px 18px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', background: c.tableBg }}>{h}</th>
-                            ))}
+                          <tr style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                            <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: C.muted, fontWeight: 600 }}>#</th>
+                            <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: C.muted, fontWeight: 600 }}>Candidate Name</th>
+                            <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, color: C.muted, fontWeight: 600 }}>Points / Status</th>
+                            <th style={{ textAlign: 'right', padding: '8px 12px', fontSize: 11, color: C.muted, fontWeight: 600 }}>Action</th>
                           </tr>
                         </thead>
-                        <tbody style={{ divideY: `1px solid ${c.border}` }}>
-                          {batchDetails.students.map(std => (
-                            <tr key={std._id} style={{ borderBottom: `1px solid ${c.border}` }}>
-                              <td style={{ padding: '12px 18px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(139,92,246,0.12)', color: '#a78bfa', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    {std.name?.charAt(0).toUpperCase()}
-                                  </div>
-                                  <button
-                                    onClick={() => openStudentInfoModal(std)}
-                                    style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer' }}
-                                    title="Click to view full candidate profile"
-                                  >
-                                    <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, textDecoration: 'underline', textDecorationColor: 'transparent', transition: 'all 0.2s' }}>
-                                      {std.name}
-                                    </div>
-                                  </button>
+                        <tbody>
+                          {realCandidates.slice(0, 5).map(cnd => (
+                            <tr
+                              key={cnd.stdObj._id || cnd.rank}
+                              onClick={() => openStudentInfoModal(cnd.stdObj)}
+                              style={{ borderBottom: `1px solid ${C.borderSoft}`, cursor: 'pointer' }}
+                            >
+                              <td style={{ padding: '10px 12px' }}>
+                                <div style={{
+                                  width: 24, height: 24, borderRadius: '50%',
+                                  background: cnd.rank === 1 ? C.gold : cnd.rank === 2 ? C.silver : cnd.rank === 3 ? C.bronze : '#F1F5F9',
+                                  color: cnd.rank <= 3 ? '#fff' : C.muted,
+                                  fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                  {cnd.rank}
                                 </div>
                               </td>
-                              <td style={{ padding: '12px 18px', fontSize: 11, fontFamily: 'monospace', color: c.textMuted }}>{std.username || '—'}</td>
-                              <td style={{ padding: '12px 18px', fontSize: 11, fontFamily: 'monospace', color: '#10b981', fontWeight: 700 }}>{std.generatedPassword || 'Pass@1234'}</td>
-                              <td style={{ padding: '12px 18px', fontSize: 11, color: c.textMuted }}>{std.email}</td>
-                              <td style={{ padding: '12px 18px', fontSize: 11, color: c.textMuted }}>{std.mobile || '—'}</td>
-                              <td style={{ padding: '12px 18px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <button
-                                    onClick={() => openStudentInfoModal(std)}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                                      padding: '5px 9px', borderRadius: 8, border: `1px solid ${c.border}`,
-                                      background: c.surfaceHov, color: c.textSub,
-                                      fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
-                                    }}
-                                    title="View full candidate information"
-                                  >
-                                    <Eye size={12} color="#3b82f6" /> Info
-                                  </button>
-
-                                  <button
-                                    onClick={() => openStudentEditModal(std)}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                                      padding: '5px 9px', borderRadius: 8, border: '1px solid rgba(245,158,11,0.25)',
-                                      background: 'rgba(245,158,11,0.08)', color: '#fbbf24',
-                                      fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
-                                    }}
-                                    title="Edit candidate details"
-                                  >
-                                    <Edit2 size={12} /> Edit
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      setDirectPushModal({ studentId: std._id, studentName: std.name });
-                                      setDirectPushForm({ title: '', message: '' });
-                                      setDirectPushResult(null);
-                                    }}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                                      padding: '5px 9px', borderRadius: 8, border: '1px solid rgba(139,92,246,0.25)',
-                                      background: 'rgba(139,92,246,0.08)', color: '#a78bfa',
-                                      fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
-                                    }}
-                                    title="Send push notification directly to this student"
-                                  >
-                                    <Bell size={12} /> Push Alert
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleDeleteStudent(std._id, std.name)}
-                                    disabled={deletingStudentId === std._id}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                                      padding: '5px 9px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.25)',
-                                      background: 'rgba(239,68,68,0.08)', color: '#f87171',
-                                      fontSize: 11, fontWeight: 700, cursor: deletingStudentId === std._id ? 'not-allowed' : 'pointer',
-                                      transition: 'all 0.2s', opacity: deletingStudentId === std._id ? 0.6 : 1
-                                    }}
-                                    title="Remove/Delete candidate from this batch"
-                                  >
-                                    <Trash2 size={12} /> {deletingStudentId === std._id ? 'Deleting...' : 'Delete'}
-                                  </button>
+                              <td style={{ padding: '10px 12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.primarySoft, color: C.primaryDark, fontWeight: 700, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {cnd.avatar}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>{cnd.name}</div>
+                                    <div style={{ fontSize: 10, color: C.muted }}>{cnd.stdObj.email}</div>
+                                  </div>
                                 </div>
+                              </td>
+                              <td style={{ padding: '10px 12px', fontSize: 12, fontWeight: 700, color: C.body }}>{cnd.xp}</td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                                <button onClick={(e) => { e.stopPropagation(); openStudentInfoModal(cnd.stdObj); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}>
+                                  <Eye size={15} />
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── NOTIFICATIONS TAB ── */}
-            {activeTab === 'notifications' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => openModal('notification')} style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
-                    background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)',
-                    borderRadius: 10, color: '#fbbf24', fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                  }}><PlusCircle size={14} /> Post Announcement</button>
-                </div>
-                {!batchDetails.notifications?.length ? (
-                  <Empty icon={Bell} title="No announcements posted" sub="Click 'Post Announcement' to notify your students about important updates." />
-                ) : batchDetails.notifications.map((n, i) => (
-                  <div key={n._id || i} style={{
-                    background: c.cardBg, border: `1px solid ${c.border}`,
-                    borderRadius: 16, padding: '18px 20px', borderLeft: '3px solid #f59e0b',
-                    display: 'flex', alignItems: 'flex-start', gap: 14
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: c.textSub }}>{n.title}</h4>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c.textMuted }}>
-                          <Calendar size={10} /> {fmt(n.date)}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 12, color: c.textMuted, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{n.message}</p>
-                    </div>
-                    <button onClick={() => handleDelete('notifications', n._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: c.textMuted }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── PDFS TAB ── */}
-            {activeTab === 'pdfs' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => openModal('pdf')} style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
-                    background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)',
-                    borderRadius: 10, color: '#10b981', fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                  }}><Upload size={14} /> Upload PDF</button>
-                </div>
-                {!batchDetails.pdfs?.length ? (
-                  <Empty icon={FileText} title="No PDFs uploaded" sub="Click 'Upload PDF' to share study notes and materials with your class." />
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14 }}>
-                    {batchDetails.pdfs.map((p, i) => (
-                     <div key={p._id || i} style={{
-                        background: c.cardBg, border: `1px solid ${c.border}`,
-                        borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 12
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                          <div style={{
-                            width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-                            background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}><FileText size={18} color="#10b981" /></div>
-                          <button onClick={() => handleDelete('pdfs', p._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: c.textMuted, flexShrink: 0 }}>
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: c.textSub, marginBottom: 4 }}>{p.title}</div>
-                          {p.description && <div style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5, marginBottom: 6 }}>{p.description}</div>}
-                          <div style={{ fontSize: 10, color: c.textMuted, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Calendar size={10} /> {fmt(p.date)}
-                          </div>
-                        </div>
-                        <a href={p.pdfUrl} target="_blank" rel="noopener noreferrer" style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          padding: '8px', borderRadius: 10, textDecoration: 'none',
-                          border: '1px solid rgba(16,185,129,0.25)', background: 'rgba(16,185,129,0.08)',
-                          color: '#10b981', fontSize: 12, fontWeight: 700
-                        }}>
-                          <Download size={13} /> View File
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── LINKS TAB ── */}
-            {activeTab === 'links' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button onClick={() => openModal('link')} style={{
-                    display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
-                    background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)',
-                    borderRadius: 10, color: '#60a5fa', fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                  }}><PlusCircle size={14} /> Add Link</button>
-                </div>
-                {!batchDetails.links?.length ? (
-                  <Empty icon={Link2} title="No links shared" sub="Click 'Add Link' to share reference material and resources with students." />
-                ) : batchDetails.links.map((l, i) => (
-                  <div key={l._id || i} style={{
-                    background: c.cardBg, border: `1px solid ${c.border}`,
-                    borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14
-                  }}>
-                    <div style={{
-                      width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                      background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}><Link2 size={16} color="#60a5fa" /></div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: c.textSub, marginBottom: 2 }}>{l.title}</div>
-                      <div style={{ fontSize: 10, color: c.textMono, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.url}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <a href={l.url} target="_blank" rel="noopener noreferrer" style={{
-                        display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 9,
-                        textDecoration: 'none', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)',
-                        color: '#60a5fa', fontSize: 11, fontWeight: 700
-                      }}><Link2 size={11} /> Open</a>
-                      <button onClick={() => handleDelete('links', l._id)} style={{
-                        background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
-                        borderRadius: 9, padding: '7px', cursor: 'pointer', color: '#f87171', display: 'flex', alignItems: 'center'
-                      }}><Trash2 size={13} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── CURRICULUM TAB ── */}
-            {activeTab === 'curriculum' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Header row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: c.textSub, marginBottom: 2 }}>Course Curriculum</div>
-                    <div style={{ fontSize: 11, color: c.textMuted }}>{totalCount} topics · {completedUnits}/{totalUnits} subtopics covered</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => openModal('curriculum')} style={{
-                      display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                      background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)',
-                      borderRadius: 10, color: '#a78bfa', fontSize: 12, fontWeight: 700, cursor: 'pointer'
-                    }}><PlusCircle size={14} /> Add Topics</button>
-                    {totalCount > 0 && (
-                      <button onClick={handleClearCurriculum} disabled={clearingCurr} style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
-                        background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.18)',
-                        borderRadius: 10, color: '#f87171', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        opacity: clearingCurr ? 0.6 : 1
-                      }}>{clearingCurr ? <Spin color="#f87171" /> : <Trash size={13} />} Clear All</button>
                     )}
                   </div>
-                </div>
+                </Card>
 
-                {/* Progress bar */}
-                {totalCount > 0 && (
-                  <div style={{
-                    background: c.cardBg, border: `1px solid ${c.border}`,
-                    borderRadius: 16, padding: '18px 20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>Overall Progress</span>
-                      <span style={{ fontSize: 13, fontWeight: 800, color: '#a78bfa' }}>{progressPct}%</span>
+                {/* Students Progress & Dynamic Batch Breakdown */}
+                <Card style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <SectionHeader title="Batch Progress &amp; Breakdown" sub="Live completion and resource distribution" />
+                    
+                    <div style={{ fontSize: 32, fontWeight: 800, color: C.ink, marginTop: 12, letterSpacing: '-0.8px' }}>
+                      {batchDetails?.students?.length || 0}
+                      <span style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginLeft: 8 }}>Candidates</span>
                     </div>
-                    <div style={{ height: 10, background: dark ? 'rgba(255,255,255,0.06)' : '#e5e7eb', borderRadius: 99, overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', borderRadius: 99,
-                        width: `${progressPct}%`,
-                        background: progressPct === 100 ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg,#8b5cf6,#a78bfa)',
-                        transition: 'width 0.6s cubic-bezier(0.4,0,0.2,1)',
-                        boxShadow: progressPct === 100 ? '0 0 10px rgba(16,185,129,0.5)' : '0 0 10px rgba(139,92,246,0.5)'
-                      }} />
+
+                    {/* Segmented Colorful Horizontal Bar based on real completion */}
+                    <div style={{ height: 12, background: '#F1F5F9', borderRadius: RADIUS.pill, display: 'flex', overflow: 'hidden', margin: '14px 0 18px' }}>
+                      <div style={{ width: `${progressPct}%`, background: C.purple }} title={`Covered (${progressPct}%)`} />
+                      <div style={{ width: `${100 - progressPct}%`, background: '#CBD5E1' }} title={`Remaining (${100 - progressPct}%)`} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                      <span style={{ fontSize: 10, color: c.textMuted }}>{completedUnits} of {totalUnits} subtopics covered</span>
-                      <span style={{ fontSize: 10, color: progressPct === 100 && totalUnits > 0 ? '#10b981' : c.textMuted, fontWeight: 700 }}>
-                        {progressPct === 100 && totalUnits > 0 ? '🎉 Curriculum Complete!' : `${totalUnits - completedUnits} remaining`}
-                      </span>
+
+                    {/* Legend Table using Real Metrics */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[
+                        { label: 'Completed Subtopics', pct: `${completedUnits} units (${progressPct}%)`, color: C.purple },
+                        { label: 'Remaining Subtopics', pct: `${totalUnits - completedUnits} units`, color: '#CBD5E1' },
+                        { label: 'Active Assignments', pct: `${assignments.length} assignments`, color: C.teal },
+                        { label: 'Announcements Posted', pct: `${batchDetails?.notifications?.length || 0} posts`, color: C.orange },
+                        { label: 'Study PDF Files', pct: `${batchDetails?.pdfs?.length || 0} files`, color: C.greenText },
+                      ].map(item => (
+                        <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: item.color }} />
+                            <span style={{ color: C.body, fontWeight: 500 }}>{item.label}</span>
+                          </div>
+                          <span style={{ fontWeight: 700, color: C.ink }}>{item.pct}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
 
-                {/* Topic list */}
-                {!totalCount ? (
-                  <Empty icon={ClipboardList} title="No curriculum yet" sub="Click 'Add Topics' to upload your course curriculum via JSON or add topics manually." />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[...curriculum].sort((a, b) => a.order - b.order).map((topic, idx) => {
-                      const expanded = expandedTopics[topic._id];
-                      return (
-                        <div key={topic._id} style={{
-                          background: c.cardBg, borderRadius: 14,
-                          border: `1px solid ${topic.isCompleted ? 'rgba(16,185,129,0.3)' : c.border}`,
-                          borderLeft: `4px solid ${topic.isCompleted ? '#10b981' : '#8b5cf6'}`,
-                          overflow: 'hidden', transition: 'border-color 0.3s'
-                        }}>
-                          {/* Topic header */}
-                          <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                            {/* Order badge */}
-                            <div style={{
-                              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                              background: topic.isCompleted ? 'rgba(16,185,129,0.15)' : 'rgba(139,92,246,0.12)',
-                              border: `1px solid ${topic.isCompleted ? 'rgba(16,185,129,0.3)' : 'rgba(139,92,246,0.25)'}`,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 11, fontWeight: 800, color: topic.isCompleted ? '#10b981' : '#a78bfa'
-                            }}>{idx + 1}</div>
+                  <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Pill variant="outline" onClick={() => setActiveTab('curriculum')} style={{ fontSize: 11, padding: '5px 12px' }}>View Curriculum Details</Pill>
+                    <span style={{ fontSize: 10.5, color: C.muted }}>Synced in real time</span>
+                  </div>
+                </Card>
 
-                            {/* Title & meta */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                <span style={{
-                                  fontSize: 13, fontWeight: 700, color: c.textSub,
-                                  textDecoration: topic.isCompleted ? 'none' : 'none'
-                                }}>{topic.title}</span>
-                                {topic.isCompleted && (
-                                  <span style={{
-                                    padding: '2px 8px', borderRadius: 20, fontSize: 9, fontWeight: 800,
-                                    background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)',
-                                    color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.06em'
-                                  }}>✓ Completed</span>
-                                )}
-                              </div>
-                              {topic.description && <div style={{ fontSize: 11, color: c.textMuted, lineHeight: 1.5 }}>{topic.description}</div>}
-                              {topic.isCompleted && topic.completedAt && (
-                                <div style={{ fontSize: 10, color: '#10b981', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <Calendar size={9} /> Completed {fmt(topic.completedAt)}
-                                </div>
-                              )}
-                            </div>
+              </div>
 
-                            {/* Actions */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                              {topic.subtopics?.length > 0 && (
-                                <button onClick={() => setExpandedTopics(p => ({ ...p, [topic._id]: !p[topic._id] }))} style={{
-                                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
-                                  borderRadius: 6, color: c.textMuted, display: 'flex', alignItems: 'center', gap: 3, fontSize: 10
-                                }}>
-                                  {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                  {topic.subtopics.length}
+            </div>
+          )}
+
+          {/* CANDIDATES REGISTER TAB */}
+          {activeTab === 'students' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="animate-in">
+              <SectionHeader
+                title={`Enrolled Candidates (${batchDetails?.students?.length || 0})`}
+                action={
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Pill icon={Upload} onClick={() => { setIsBulkModalOpen(true); setBulkFile(null); setBulkError(''); setBulkResult(null); }}>Bulk Register</Pill>
+                    {batchDetails?.students?.length > 0 && (
+                      <Pill variant="outline" icon={Download} onClick={() => handleDownloadCredentialsCsv(batchDetails.students)}>Download Credentials CSV</Pill>
+                    )}
+                  </div>
+                }
+              />
+              {!batchDetails?.students?.length ? (
+                <Empty icon={Users} title="No candidates enrolled yet" sub={`Upload an Excel file or share Batch ID: ${batchDetails?.batchId} and passcode: ${batchDetails?.uniqueKey}.`} />
+              ) : (
+                <Card style={{ padding: 0, overflow: 'hidden' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                          {['Candidate', 'Username', 'Password', 'Email', 'Mobile', 'Actions'].map(h => (
+                            <th key={h} style={{ padding: '13px 18px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.muted, background: '#F8FAFC', letterSpacing: '0.2px' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchDetails.students.map(std => (
+                          <tr key={std._id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                            <td style={{ padding: '13px 18px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 32, height: 32, borderRadius: '50%', background: C.primarySoft, color: C.primaryDark,
+                                  fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>{std.name?.charAt(0).toUpperCase()}</div>
+                                <button onClick={() => openStudentInfoModal(std)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: FONT }}>
+                                  <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{std.name}</div>
                                 </button>
-                              )}
-                              <button onClick={() => openEditModal(topic)} title="Edit" style={{
-                                background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.2)',
-                                borderRadius: 8, padding: '5px 8px', cursor: 'pointer', color: '#60a5fa',
-                                display: 'flex', alignItems: 'center'
-                              }}><Edit2 size={12} /></button>
-                              <button
-                                onClick={() => handleMarkComplete(topic._id, topic.isCompleted)}
-                                disabled={markingId === topic._id}
-                                title={topic.isCompleted ? 'Mark Incomplete' : 'Mark Complete'}
-                                style={{
-                                  background: topic.isCompleted ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
-                                  border: `1px solid ${topic.isCompleted ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.25)'}`,
-                                  borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
-                                  color: topic.isCompleted ? '#fbbf24' : '#10b981',
-                                  fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5
-                                }}>
-                                {markingId === topic._id ? <Spin color={topic.isCompleted ? '#fbbf24' : '#10b981'} /> :
-                                  topic.isCompleted ? <><RotateCcw size={12} /> Unmark</> : <><Check size={12} /> Complete</>}
+                              </div>
+                            </td>
+                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.username || '—'}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.primaryDark, fontWeight: 600 }}>{std.generatedPassword || 'Pass@1234'}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.email}</td>
+                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.mobile || '—'}</td>
+                            <td style={{ padding: '13px 18px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <Pill variant="outline" icon={Eye} onClick={() => openStudentInfoModal(std)} style={{ padding: '6px 11px', fontSize: 11 }}>Info</Pill>
+                                <Pill onClick={() => openStudentEditModal(std)} style={{ padding: '6px 11px', fontSize: 11, background: C.orangeSoft, color: C.orangeText }}><Edit2 size={11} /> Edit</Pill>
+                                <Pill onClick={() => { setDirectPushModal({ studentId: std._id, studentName: std.name }); setDirectPushForm({ title: '', message: '' }); setDirectPushResult(null); }}
+                                  style={{ padding: '6px 11px', fontSize: 11, background: C.purpleSoft, color: C.purpleText }}><Bell size={11} /> Push</Pill>
+                                <Pill variant="danger" onClick={() => handleDeleteStudent(std._id, std.name)} disabled={deletingStudentId === std._id}
+                                  style={{ padding: '6px 11px', fontSize: 11 }}><Trash2 size={11} /> {deletingStudentId === std._id ? '...' : 'Remove'}</Pill>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* ANNOUNCEMENTS TAB */}
+          {activeTab === 'notifications' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="animate-in">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Pill icon={PlusCircle} onClick={() => openModal('notification')} style={{ background: C.orangeSoft, color: C.orangeText }}>Post Announcement</Pill>
+              </div>
+              {!batchDetails?.notifications?.length ? (
+                <Empty icon={Bell} title="No announcements posted" sub="Click 'Post Announcement' to broadcast updates to your candidates." />
+              ) : batchDetails.notifications.map((n, i) => (
+                <Card key={n._id || i} accent={C.orange} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: C.ink, margin: 0 }}>{n.title}</h4>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.muted }}><Calendar size={11} /> {fmt(n.date)}</span>
+                    </div>
+                    <p style={{ fontSize: 13, color: C.body, lineHeight: 1.6, whiteSpace: 'pre-line', margin: 0 }}>{n.message}</p>
+                  </div>
+                  <button onClick={() => handleDelete('notifications', n._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: C.muted }}><Trash2 size={14} /></button>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* STUDY PDFS TAB */}
+          {activeTab === 'pdfs' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="animate-in">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Pill icon={Upload} onClick={() => openModal('pdf')} style={{ background: C.greenSoft, color: C.greenText }}>Upload PDF</Pill>
+              </div>
+              {!batchDetails?.pdfs?.length ? (
+                <Empty icon={FileText} title="No PDFs uploaded" sub="Click 'Upload PDF' to share study materials with candidates." />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 14 }}>
+                  {batchDetails.pdfs.map((p, i) => (
+                    <Card key={p._id || i} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <IconBadge icon={FileText} color={C.greenText} bg={C.greenSoft} size={40} />
+                        <button onClick={() => handleDelete('pdfs', p._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: C.muted }}><Trash2 size={13} /></button>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{p.title}</div>
+                        {p.description && <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 6 }}>{p.description}</div>}
+                        <div style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={10} /> {fmt(p.date)}</div>
+                      </div>
+                      <Pill variant="ghost" icon={Download} onClick={() => window.open(p.pdfUrl, '_blank')}>View PDF File</Pill>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* LINKS TAB */}
+          {activeTab === 'links' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="animate-in">
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Pill icon={PlusCircle} onClick={() => openModal('link')} style={{ background: C.blueSoft, color: C.blueText }}>Add Resource Link</Pill>
+              </div>
+              {!batchDetails?.links?.length ? (
+                <Empty icon={Link2} title="No links shared" sub="Click 'Add Resource Link' to share docs and repositories." />
+              ) : batchDetails.links.map((l, i) => (
+                <Card key={l._id || i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
+                  <IconBadge icon={Link2} color={C.blueText} bg={C.blueSoft} size={38} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, marginBottom: 2 }}>{l.title}</div>
+                    <div style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.url}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <Pill variant="ghost" icon={Link2} onClick={() => window.open(l.url, '_blank')} style={{ background: C.blueSoft, color: C.blueText, padding: '7px 14px' }}>Open</Pill>
+                    <button onClick={() => handleDelete('links', l._id)} style={{ background: C.redSoft, border: 'none', borderRadius: RADIUS.pill, padding: '7px 10px', cursor: 'pointer', color: C.redText }}><Trash2 size={13} /></button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* CURRICULUM TAB */}
+          {activeTab === 'curriculum' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="animate-in">
+              <SectionHeader
+                title="Course Curriculum"
+                sub={`${totalCount} topics · ${completedUnits}/${totalUnits} subtopics completed`}
+                action={
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Pill icon={PlusCircle} onClick={() => openModal('curriculum')} style={{ background: C.purpleSoft, color: C.purpleText }}>Add Topics</Pill>
+                    {totalCount > 0 && <Pill variant="danger" icon={Trash} onClick={handleClearCurriculum} disabled={clearingCurr}>Clear All</Pill>}
+                  </div>
+                }
+              />
+
+              {totalCount > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 16 }}>
+                  <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                      <Donut pct={progressPct} sub="complete" color={progressPct === 100 ? C.greenText : C.purple} />
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: C.ink, marginBottom: 2 }}>Overall Syllabus Progress</div>
+                        <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{completedUnits} of {totalUnits} subtopics covered</div>
+                        {progressPct === 100 && totalUnits > 0 ? (
+                          <Badge color={C.greenText} bg={C.greenSoft}>🎉 Curriculum Complete!</Badge>
+                        ) : (
+                          <Badge color={C.purpleText} bg={C.purpleSoft}>{totalUnits - completedUnits} remaining</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                  <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                      <BarChart2 size={14} color={C.primary} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Progress by Topic</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {[...curriculum].sort((a, b) => a.order - b.order).slice(0, 5).map((topic, i) => {
+                        const tTotal = topic.subtopics?.length > 0 ? topic.subtopics.length : 1;
+                        const tDone = topic.subtopics?.length > 0 ? topic.subtopics.filter(s => s.isCompleted).length : (topic.isCompleted ? 1 : 0);
+                        return <BarRow key={topic._id} label={topic.title} value={tDone} max={tTotal} color={C.primary} valueLabel={`${tDone}/${tTotal}`} />;
+                      })}
+                    </div>
+                  </Card>
+                </div>
+              )}
+
+              {!totalCount ? (
+                <Empty icon={ClipboardList} title="No curriculum uploaded yet" sub="Click 'Add Topics' to upload course syllabus via JSON or manual topic entry." />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[...curriculum].sort((a, b) => a.order - b.order).map((topic, idx) => {
+                    const expanded = expandedTopics[topic._id];
+                    return (
+                      <div key={topic._id} style={{
+                        background: '#fff', borderRadius: RADIUS.md,
+                        border: `1px solid ${topic.isCompleted ? C.greenText + '40' : C.border}`,
+                        borderLeft: `4px solid ${topic.isCompleted ? C.greenText : C.purple}`, overflow: 'hidden'
+                      }}>
+                        <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                            background: topic.isCompleted ? C.greenSoft : C.purpleSoft,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, fontWeight: 800, color: topic.isCompleted ? C.greenText : C.purpleText
+                          }}>{idx + 1}</div>
+                          <div style={{ flex: 1, minWidth: 180 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                              <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>{topic.title}</span>
+                              {topic.isCompleted && <Badge color={C.greenText} bg={C.greenSoft}>✓ Completed</Badge>}
+                            </div>
+                            {topic.description && <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{topic.description}</div>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            {topic.subtopics?.length > 0 && (
+                              <button onClick={() => setExpandedTopics(p => ({ ...p, [topic._id]: !p[topic._id] }))} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', color: C.muted, display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                                {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}{topic.subtopics.length}
                               </button>
-                              <button onClick={() => handleDeleteTopic(topic._id)} disabled={deletingTopicId === topic._id} style={{
-                                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
-                                borderRadius: 8, padding: '5px 8px', cursor: 'pointer', color: '#f87171', display: 'flex', alignItems: 'center',
-                                opacity: deletingTopicId === topic._id ? 0.5 : 1
-                              }}><Trash2 size={12} /></button>
+                            )}
+                            <Pill variant="outline" onClick={() => openEditModal(topic)} style={{ padding: '5px 10px', fontSize: 11 }}><Edit2 size={12} /></Pill>
+                            <Pill onClick={() => handleMarkComplete(topic._id, topic.isCompleted)} disabled={markingId === topic._id}
+                              style={{ padding: '5px 12px', fontSize: 11, background: topic.isCompleted ? C.orangeSoft : C.greenSoft, color: topic.isCompleted ? C.orangeText : C.greenText }}>
+                              {markingId === topic._id ? <Spin color={topic.isCompleted ? C.orangeText : C.greenText} /> : topic.isCompleted ? <><RotateCcw size={12} /> Undo</> : <><Check size={12} /> Complete</>}
+                            </Pill>
+                            <button onClick={() => handleDeleteTopic(topic._id)} disabled={deletingTopicId === topic._id} style={{ background: C.redSoft, border: 'none', borderRadius: RADIUS.pill, padding: '6px 8px', cursor: 'pointer', color: C.redText }}><Trash2 size={12} /></button>
+                          </div>
+                        </div>
+
+                        {expanded && topic.subtopics?.length > 0 && (
+                          <div style={{ padding: '12px 18px 14px 18px', borderTop: `1px solid ${C.borderSoft}`, background: '#FAFAFA' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {topic.subtopics.map((st) => {
+                                const stKey = `${topic._id}-${st._id}`;
+                                const isMarking = markingSubtopicId === stKey;
+                                return (
+                                  <div key={st._id} style={{
+                                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+                                    borderRadius: RADIUS.sm, background: st.isCompleted ? C.greenSoft : '#F9FAFB',
+                                    border: `1px solid ${st.isCompleted ? C.greenText + '30' : C.borderSoft}`
+                                  }}>
+                                    <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, background: st.isCompleted ? '#fff' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      {st.isCompleted ? <Check size={11} color={C.greenText} /> : <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.purple, display: 'block' }} />}
+                                    </div>
+                                    <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500, color: st.isCompleted ? C.ink : C.body }}>{st.title}</span>
+                                    <Pill onClick={() => handleMarkSubtopicComplete(topic._id, st._id, st.isCompleted)} disabled={isMarking}
+                                      style={{ padding: '4px 10px', fontSize: 10.5, background: st.isCompleted ? C.orangeSoft : C.greenSoft, color: st.isCompleted ? C.orangeText : C.greenText }}>
+                                      {isMarking ? <Spin color={st.isCompleted ? C.orangeText : C.greenText} /> : st.isCompleted ? <><RotateCcw size={10} /> Undo</> : <><Check size={10} /> Done</>}
+                                    </Pill>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
-                          {/* Subtopics (expandable) */}
-                          {expanded && topic.subtopics?.length > 0 && (
-                            <div style={{
-                              padding: '12px 18px 14px 18px',
-                              borderTop: `1px solid ${c.border}`,
-                              background: dark ? 'rgba(255,255,255,0.01)' : '#fafafa'
-                            }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                {topic.subtopics.map((st) => {
-                                  const stKey = `${topic._id}-${st._id}`;
-                                  const isMarking = markingSubtopicId === stKey;
+          {/* ASSIGNMENTS TAB */}
+          {activeTab === 'assignments' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="animate-in">
+              <Card>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                  <SectionHeader title="Course Assignments & Evaluation" sub="Create assignments and grade candidate submissions." />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    {totalSubmissions > 0 && <Donut size={64} stroke={8} pct={Math.round((gradedSubmissions / totalSubmissions) * 100)} sub="graded" color={C.purple} />}
+                    <Pill icon={Plus} onClick={() => { setAssignmentError(''); setAssignmentSuccess(''); setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' }); setIsCreateAssignmentOpen(true); }}>Create Assignment</Pill>
+                  </div>
+                </div>
+              </Card>
+
+              {assignmentsLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: C.muted, fontSize: 13, gap: 10 }}><Spin color={C.primary} /> Loading assignments...</div>
+              ) : assignments.length === 0 ? (
+                <Empty icon={ClipboardList} title="No assignments created" sub="Click 'Create Assignment' above to assign tasks to candidates." />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {assignments.map(asg => {
+                    const isExpanded = expandedAssignmentId === asg._id;
+                    const totalSubs = asg.submissions?.length || 0;
+                    const gradedSubs = asg.submissions?.filter(s => s.status === 'Graded').length || 0;
+                    const isOverdue = new Date(asg.dueDate) < new Date();
+
+                    return (
+                      <Card key={asg._id} accent={C.purple}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 220 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                              <Badge color={isOverdue ? C.redText : C.greenText} bg={isOverdue ? C.redSoft : C.greenSoft}><Calendar size={10} /> Due: {fmt(asg.dueDate)}</Badge>
+                              <Badge color={C.purpleText} bg={C.purpleSoft}>Max Score: {asg.totalPoints} pts</Badge>
+                            </div>
+                            <h4 style={{ fontSize: 15, fontWeight: 800, color: C.ink, marginBottom: 4 }}>{asg.title}</h4>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <Pill variant="ghost" onClick={() => setExpandedAssignmentId(isExpanded ? null : asg._id)} style={{ background: C.purpleSoft, color: C.purpleText, padding: '7px 14px', fontSize: 11 }}>
+                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {totalSubs} Submissions ({gradedSubs} Graded)
+                            </Pill>
+                            <button onClick={() => handleDeleteAssignment(asg._id)} title="Delete Assignment" style={{ padding: '7px 10px', borderRadius: RADIUS.pill, border: 'none', background: C.redSoft, color: C.redText, cursor: 'pointer' }}><Trash2 size={13} /></button>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 13, color: C.body, lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: 10 }}>{asg.description}</p>
+                        {asg.fileUrl && <a href={asg.fileUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.primaryDark, fontWeight: 700, textDecoration: 'none', marginBottom: 8 }}><FileText size={13} /> View Reference Guidelines</a>}
+
+                        {isExpanded && (
+                          <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.borderSoft}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                            <h5 style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>Candidate Submissions ({totalSubs})</h5>
+                            {totalSubs === 0 ? (
+                              <div style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>No submissions yet.</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {asg.submissions.map(sub => {
+                                  const isGraded = sub.status === 'Graded';
+                                  const currentGrade = gradeData[sub._id]?.grade !== undefined ? gradeData[sub._id].grade : sub.grade !== null ? sub.grade : '';
+                                  const currentFeedback = gradeData[sub._id]?.feedback !== undefined ? gradeData[sub._id].feedback : sub.feedback || '';
                                   return (
-                                    <div key={st._id} style={{
-                                      display: 'flex', alignItems: 'center', gap: 10,
-                                      padding: '8px 12px', borderRadius: 10,
-                                      background: st.isCompleted
-                                        ? (dark ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.05)')
-                                        : (dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'),
-                                      border: `1px solid ${st.isCompleted ? 'rgba(16,185,129,0.2)' : c.border}`,
-                                      transition: 'all 0.2s'
-                                    }}>
-                                      {/* Status dot */}
-                                      <div style={{
-                                        width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                                        background: st.isCompleted ? 'rgba(16,185,129,0.15)' : dark ? 'rgba(255,255,255,0.05)' : '#eff6ff',
-                                        border: `1.5px solid ${st.isCompleted ? 'rgba(16,185,129,0.4)' : c.border}`,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                      }}>
-                                        {st.isCompleted
-                                          ? <Check size={11} color="#10b981" />
-                                          : <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8b5cf6', display: 'block' }} />}
+                                    <Card key={sub._id} style={{ background: '#F9FAFB', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                                        <div><strong style={{ fontSize: 13, color: C.ink }}>{sub.studentName}</strong><span style={{ fontSize: 11.5, color: C.muted, marginLeft: 8 }}>({sub.studentEmail})</span></div>
+                                        <Badge color={isGraded ? C.greenText : C.orangeText} bg={isGraded ? C.greenSoft : C.orangeSoft}>{isGraded ? `Graded: ${sub.grade}/${asg.totalPoints}` : 'Needs Grading'}</Badge>
                                       </div>
-                                      <span style={{
-                                        flex: 1, fontSize: 12, fontWeight: 500,
-                                        color: st.isCompleted ? c.textSub : c.textMuted,
-                                        textDecoration: 'none'
-                                      }}>{st.title}</span>
-                                      {st.isCompleted && st.completedAt && (
-                                        <span style={{ fontSize: 9, color: '#10b981', opacity: 0.8 }}>{fmt(st.completedAt)}</span>
-                                      )}
-                                      {/* Subtopic mark-complete button */}
-                                      <button
-                                        onClick={() => handleMarkSubtopicComplete(topic._id, st._id, st.isCompleted)}
-                                        disabled={isMarking}
-                                        title={st.isCompleted ? 'Mark Incomplete' : 'Mark Complete'}
-                                        style={{
-                                          flexShrink: 0,
-                                          padding: '4px 10px', borderRadius: 7,
-                                          border: `1px solid ${st.isCompleted ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`,
-                                          background: st.isCompleted ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
-                                          color: st.isCompleted ? '#fbbf24' : '#10b981',
-                                          fontSize: 10, fontWeight: 700, cursor: isMarking ? 'not-allowed' : 'pointer',
-                                          display: 'flex', alignItems: 'center', gap: 4,
-                                          opacity: isMarking ? 0.5 : 1, transition: 'all 0.2s'
-                                        }}>
-                                        {isMarking
-                                          ? <Spin color={st.isCompleted ? '#fbbf24' : '#10b981'} />
-                                          : st.isCompleted
-                                            ? <><RotateCcw size={10} /> Undo</>
-                                            : <><Check size={10} /> Done</>}
-                                      </button>
-                                    </div>
+                                      {sub.answerText && <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, whiteSpace: 'pre-line', background: '#fff', padding: '10px 12px', borderRadius: RADIUS.sm }}><strong>Answer:</strong> {sub.answerText}</div>}
+                                      {sub.submissionUrl && <a href={sub.submissionUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.purple, fontWeight: 700, textDecoration: 'none' }}>🔗 Submitted Solution Link</a>}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4, background: C.purpleSoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <label style={{ fontSize: 11.5, fontWeight: 700, color: C.ink }}>Score:</label>
+                                          <input type="number" min={0} max={asg.totalPoints} placeholder={`0-${asg.totalPoints}`} value={currentGrade}
+                                            onChange={e => setGradeData({ ...gradeData, [sub._id]: { ...gradeData[sub._id], grade: e.target.value, feedback: currentFeedback } })}
+                                            style={{ width: 70, padding: '6px 8px', borderRadius: 6, background: '#fff', border: `1px solid ${C.border}`, color: C.ink, fontSize: 12, outline: 'none', fontFamily: FONT }} />
+                                          <span style={{ fontSize: 11, color: C.muted }}>/ {asg.totalPoints}</span>
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 180 }}>
+                                          <input type="text" placeholder="Instructor feedback..." value={currentFeedback}
+                                            onChange={e => setGradeData({ ...gradeData, [sub._id]: { ...gradeData[sub._id], grade: currentGrade, feedback: e.target.value } })}
+                                            style={{ width: '100%', padding: '6px 10px', borderRadius: 6, background: '#fff', border: `1px solid ${C.border}`, color: C.ink, fontSize: 12, outline: 'none', fontFamily: FONT }} />
+                                        </div>
+                                        <Pill onClick={() => handleGradeSubmission(asg._id, sub._id)} disabled={gradingSubmitting[sub._id]} icon={Check} style={{ padding: '7px 16px', fontSize: 11 }}>Save Grade</Pill>
+                                      </div>
+                                    </Card>
                                   );
                                 })}
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── FEEDBACK & REVIEWS TAB ── */}
-            {activeTab === 'feedback' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {/* Rating Overview Card */}
-                <div style={{
-                  background: c.cardBg, border: `1px solid ${c.borderPurple}`,
-                  borderRadius: 20, padding: '24px 28px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                    <div style={{
-                      width: 72, height: 72, borderRadius: 20,
-                      background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(109,40,217,0.08))',
-                      border: '1.5px solid rgba(139,92,246,0.3)',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <span style={{ fontSize: 24, fontWeight: 900, color: '#a78bfa', lineHeight: 1 }}>
-                        {feedbackData.avgRating ? feedbackData.avgRating : 'N/A'}
-                      </span>
-                      <span style={{ fontSize: 9, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 3 }}>out of 5</span>
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: 16, fontWeight: 800, color: c.textSub, marginBottom: 4 }}>Candidate Feedback & Ratings</h3>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <div style={{ display: 'flex', gap: 3 }}>
-                          {[1,2,3,4,5].map(s => (
-                            <Star key={s} size={18}
-                              fill={s <= Math.round(feedbackData.avgRating || 0) ? '#f59e0b' : 'none'}
-                              color={s <= Math.round(feedbackData.avgRating || 0) ? '#f59e0b' : c.border}
-                            />
-                          ))}
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: c.textSub }}>
-                          {feedbackData.totalReviews} {feedbackData.totalReviews === 1 ? 'review' : 'reviews'} submitted
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 11, color: c.textMuted }}>Reviews provided by enrolled students for this course batch.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reviews List */}
-                {!feedbackData.feedback || feedbackData.feedback.length === 0 ? (
-                  <Empty icon={MessageSquare} title="No feedback submitted yet" sub="Enrolled candidates haven't submitted any reviews for this course batch yet." />
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-                    {feedbackData.feedback.map((item, idx) => (
-                      <div key={idx} style={{
-                        background: c.cardBg, border: `1px solid ${c.border}`,
-                        borderRadius: 16, padding: '20px', display: 'flex', flexDirection: 'column', gap: 12,
-                        boxShadow: c.shadow, transition: 'all 0.2s'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{
-                              width: 36, height: 36, borderRadius: '50%',
-                              background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(109,40,217,0.1))',
-                              border: '1px solid rgba(139,92,246,0.3)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 14, fontWeight: 800, color: '#a78bfa'
-                            }}>
-                              {(item.studentName || 'S').charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: c.textSub }}>{item.studentName || 'Anonymous Student'}</div>
-                              <div style={{ fontSize: 10, color: c.textMuted }}>Candidate</div>
-                            </div>
-                          </div>
-                          <span style={{ fontSize: 10, color: c.textMuted }}>{fmt(item.date)}</span>
-                        </div>
-
-                        {/* Star Rating */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ display: 'flex', gap: 2 }}>
-                            {[1,2,3,4,5].map(s => (
-                              <Star key={s} size={14}
-                                fill={s <= item.rating ? '#f59e0b' : 'none'}
-                                color={s <= item.rating ? '#f59e0b' : c.border}
-                              />
-                            ))}
-                          </div>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: '#f59e0b' }}>{item.rating}.0</span>
-                        </div>
-
-                        {/* Review text */}
-                        {item.review ? (
-                          <p style={{
-                            fontSize: 12, color: c.text, lineHeight: 1.6, fontStyle: 'italic',
-                            padding: '10px 12px', borderRadius: 10,
-                            background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc',
-                            border: `1px solid ${c.border}`
-                          }}>
-                            &ldquo;{item.review}&rdquo;
-                          </p>
-                        ) : (
-                          <span style={{ fontSize: 11, color: c.textMuted, fontStyle: 'italic' }}>No detailed review provided.</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── STUDENT DOUBTS & QUERIES TAB (EXPERT VIEW) ── */}
-            {activeTab === 'queries' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Controls Header */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-                  background: c.cardBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20, padding: '18px 24px'
-                }}>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 800, color: c.textSub, marginBottom: 2 }}>Candidate Doubts &amp; Queries</h3>
-                    <p style={{ fontSize: 11, color: c.textMuted }}>Review and respond to candidate questions submitted for this batch.</p>
-                  </div>
-
-                  {/* Filter Tabs */}
-                  <div style={{ display: 'flex', gap: 4, background: c.tabBg, borderRadius: 10, padding: 3, border: `1px solid ${c.border}` }}>
-                    {[
-                      { id: 'all', label: 'All Doubts' },
-                      { id: 'Pending', label: 'Pending Response' },
-                      { id: 'Answered', label: 'Answered' },
-                      { id: 'Resolved', label: 'Resolved' }
-                    ].map(f => (
-                      <button
-                        key={f.id}
-                        onClick={() => setTeacherQueryFilter(f.id)}
-                        style={{
-                          padding: '6px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                          fontSize: 11, fontWeight: teacherQueryFilter === f.id ? 700 : 500,
-                          background: teacherQueryFilter === f.id ? 'rgba(139,92,246,0.15)' : 'transparent',
-                          color: teacherQueryFilter === f.id ? '#a78bfa' : c.textMuted,
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Queries List */}
-                {teacherQueriesLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: c.textMuted, fontSize: 13, gap: 10 }}>
-                    <Spin color="#8b5cf6" /> Loading candidate queries...
-                  </div>
-                ) : teacherQueries.filter(q => teacherQueryFilter === 'all' || q.status === teacherQueryFilter).length === 0 ? (
-                  <Empty
-                    icon={HelpCircle}
-                    title="No queries found"
-                    sub={teacherQueryFilter === 'all' ? 'No candidate doubts have been submitted for this batch yet.' : `No ${teacherQueryFilter.toLowerCase()} queries found.`}
-                  />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {teacherQueries
-                      .filter(q => teacherQueryFilter === 'all' || q.status === teacherQueryFilter)
-                      .map(q => {
-                        const isExpanded = expandedTeacherQueryId === q._id;
-                        const badge = q.status === 'Pending' ? { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', color: '#f59e0b', label: 'Pending Response' }
-                          : q.status === 'In Progress' ? { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)', color: '#3b82f6', label: 'In Progress' }
-                          : q.status === 'Answered' ? { bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)', color: '#10b981', label: 'Answered' }
-                          : { bg: 'rgba(168,85,247,0.12)', border: 'rgba(168,85,247,0.3)', color: '#a855f7', label: 'Resolved' };
-
-                        const prioColor = q.priority === 'High' ? '#ef4444' : q.priority === 'Medium' ? '#f59e0b' : '#94a3b8';
-
-                        return (
-                          <div key={q._id} style={{
-                            background: c.cardBg, border: `1px solid ${c.border}`, borderRadius: 16,
-                            padding: '18px 20px', transition: 'all 0.2s', borderLeft: `4px solid ${badge.color}`
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-                              <div style={{ flex: 1, minWidth: 200 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                                  <span style={{
-                                    padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                                    background: 'rgba(139,92,246,0.1)', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 4
-                                  }}>
-                                    <Tag size={10} /> {q.topicTitle || 'General Course Doubt'}
-                                  </span>
-                                  <span style={{
-                                    padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                                    background: `${prioColor}15`, color: prioColor
-                                  }}>
-                                    {q.priority} Priority
-                                  </span>
-                                </div>
-
-                                <h4 style={{ fontSize: 14, fontWeight: 800, color: c.textSub, marginBottom: 4 }}>{q.title}</h4>
-
-                                <div style={{ fontSize: 11, color: c.textMuted, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                                  <span>Candidate: <strong style={{ color: c.textSub }}>{q.studentName}</strong> ({q.studentEmail})</span>
-                                  <span>Asked: {fmt(q.createdAt)}</span>
-                                </div>
-                              </div>
-
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                                {/* Status Dropdown */}
-                                <select
-                                  value={q.status}
-                                  onChange={e => handleTeacherStatusChange(q._id, e.target.value)}
-                                  style={{
-                                    padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 800,
-                                    background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color,
-                                    outline: 'none', cursor: 'pointer'
-                                  }}
-                                >
-                                  <option value="Pending" style={{ color: '#000' }}>Pending</option>
-                                  <option value="In Progress" style={{ color: '#000' }}>In Progress</option>
-                                  <option value="Answered" style={{ color: '#000' }}>Answered</option>
-                                  <option value="Resolved" style={{ color: '#000' }}>Resolved</option>
-                                </select>
-
-                                <button
-                                  onClick={() => setExpandedTeacherQueryId(isExpanded ? null : q._id)}
-                                  style={{
-                                    padding: '6px 12px', borderRadius: 8, border: `1px solid ${c.border}`,
-                                    background: c.statBg, color: c.text, fontSize: 11, fontWeight: 700,
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4
-                                  }}
-                                >
-                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                  {q.replies?.length || 0} message{q.replies?.length !== 1 ? 's' : ''}
-                                </button>
-                              </div>
-                            </div>
-
-                            <p style={{ fontSize: 12, color: c.text, lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: 12, background: dark ? 'rgba(255,255,255,0.015)' : '#f9fafb', padding: '10px 12px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                              {q.description}
-                            </p>
-
-                            {/* Expanded Thread & Expert Reply View */}
-                            {isExpanded && (
-                              <div style={{
-                                marginTop: 14, paddingTop: 14, borderTop: `1px solid ${c.border}`,
-                                display: 'flex', flexDirection: 'column', gap: 12
-                              }}>
-                                <h5 style={{ fontSize: 11, fontWeight: 800, color: c.textSub, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                  Conversation Thread ({q.replies?.length || 0})
-                                </h5>
-
-                                {(!q.replies || q.replies.length === 0) ? (
-                                  <div style={{ fontSize: 11, color: c.textMuted, fontStyle: 'italic', padding: '4px 0' }}>
-                                    No replies yet. Type your answer below to assist this candidate.
-                                  </div>
-                                ) : (
-                                  q.replies.map((rep, idx) => {
-                                    const isExpert = ['Teacher', 'Admin', 'Staff'].includes(rep.senderRole);
-                                    return (
-                                      <div key={idx} style={{
-                                        padding: '12px 14px', borderRadius: 12,
-                                        background: isExpert ? dark ? 'rgba(139,92,246,0.08)' : '#f5f3ff' : c.statBg,
-                                        border: `1px solid ${isExpert ? 'rgba(139,92,246,0.2)' : c.border}`,
-                                        alignSelf: isExpert ? 'flex-end' : 'flex-start',
-                                        maxWidth: '92%'
-                                      }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
-                                          <strong style={{ fontSize: 12, color: isExpert ? '#a78bfa' : c.textSub }}>
-                                            {rep.senderName} {isExpert ? ' (You / Expert)' : ' (Candidate)'}
-                                          </strong>
-                                          <span style={{ fontSize: 9, color: c.textMuted }}>{fmt(rep.createdAt)}</span>
-                                        </div>
-                                        <p style={{ fontSize: 12, color: c.text, lineHeight: 1.5, whiteSpace: 'pre-line', margin: 0 }}>
-                                          {rep.message}
-                                        </p>
-                                      </div>
-                                    );
-                                  })
-                                )}
-
-                                {/* Expert Reply Input */}
-                                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                                  <input
-                                    type="text"
-                                    value={teacherReplyText[q._id] || ''}
-                                    onChange={e => setTeacherReplyText({ ...teacherReplyText, [q._id]: e.target.value })}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleTeacherReply(q._id); }}
-                                    placeholder="Type expert response / explanation..."
-                                    style={{
-                                      flex: 1, padding: '10px 14px', borderRadius: 10,
-                                      background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                                      color: c.text, fontSize: 12, outline: 'none'
-                                    }}
-                                  />
-                                  <button
-                                    onClick={() => handleTeacherReply(q._id)}
-                                    disabled={teacherReplySubmitting[q._id] || !teacherReplyText[q._id]?.trim()}
-                                    style={{
-                                      padding: '10px 18px', borderRadius: 10, border: 'none',
-                                      background: teacherReplyText[q._id]?.trim() ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : c.border,
-                                      color: teacherReplyText[q._id]?.trim() ? '#fff' : c.textMuted,
-                                      fontSize: 12, fontWeight: 700, cursor: teacherReplyText[q._id]?.trim() ? 'pointer' : 'not-allowed',
-                                      display: 'flex', alignItems: 'center', gap: 6,
-                                      boxShadow: teacherReplyText[q._id]?.trim() ? '0 4px 14px rgba(139,92,246,0.3)' : 'none'
-                                    }}
-                                  >
-                                    {teacherReplySubmitting[q._id] ? <Spin /> : <><Send size={13} /> Answer Doubt</>}
-                                  </button>
-                                </div>
-                              </div>
                             )}
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ASSIGNMENTS MANAGEMENT TAB (EXPERT VIEW) ── */}
-            {activeTab === 'assignments' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Header & Create Action */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-                  background: c.cardBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20, padding: '18px 24px'
-                }}>
-                  <div>
-                    <h3 style={{ fontSize: 16, fontWeight: 800, color: c.textSub, marginBottom: 2 }}>Course Assignments &amp; Evaluation</h3>
-                    <p style={{ fontSize: 11, color: c.textMuted }}>Create assignments, set deadlines, and evaluate candidate submissions.</p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setAssignmentError(''); setAssignmentSuccess('');
-                      setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' });
-                      setIsCreateAssignmentOpen(true);
-                    }}
-                    style={{
-                      padding: '9px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                      background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                      fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6,
-                      boxShadow: '0 4px 14px rgba(139,92,246,0.35)', transition: 'all 0.2s'
-                    }}
-                  >
-                    <Plus size={15} /> Create New Assignment
-                  </button>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
-
-                {/* Assignments List */}
-                {assignmentsLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: c.textMuted, fontSize: 13, gap: 10 }}>
-                    <Spin color="#8b5cf6" /> Loading assignments...
-                  </div>
-                ) : assignments.length === 0 ? (
-                  <Empty
-                    icon={ClipboardList}
-                    title="No assignments created yet"
-                    sub="Click 'Create New Assignment' above to assign tasks and homework to candidates in this batch."
-                  />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {assignments.map(asg => {
-                      const isExpanded = expandedAssignmentId === asg._id;
-                      const totalSubs = asg.submissions?.length || 0;
-                      const gradedSubs = asg.submissions?.filter(s => s.status === 'Graded').length || 0;
-                      const isOverdue = new Date(asg.dueDate) < new Date();
-
-                      return (
-                        <div key={asg._id} style={{
-                          background: c.cardBg, border: `1px solid ${c.border}`, borderRadius: 16,
-                          padding: '20px', transition: 'all 0.2s', borderLeft: '4px solid #8b5cf6'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1, minWidth: 220 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                                <span style={{
-                                  padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 800,
-                                  background: isOverdue ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                                  color: isOverdue ? '#ef4444' : '#10b981', display: 'flex', alignItems: 'center', gap: 4
-                                }}>
-                                  <Calendar size={10} /> Due: {fmt(asg.dueDate)}
-                                </span>
-                                <span style={{
-                                  padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-                                  background: 'rgba(139,92,246,0.1)', color: '#a78bfa'
-                                }}>
-                                  Max Score: {asg.totalPoints} pts
-                                </span>
-                              </div>
-
-                              <h4 style={{ fontSize: 15, fontWeight: 800, color: c.textSub, marginBottom: 4 }}>{asg.title}</h4>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                              <button
-                                onClick={() => setExpandedAssignmentId(isExpanded ? null : asg._id)}
-                                style={{
-                                  padding: '7px 14px', borderRadius: 8, border: `1px solid ${c.border}`,
-                                  background: 'rgba(139,92,246,0.1)', color: '#a78bfa', fontSize: 11, fontWeight: 700,
-                                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
-                                }}
-                              >
-                                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                {totalSubs} Submissions ({gradedSubs} Graded)
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteAssignment(asg._id)}
-                                title="Delete Assignment"
-                                style={{
-                                  padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)',
-                                  background: 'rgba(239,68,68,0.08)', color: '#f87171', cursor: 'pointer'
-                                }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </div>
-
-                          <p style={{ fontSize: 12, color: c.textMuted, lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: 10 }}>
-                            {asg.description}
-                          </p>
-
-                          {asg.fileUrl && (
-                            <a
-                              href={asg.fileUrl} target="_blank" rel="noopener noreferrer"
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981',
-                                fontWeight: 700, textDecoration: 'none', marginBottom: 8
-                              }}
-                            >
-                              <FileText size={12} /> View Reference Attachment / Guidelines
-                            </a>
-                          )}
-
-                          {/* Submissions Evaluation Panel */}
-                          {isExpanded && (
-                            <div style={{
-                              marginTop: 16, paddingTop: 16, borderTop: `1px solid ${c.border}`,
-                              display: 'flex', flexDirection: 'column', gap: 14
-                            }}>
-                              <h5 style={{ fontSize: 12, fontWeight: 800, color: c.textSub, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Candidate Submissions &amp; Grading ({totalSubs})
-                              </h5>
-
-                              {totalSubs === 0 ? (
-                                <div style={{ fontSize: 11, color: c.textMuted, fontStyle: 'italic', padding: '8px 0' }}>
-                                  No candidates have submitted solutions for this assignment yet.
-                                </div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                  {asg.submissions.map(sub => {
-                                    const isGraded = sub.status === 'Graded';
-                                    const currentGrade = gradeData[sub._id]?.grade !== undefined
-                                      ? gradeData[sub._id].grade
-                                      : sub.grade !== null ? sub.grade : '';
-                                    const currentFeedback = gradeData[sub._id]?.feedback !== undefined
-                                      ? gradeData[sub._id].feedback
-                                      : sub.feedback || '';
-
-                                    return (
-                                      <div key={sub._id} style={{
-                                        padding: '14px 16px', borderRadius: 12,
-                                        background: dark ? 'rgba(255,255,255,0.02)' : '#f9fafb',
-                                        border: `1px solid ${c.border}`, display: 'flex', flexDirection: 'column', gap: 10
-                                      }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                                          <div>
-                                            <strong style={{ fontSize: 13, color: c.textSub }}>{sub.studentName}</strong>
-                                            <span style={{ fontSize: 11, color: c.textMuted, marginLeft: 8 }}>({sub.studentEmail})</span>
-                                          </div>
-
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ fontSize: 10, color: c.textMuted }}>
-                                              Submitted: {fmt(sub.submittedAt)}
-                                            </span>
-                                            <span style={{
-                                              padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800,
-                                              background: isGraded ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
-                                              color: isGraded ? '#10b981' : '#f59e0b', border: `1px solid ${isGraded ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`
-                                            }}>
-                                              {isGraded ? `Graded: ${sub.grade}/${asg.totalPoints}` : 'Needs Grading'}
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        {/* Candidate Solution Text & Link */}
-                                        {sub.answerText && (
-                                          <div style={{ fontSize: 12, color: c.text, lineHeight: 1.5, whiteSpace: 'pre-line', background: c.inputBg, padding: '10px 12px', borderRadius: 8 }}>
-                                            <strong>Written Answer:</strong> {sub.answerText}
-                                          </div>
-                                        )}
-
-                                        {sub.submissionUrl && (
-                                          <div>
-                                            <a href={sub.submissionUrl} target="_blank" rel="noopener noreferrer" style={{
-                                              fontSize: 11, color: '#8b5cf6', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4
-                                            }}>
-                                              🔗 View Submitted Project / Repository Link
-                                            </a>
-                                          </div>
-                                        )}
-
-                                        {/* Grading Controls */}
-                                        <div style={{
-                                          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4,
-                                          background: dark ? 'rgba(139,92,246,0.04)' : '#f5f3ff', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(139,92,246,0.15)'
-                                        }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <label style={{ fontSize: 11, fontWeight: 700, color: c.textSub }}>Grade Score:</label>
-                                            <input
-                                              type="number"
-                                              min={0}
-                                              max={asg.totalPoints}
-                                              placeholder={`0 - ${asg.totalPoints}`}
-                                              value={currentGrade}
-                                              onChange={e => setGradeData({
-                                                ...gradeData,
-                                                [sub._id]: { ...gradeData[sub._id], grade: e.target.value, feedback: currentFeedback }
-                                              })}
-                                              style={{
-                                                width: 70, padding: '6px 8px', borderRadius: 6,
-                                                background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                                                color: c.text, fontSize: 12, outline: 'none'
-                                              }}
-                                            />
-                                            <span style={{ fontSize: 11, color: c.textMuted }}>/ {asg.totalPoints}</span>
-                                          </div>
-
-                                          <div style={{ flex: 1, minWidth: 200 }}>
-                                            <input
-                                              type="text"
-                                              placeholder="Enter expert feedback / notes..."
-                                              value={currentFeedback}
-                                              onChange={e => setGradeData({
-                                                ...gradeData,
-                                                [sub._id]: { ...gradeData[sub._id], grade: currentGrade, feedback: e.target.value }
-                                              })}
-                                              style={{
-                                                width: '100%', padding: '6px 10px', borderRadius: 6,
-                                                background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                                                color: c.text, fontSize: 12, outline: 'none'
-                                              }}
-                                            />
-                                          </div>
-
-                                          <button
-                                            onClick={() => handleGradeSubmission(asg._id, sub._id)}
-                                            disabled={gradingSubmitting[sub._id]}
-                                            style={{
-                                              padding: '6px 14px', borderRadius: 8, border: 'none',
-                                              background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                                              fontSize: 11, fontWeight: 700, cursor: gradingSubmitting[sub._id] ? 'not-allowed' : 'pointer',
-                                              display: 'flex', alignItems: 'center', gap: 4
-                                            }}
-                                          >
-                                            {gradingSubmitting[sub._id] ? <Spin /> : <><Check size={12} /> Save Grade</>}
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-
-
-
-          </>) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
-              Failed to load batch data.
+              )}
             </div>
           )}
+
+          {/* DOUBTS & QUERIES TAB */}
+          {activeTab === 'queries' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }} className="animate-in">
+              <Card>
+                <SectionHeader title="Candidate Doubts & Queries" sub="Respond to candidate questions for this batch."
+                  action={
+                    <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: RADIUS.pill, padding: 3 }}>
+                      {['all', 'Pending', 'Answered', 'Resolved'].map(f => (
+                        <button key={f} onClick={() => setTeacherQueryFilter(f)} style={{
+                          padding: '6px 14px', borderRadius: RADIUS.pill, border: 'none', cursor: 'pointer', fontSize: 11,
+                          fontWeight: teacherQueryFilter === f ? 700 : 500, background: teacherQueryFilter === f ? '#fff' : 'transparent',
+                          color: teacherQueryFilter === f ? C.primary : C.muted, fontFamily: FONT
+                        }}>{f === 'all' ? 'All Doubts' : f}</button>
+                      ))}
+                    </div>
+                  } />
+              </Card>
+
+              {teacherQueriesLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40, color: C.muted, fontSize: 13, gap: 10 }}><Spin color={C.primary} /> Loading queries...</div>
+              ) : teacherQueries.filter(q => teacherQueryFilter === 'all' || q.status === teacherQueryFilter).length === 0 ? (
+                <Empty icon={HelpCircle} title="No queries found" sub="No candidate doubts recorded for this filter." />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {teacherQueries.filter(q => teacherQueryFilter === 'all' || q.status === teacherQueryFilter).map(q => {
+                    const isExpanded = expandedTeacherQueryId === q._id;
+                    const badge = q.status === 'Pending' ? { bg: C.orangeSoft, color: C.orangeText }
+                      : q.status === 'In Progress' ? { bg: C.blueSoft, color: C.blueText }
+                        : q.status === 'Answered' ? { bg: C.greenSoft, color: C.greenText }
+                          : { bg: C.purpleSoft, color: C.purpleText };
+
+                    return (
+                      <Card key={q._id} accent={badge.color}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1, minWidth: 200 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                              <Badge color={C.purpleText} bg={C.purpleSoft}><Tag size={10} /> {q.topicTitle || 'General Course Doubt'}</Badge>
+                              <Badge color={C.muted} bg="#F1F5F9">{q.priority} Priority</Badge>
+                            </div>
+                            <h4 style={{ fontSize: 14, fontWeight: 800, color: C.ink, marginBottom: 4 }}>{q.title}</h4>
+                            <div style={{ fontSize: 11, color: C.muted }}>Candidate: <strong style={{ color: C.ink }}>{q.studentName}</strong> ({q.studentEmail}) · {fmt(q.createdAt)}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <select value={q.status} onChange={e => handleTeacherStatusChange(q._id, e.target.value)} style={{ padding: '5px 12px', borderRadius: RADIUS.pill, fontSize: 11, fontWeight: 800, background: badge.bg, border: 'none', color: badge.color, outline: 'none', cursor: 'pointer', fontFamily: FONT }}>
+                              <option value="Pending">Pending</option><option value="In Progress">In Progress</option><option value="Answered">Answered</option><option value="Resolved">Resolved</option>
+                            </select>
+                            <Pill variant="outline" onClick={() => setExpandedTeacherQueryId(isExpanded ? null : q._id)} style={{ padding: '7px 12px', fontSize: 11 }}>{isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {q.replies?.length || 0} msgs</Pill>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 13, color: C.ink, lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: 12, background: '#F8FAFC', padding: '10px 12px', borderRadius: RADIUS.sm, border: `1px solid ${C.borderSoft}` }}>{q.description}</p>
+
+                        {isExpanded && (
+                          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <h5 style={{ fontSize: 12, fontWeight: 800, color: C.ink }}>Replies ({q.replies?.length || 0})</h5>
+                            {(!q.replies || q.replies.length === 0) ? (
+                              <div style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>No replies yet. Type your answer below.</div>
+                            ) : q.replies.map((rep, idx) => {
+                              const isExpert = ['Teacher', 'Admin', 'Staff'].includes(rep.senderRole);
+                              return (
+                                <div key={idx} style={{ padding: '12px 14px', borderRadius: RADIUS.sm, background: isExpert ? C.primarySoft : '#F8FAFC', border: `1px solid ${isExpert ? C.primary + '30' : C.borderSoft}`, alignSelf: isExpert ? 'flex-end' : 'flex-start', maxWidth: '92%' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+                                    <strong style={{ fontSize: 12, color: isExpert ? C.primaryDark : C.ink }}>{rep.senderName} {isExpert ? '(Expert)' : '(Candidate)'}</strong>
+                                    <span style={{ fontSize: 10, color: C.muted }}>{fmt(rep.createdAt)}</span>
+                                  </div>
+                                  <p style={{ fontSize: 12.5, color: C.body, lineHeight: 1.5, whiteSpace: 'pre-line', margin: 0 }}>{rep.message}</p>
+                                </div>
+                              );
+                            })}
+                            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                              <input type="text" value={teacherReplyText[q._id] || ''} onChange={e => setTeacherReplyText({ ...teacherReplyText, [q._id]: e.target.value })}
+                                onKeyDown={e => { if (e.key === 'Enter') handleTeacherReply(q._id); }} placeholder="Type expert answer..." style={{ flex: 1, padding: '10px 14px', borderRadius: RADIUS.pill, background: '#F8FAFC', border: `1px solid ${C.border}`, color: C.ink, fontSize: 12.5, outline: 'none', fontFamily: FONT }} />
+                              <Pill onClick={() => handleTeacherReply(q._id)} disabled={teacherReplySubmitting[q._id] || !teacherReplyText[q._id]?.trim()} icon={Send}>Answer</Pill>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* REVIEWS TAB */}
+          {activeTab === 'feedback' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="animate-in">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <Card>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                    <Donut pct={Math.round(((feedbackData.avgRating || 0) / 5) * 100)} sub="of 5 stars" color={C.orange} />
+                    <div>
+                      <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, marginBottom: 6 }}>Candidate Feedback</h3>
+                      <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
+                        {[1, 2, 3, 4, 5].map(s => <Star key={s} size={16} fill={s <= Math.round(feedbackData.avgRating || 0) ? '#F59E0B' : 'none'} color={s <= Math.round(feedbackData.avgRating || 0) ? '#F59E0B' : C.border} />)}
+                      </div>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: C.ink }}>{feedbackData.totalReviews} reviews</span>
+                    </div>
+                  </div>
+                </Card>
+                <Card>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}><BarChart2 size={14} color={C.primary} /><span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Rating Distribution</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[5, 4, 3, 2, 1].map((star, i) => <BarRow key={star} label={`${star} stars`} value={ratingCounts[i]} max={maxRatingCount} color="#F59E0B" />)}
+                  </div>
+                </Card>
+              </div>
+
+              {!feedbackData.feedback?.length ? (
+                <Empty icon={MessageSquare} title="No feedback submitted yet" sub="Enrolled candidates haven't submitted reviews for this batch yet." />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+                  {feedbackData.feedback.map((item, idx) => (
+                    <Card key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: C.purpleSoft, color: C.purpleText, fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{(item.studentName || 'S').charAt(0).toUpperCase()}</div>
+                          <div><div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{item.studentName || 'Candidate'}</div><div style={{ fontSize: 11, color: C.muted }}>Candidate</div></div>
+                        </div>
+                        <span style={{ fontSize: 11, color: C.muted }}>{fmt(item.date)}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 2 }}>{[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} fill={s <= item.rating ? '#F59E0B' : 'none'} color={s <= item.rating ? '#F59E0B' : C.border} />)}</div>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#D97706' }}>{item.rating}.0</span>
+                      </div>
+                      {item.review ? <p style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.6, fontStyle: 'italic', padding: '10px 12px', borderRadius: RADIUS.sm, background: '#F8FAFC', border: `1px solid ${C.borderSoft}` }}>&ldquo;{item.review}&rdquo;</p> : <span style={{ fontSize: 12, color: C.muted, fontStyle: 'italic' }}>No text review.</span>}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </main>
       </div>
 
-      {/* ── RESOURCE MODAL ── */}
+      {/* ── ALL MODALS ── */}
+      {/* Creation Modal */}
       {isModalOpen && modalConfig[modalType] && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: c.modalBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20,
-            width: '100%', maxWidth: modalType === 'curriculum' ? 560 : 460,
-            boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-            overflow: 'hidden', position: 'relative', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
-          }}>
-            <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 180, height: 2, background: 'linear-gradient(90deg,transparent,#8b5cf6,transparent)' }} />
-
-            <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 11,
-                background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                {React.createElement(modalConfig[modalType].icon, { size: 16, color: '#a78bfa' })}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: modalType === 'curriculum' ? 540 : 440, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <IconBadge icon={modalConfig[modalType].icon} color={C.primary} size={36} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>{modalConfig[modalType].title}</h3>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: c.textSub }}>{modalConfig[modalType].title}</div>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.5)' }}>
-                <X size={14} />
-              </button>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
             </div>
+            <div style={{ padding: '20px 24px' }}>
+              {formError && <div style={{ marginBottom: 12 }}><FormAlert msg={formError} type="error" /></div>}
+              {formSuccess && <div style={{ marginBottom: 12 }}><FormAlert msg={formSuccess} type="success" /></div>}
 
-            <div style={{ padding: '20px 28px 24px', overflowY: 'auto' }}>
-              {formError && <div style={{ marginBottom: 16 }}><FormAlert msg={formError} type="error" /></div>}
-              {formSuccess && <div style={{ marginBottom: 16 }}><FormAlert msg={formSuccess} type="success" /></div>}
-
-              {/* LINK FORM */}
               {modalType === 'link' && (
                 <form onSubmit={handleAddLink} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Link Title</label>
-                    <input type="text" required value={linkData.title} onChange={e => setLinkData({ ...linkData, title: e.target.value })} placeholder="e.g. GitHub Repo, Documentation" style={{...inputStyle, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text}} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>URL</label>
-                    <input type="url" required value={linkData.url} onChange={e => setLinkData({ ...linkData, url: e.target.value })} placeholder="https://example.com" style={{...inputStyle, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text}} />
-                  </div>
-                  <ModalBtns onCancel={() => setIsModalOpen(false)} submitting={formSubmitting} label={modalConfig[modalType].action} />
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Title</label><input type="text" required value={linkData.title} onChange={e => setLinkData({ ...linkData, title: e.target.value })} placeholder="e.g. GitHub Repo" style={inputStyle} /></div>
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>URL</label><input type="url" required value={linkData.url} onChange={e => setLinkData({ ...linkData, url: e.target.value })} placeholder="https://..." style={inputStyle} /></div>
+                  <Pill type="submit" disabled={formSubmitting} style={{ marginTop: 8 }}>{formSubmitting ? <Spin /> : 'Save Link'}</Pill>
                 </form>
               )}
 
-              {/* NOTIFICATION FORM */}
               {modalType === 'notification' && (
                 <form onSubmit={handleAddNotification} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{
-                    padding: '10px 12px', borderRadius: 10,
-                    background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
-                    display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#a78bfa'
-                  }}>
-                    <Bell size={14} color="#a78bfa" />
-                    <span><strong>Firebase Push Notification:</strong> Will be broadcasted instantly to all candidates in this batch.</span>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Announcement Title</label>
-                    <input type="text" required value={notifData.title} onChange={e => setNotifData({ ...notifData, title: e.target.value })} placeholder="e.g. Test Scheduled, Class Update" style={{...inputStyle, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text}} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Message</label>
-                    <textarea required value={notifData.message} onChange={e => setNotifData({ ...notifData, message: e.target.value })} placeholder="Write your announcement..." rows={4} style={{ ...inputStyle, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, resize: 'none', lineHeight: 1.6 }} />
-                  </div>
-                  <ModalBtns onCancel={() => setIsModalOpen(false)} submitting={formSubmitting} label="Broadcast Announcement" />
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Announcement Title</label><input type="text" required value={notifData.title} onChange={e => setNotifData({ ...notifData, title: e.target.value })} placeholder="e.g. Class Rescheduled" style={inputStyle} /></div>
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Message</label><textarea required value={notifData.message} onChange={e => setNotifData({ ...notifData, message: e.target.value })} rows={4} style={{ ...inputStyle, resize: 'vertical' }} /></div>
+                  <Pill type="submit" disabled={formSubmitting} style={{ marginTop: 8 }}>{formSubmitting ? <Spin /> : 'Broadcast Announcement'}</Pill>
                 </form>
               )}
 
-              {/* PDF FORM */}
               {modalType === 'pdf' && (
                 <form onSubmit={handleUploadPdf} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>PDF Title</label>
-                    <input type="text" required value={pdfData.title} onChange={e => setPdfData({ ...pdfData, title: e.target.value })} placeholder="e.g. React Cheatsheet, Module 3 Notes" style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Description (Optional)</label>
-                    <input type="text" value={pdfData.description} onChange={e => setPdfData({ ...pdfData, description: e.target.value })} placeholder="Brief description of the content..." style={inputStyle} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Select PDF File *</label>
-                    <div style={{
-                      border: '1.5px dashed rgba(139,92,246,0.25)', borderRadius: 12, padding: '20px',
-                      textAlign: 'center', background: 'rgba(139,92,246,0.04)', cursor: 'pointer'
-                    }}>
-                      <Upload size={20} color="#8b5cf6" style={{ margin: '0 auto 8px' }} />
-                      <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>{pdfData.file ? pdfData.file.name : 'Click or drag PDF here'}</p>
-                      <input type="file" required accept=".pdf" onChange={e => setPdfData({ ...pdfData, file: e.target.files[0] })} style={{ display: 'block', width: '100%', fontSize: 11, color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }} />
-                    </div>
-                  </div>
-                  <ModalBtns onCancel={() => setIsModalOpen(false)} submitting={formSubmitting} label={modalConfig[modalType].action} />
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>PDF Title</label><input type="text" required value={pdfData.title} onChange={e => setPdfData({ ...pdfData, title: e.target.value })} placeholder="e.g. Lecture Notes" style={inputStyle} /></div>
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Description</label><input type="text" value={pdfData.description} onChange={e => setPdfData({ ...pdfData, description: e.target.value })} placeholder="Brief summary..." style={inputStyle} /></div>
+                  <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Select PDF File</label><input type="file" required accept=".pdf" onChange={e => setPdfData({ ...pdfData, file: e.target.files[0] })} style={{ fontSize: 12 }} /></div>
+                  <Pill type="submit" disabled={formSubmitting} style={{ marginTop: 8 }}>{formSubmitting ? <Spin /> : 'Upload PDF'}</Pill>
                 </form>
               )}
 
-              {/* CURRICULUM FORM */}
               {modalType === 'curriculum' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* Mode toggle */}
-                  <div style={{ display: 'flex', background: dark ? 'rgba(255,255,255,0.03)' : '#f1f5f9', borderRadius: 10, padding: 3, gap: 3 }}>
-                    {[{ id: true, label: '{ } JSON Upload' }, { id: false, label: '✏️ Manual Entry' }].map(m => (
-                      <button key={String(m.id)} onClick={() => { setCurrJsonMode(m.id); setCurrError(''); setCurrJsonError(''); setCurrSuccess(''); }} style={{
-                        flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                        fontSize: 11, fontWeight: 700, transition: 'all 0.2s',
-                        background: currJsonMode === m.id ? (dark ? 'rgba(139,92,246,0.2)' : '#ffffff') : 'transparent',
-                        color: currJsonMode === m.id ? '#a78bfa' : c.textMuted,
-                        boxShadow: currJsonMode === m.id ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
-                      }}>{m.label}</button>
-                    ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', gap: 4, background: '#F1F5F9', borderRadius: RADIUS.pill, padding: 3 }}>
+                    <button onClick={() => setCurrJsonMode(true)} style={{ flex: 1, padding: '6px', borderRadius: RADIUS.pill, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: currJsonMode ? 700 : 500, background: currJsonMode ? '#fff' : 'transparent', color: currJsonMode ? C.primary : C.muted }}>JSON Upload</button>
+                    <button onClick={() => setCurrJsonMode(false)} style={{ flex: 1, padding: '6px', borderRadius: RADIUS.pill, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: !currJsonMode ? 700 : 500, background: !currJsonMode ? '#fff' : 'transparent', color: !currJsonMode ? C.primary : C.muted }}>Manual Entry</button>
                   </div>
-
-                  {currError && <FormAlert msg={currError} type="error" />}
-                  {currSuccess && <FormAlert msg={currSuccess} type="success" />}
-
                   {currJsonMode ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {/* Format guide */}
-                      <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 12, padding: 14 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>📋 Required JSON Format</div>
-                        <pre style={{ fontSize: 10, color: dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)', overflowX: 'auto', lineHeight: 1.6, margin: 0, fontFamily: 'monospace' }}>{SAMPLE_JSON}</pre>
-                        <button onClick={() => setCurrJsonText(SAMPLE_JSON)} style={{
-                          marginTop: 10, padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(139,92,246,0.25)',
-                          background: 'rgba(139,92,246,0.08)', color: '#a78bfa', fontSize: 10, fontWeight: 700, cursor: 'pointer'
-                        }}>Load Sample</button>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Paste JSON *</label>
-                        <textarea
-                          value={currJsonText}
-                          onChange={e => { setCurrJsonText(e.target.value); setCurrJsonError(''); }}
-                          placeholder={SAMPLE_JSON}
-                          rows={10}
-                          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 11, lineHeight: 1.6 }}
-                        />
-                        {currJsonError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>{currJsonError}</div>}
-                      </div>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button type="button" onClick={() => setIsModalOpen(false)} style={{
-                          flex: 1, padding: '11px', borderRadius: 10, border: `1px solid ${c.border}`,
-                          background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                        }}>Cancel</button>
-                        <button onClick={handleUploadCurriculumJson} disabled={currSubmitting || !currJsonText.trim()} style={{
-                          flex: 2, padding: '11px', borderRadius: 10, border: 'none',
-                          cursor: currSubmitting ? 'not-allowed' : 'pointer',
-                          background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                          fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          boxShadow: '0 4px 16px rgba(139,92,246,0.3)', opacity: currSubmitting ? 0.7 : 1
-                        }}>
-                          {currSubmitting ? <><Spin /> Uploading...</> : <><Upload size={13} /> Upload Curriculum</>}
-                        </button>
-                      </div>
+                    <div>
+                      <textarea value={currJsonText} onChange={e => setCurrJsonText(e.target.value)} placeholder={SAMPLE_JSON} rows={8} style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 11 }} />
+                      <Pill onClick={handleUploadCurriculumJson} disabled={currSubmitting || !currJsonText.trim()} style={{ width: '100%', marginTop: 10 }}>Upload Syllabus JSON</Pill>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Topic Title *</label>
-                        <input type="text" value={currManual.title} onChange={e => setCurrManual(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Introduction to React" style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Description</label>
-                        <input type="text" value={currManual.description} onChange={e => setCurrManual(p => ({ ...p, description: e.target.value }))} placeholder="Brief overview of this topic..." style={inputStyle} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Subtopics (one per line)</label>
-                        <textarea
-                          value={currManual.subtopics}
-                          onChange={e => setCurrManual(p => ({ ...p, subtopics: e.target.value }))}
-                          placeholder={'JSX Syntax\nFunctional Components\nProps & State'}
-                          rows={4}
-                          style={{ ...inputStyle, resize: 'none', lineHeight: 1.6, fontFamily: 'monospace', fontSize: 12 }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button type="button" onClick={() => setIsModalOpen(false)} style={{
-                          flex: 1, padding: '11px', borderRadius: 10, border: `1px solid ${c.border}`,
-                          background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                        }}>Cancel</button>
-                        <button onClick={handleAddManualTopic} disabled={currSubmitting || !currManual.title.trim()} style={{
-                          flex: 2, padding: '11px', borderRadius: 10, border: 'none',
-                          cursor: currSubmitting ? 'not-allowed' : 'pointer',
-                          background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                          fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          boxShadow: '0 4px 16px rgba(139,92,246,0.3)', opacity: currSubmitting ? 0.7 : 1
-                        }}>
-                          {currSubmitting ? <><Spin /> Adding...</> : <><Plus size={13} /> Add Topic</>}
-                        </button>
-                      </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <input type="text" placeholder="Topic Title *" value={currManual.title} onChange={e => setCurrManual({ ...currManual, title: e.target.value })} style={inputStyle} />
+                      <input type="text" placeholder="Description" value={currManual.description} onChange={e => setCurrManual({ ...currManual, description: e.target.value })} style={inputStyle} />
+                      <textarea placeholder="Subtopics (one per line)" value={currManual.subtopics} onChange={e => setCurrManual({ ...currManual, subtopics: e.target.value })} rows={3} style={inputStyle} />
+                      <Pill onClick={handleAddManualTopic} disabled={currSubmitting || !currManual.title.trim()} style={{ width: '100%', marginTop: 6 }}>Add Topic</Pill>
                     </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assignment Creation Modal */}
+      {isCreateAssignmentOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 480, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Create New Assignment</h3>
+              <button onClick={() => setIsCreateAssignmentOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleCreateAssignment} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {assignmentError && <FormAlert msg={assignmentError} type="error" />}
+              {assignmentSuccess && <FormAlert msg={assignmentSuccess} type="success" />}
+              <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Title *</label><input type="text" required value={assignmentFormData.title} onChange={e => setAssignmentFormData({ ...assignmentFormData, title: e.target.value })} placeholder="Assignment Title" style={inputStyle} /></div>
+              <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Instructions *</label><textarea required rows={4} value={assignmentFormData.description} onChange={e => setAssignmentFormData({ ...assignmentFormData, description: e.target.value })} placeholder="Describe task instructions..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Due Date *</label><input type="date" required value={assignmentFormData.dueDate} onChange={e => setAssignmentFormData({ ...assignmentFormData, dueDate: e.target.value })} style={inputStyle} /></div>
+                <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Total Score *</label><input type="number" min={1} max={1000} value={assignmentFormData.totalPoints} onChange={e => setAssignmentFormData({ ...assignmentFormData, totalPoints: e.target.value })} style={inputStyle} /></div>
+              </div>
+              <Pill type="submit" disabled={assignmentSubmitting} style={{ marginTop: 8 }}>{assignmentSubmitting ? <Spin /> : 'Publish Assignment'}</Pill>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Excel Register Modal */}
+      {isBulkModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 520, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <IconBadge icon={Upload} color={C.primary} size={36} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Bulk Register Candidates (Excel)</h3>
+              </div>
+              <button onClick={() => setIsBulkModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleBulkRegisterSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {bulkError && <FormAlert msg={bulkError} type="error" />}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.primarySoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
+                <span style={{ fontSize: 12, color: C.primaryDark, fontWeight: 600 }}>Need format guidelines?</span>
+                <Pill type="button" variant="outline" onClick={handleDownloadSampleExcel} style={{ fontSize: 11, padding: '5px 12px' }}>Download CSV Template</Pill>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Upload .xlsx / .csv File</label>
+                <input type="file" required accept=".xlsx, .xls, .csv" onChange={e => setBulkFile(e.target.files[0])} style={{ fontSize: 12 }} />
+              </div>
+              {bulkResult && (
+                <div style={{ padding: '12px', background: C.greenSoft, borderRadius: RADIUS.sm, fontSize: 12, color: C.greenText }}>
+                  <strong>Success:</strong> {bulkResult.message || 'Candidates registered!'}
+                </div>
+              )}
+              <Pill type="submit" disabled={bulkSubmitting} style={{ marginTop: 6 }}>{bulkSubmitting ? <Spin /> : 'Register Candidates'}</Pill>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Info Modal */}
+      {infoStudentModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 440, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Candidate Overview</h3>
+              <button onClick={() => setInfoStudentModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '20px 22px' }}>
+              {infoStudentModal.loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: C.muted, fontSize: 12 }}><Spin color={C.primary} /> Fetching profile...</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+                  <div><strong>Name:</strong> {infoStudentModal.user?.name}</div>
+                  <div><strong>Email:</strong> {infoStudentModal.user?.email}</div>
+                  <div><strong>Username:</strong> {infoStudentModal.user?.username || '—'}</div>
+                  <div><strong>Password:</strong> {infoStudentModal.user?.generatedPassword || '—'}</div>
+                  <div><strong>Mobile:</strong> {infoStudentModal.user?.mobile || '—'}</div>
+                  {infoStudentModal.profile && (
+                    <>
+                      <div><strong>State:</strong> {infoStudentModal.profile.state || '—'}</div>
+                      <div><strong>Branch:</strong> {infoStudentModal.profile.branch || infoStudentModal.profile.branchDepartment || '—'}</div>
+                    </>
                   )}
                 </div>
               )}
@@ -2167,824 +2068,69 @@ const TeacherDashboard = () => {
         </div>
       )}
 
-      {/* ── EDIT TOPIC MODAL ── */}
-      {editModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 110,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: c.modalBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20,
-            width: '100%', maxWidth: 460, boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-            overflow: 'hidden', position: 'relative'
-          }}>
-            <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 180, height: 2, background: 'linear-gradient(90deg,transparent,#60a5fa,transparent)' }} />
-            <div style={{ padding: '24px 28px 20px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 11,
-                background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}><Edit2 size={16} color="#60a5fa" /></div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: c.textSub }}>Edit Topic</div>
-                <div style={{ fontSize: 11, color: c.textMuted, marginTop: 2 }}>Modify topic details</div>
-              </div>
-              <button onClick={() => setEditModal(null)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.5)' }}>
-                <X size={14} />
-              </button>
-            </div>
-            <form onSubmit={handleEditTopic} style={{ padding: '20px 28px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {editError && <FormAlert msg={editError} type="error" />}
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Topic Title *</label>
-                <input type="text" required value={editData.title} onChange={e => setEditData(p => ({ ...p, title: e.target.value }))} placeholder="Topic title..." style={inputStyle} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Description</label>
-                <input type="text" value={editData.description} onChange={e => setEditData(p => ({ ...p, description: e.target.value }))} placeholder="Brief description..." style={inputStyle} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Subtopics (one per line)</label>
-                <textarea value={editData.subtopics} onChange={e => setEditData(p => ({ ...p, subtopics: e.target.value }))} rows={4} style={{ ...inputStyle, resize: 'none', lineHeight: 1.6, fontFamily: 'monospace', fontSize: 12 }} />
-              </div>
-              <ModalBtns onCancel={() => setEditModal(null)} submitting={editSubmitting} label="Save Changes" />
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── CREATE ASSIGNMENT MODAL ── */}
-      {isCreateAssignmentOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 110,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: c.modalBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20,
-            width: '100%', maxWidth: 520, boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-            overflow: 'hidden', position: 'relative'
-          }}>
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: 10,
-                  background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <ClipboardList size={18} color="#a78bfa" />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 800, color: c.textSub, margin: 0 }}>Create Batch Assignment</h3>
-                  <span style={{ fontSize: 11, color: c.textMuted }}>Assign homework or project tasks to candidates</span>
-                </div>
-              </div>
-              <button onClick={() => setIsCreateAssignmentOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: c.textMuted }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateAssignment} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {assignmentError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: 12 }}>
-                  <AlertCircle size={14} />{assignmentError}
-                </div>
-              )}
-              {assignmentSuccess && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', fontSize: 12 }}>
-                  ✓ {assignmentSuccess}
-                </div>
-              )}
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Assignment Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Build a Responsive Portfolio Project"
-                  value={assignmentFormData.title}
-                  onChange={e => setAssignmentFormData({ ...assignmentFormData, title: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                    color: c.text, fontSize: 13, outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Due Date &amp; Time</label>
-                  <input
-                    type="datetime-local"
-                    value={assignmentFormData.dueDate}
-                    onChange={e => setAssignmentFormData({ ...assignmentFormData, dueDate: e.target.value })}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 10,
-                      background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                      color: c.text, fontSize: 13, outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div style={{ width: 120 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Max Points</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={assignmentFormData.totalPoints}
-                    onChange={e => setAssignmentFormData({ ...assignmentFormData, totalPoints: e.target.value })}
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 10,
-                      background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                      color: c.text, fontSize: 13, outline: 'none'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Instructions &amp; Requirements</label>
-                <textarea
-                  rows={4}
-                  placeholder="Specify assignment criteria, deliverables, and submission guidelines..."
-                  value={assignmentFormData.description}
-                  onChange={e => setAssignmentFormData({ ...assignmentFormData, description: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                    color: c.text, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Optional Attachment / File Link</label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={assignmentFormData.fileUrl}
-                  onChange={e => setAssignmentFormData({ ...assignmentFormData, fileUrl: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                    color: c.text, fontSize: 13, outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateAssignmentOpen(false)}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${c.border}`,
-                    background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={assignmentSubmitting}
-                  style={{
-                    flex: 2, padding: '10px', borderRadius: 10, border: 'none',
-                    background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                    fontSize: 12, fontWeight: 700, cursor: assignmentSubmitting ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    boxShadow: '0 4px 16px rgba(139,92,246,0.3)', opacity: assignmentSubmitting ? 0.7 : 1
-                  }}
-                >
-                  {assignmentSubmitting ? <Spin /> : <><Plus size={14} /> Assign Task</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── DIRECT PUSH NOTIFICATION MODAL (Expert → Specific Candidate) ── */}
-      {directPushModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 120,
-          background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(14px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: c.modalBg, border: `1px solid ${c.borderPurple}`, borderRadius: 20,
-            width: '100%', maxWidth: 460, boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ padding: '18px 24px', borderBottom: `1px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: 10,
-                  background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <Bell size={18} color="#a78bfa" />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: c.textSub, margin: 0 }}>Direct Push Notification</h3>
-                  <span style={{ fontSize: 11, color: c.textMuted }}>To: <strong style={{ color: '#a78bfa' }}>{directPushModal.studentName}</strong></span>
-                </div>
-              </div>
-              <button onClick={() => setDirectPushModal(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: c.textMuted }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSendDirectPush} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {directPushResult && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10,
-                  background: directPushResult.success ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
-                  border: `1px solid ${directPushResult.success ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`,
-                  color: directPushResult.success ? '#10b981' : '#f87171', fontSize: 12
-                }}>
-                  {directPushResult.success ? '✓' : <AlertCircle size={14} />} {directPushResult.message}
-                </div>
-              )}
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Notification Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Please attend tomorrow's special class"
-                  value={directPushForm.title}
-                  onChange={e => setDirectPushForm({ ...directPushForm, title: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                    color: c.text, fontSize: 13, outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Message</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Write your message to this candidate..."
-                  value={directPushForm.message}
-                  onChange={e => setDirectPushForm({ ...directPushForm, message: e.target.value })}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: 10,
-                    background: c.inputBg, border: `1px solid ${c.inputBorder}`,
-                    color: c.text, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => setDirectPushModal(null)}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${c.border}`,
-                    background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={directPushSubmitting || !directPushForm.title.trim() || !directPushForm.message.trim()}
-                  style={{
-                    flex: 2, padding: '10px', borderRadius: 10, border: 'none',
-                    background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                    fontSize: 12, fontWeight: 700,
-                    cursor: directPushSubmitting ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    boxShadow: '0 4px 16px rgba(139,92,246,0.3)',
-                    opacity: (directPushSubmitting || !directPushForm.title.trim() || !directPushForm.message.trim()) ? 0.6 : 1
-                  }}
-                >
-                  {directPushSubmitting ? <Spin /> : <><Bell size={14} /> Send Push Notification</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* ── BULK CANDIDATE REGISTRATION VIA EXCEL MODAL ── */}
-      {isBulkModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 115,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: dark ? '#161922' : '#ffffff',
-            border: `1px solid ${c.border}`, borderRadius: 20,
-            width: '100%', maxWidth: 720, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.5)', overflow: 'hidden'
-          }}>
-            {/* Modal Header */}
-            <div style={{
-              padding: '18px 24px', borderBottom: `1px solid ${c.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Upload size={18} color="#8b5cf6" />
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: c.textSub, margin: 0 }}>Bulk Register Candidates via Excel</h3>
-                  <div style={{ fontSize: 11, color: c.textMuted }}>Auto-enroll candidates into "{batchDetails?.name}" & generate credentials</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsBulkModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textMuted }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Content Body */}
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Header Info Pill */}
-              <div style={{
-                background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
-                borderRadius: 12, padding: '12px 16px', fontSize: 12, color: c.textSub, lineHeight: 1.6
-              }}>
-                <strong>Supported Excel Headers:</strong>
-                <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#a78bfa', marginTop: 4 }}>
-                  FullName | DateOfBirth | Gender | Email | PhoneNumber | PermanentAddress | WorkingState | Branch/Department | YearOfStudy | TrainingTechnology | PaymentTerm
-                </div>
-              </div>
-
-              {/* Sample Template Download */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: c.surfaceHov, padding: '10px 16px', borderRadius: 12, border: `1px solid ${c.border}` }}>
-                <span style={{ fontSize: 12, color: c.textMuted }}>Need a sample file format?</span>
-                <button
-                  type="button"
-                  onClick={handleDownloadSampleExcel}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px',
-                    borderRadius: 8, border: `1px solid ${c.border}`, background: c.cardBg,
-                    color: '#8b5cf6', fontSize: 11, fontWeight: 700, cursor: 'pointer'
-                  }}
-                >
-                  <Download size={13} /> Download Sample Template
-                </button>
-              </div>
-
-              {/* Upload Form */}
-              <form onSubmit={handleBulkRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {bulkError && (
-                  <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <AlertCircle size={15} /> {bulkError}
-                  </div>
-                )}
-
-                <div style={{
-                  border: `2px dashed ${bulkFile ? '#8b5cf6' : c.border}`, borderRadius: 16,
-                  padding: 24, textAlign: 'center', background: bulkFile ? 'rgba(139,92,246,0.05)' : c.surfaceHov,
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}>
-                  <input
-                    type="file"
-                    accept=".xlsx, .xls, .csv"
-                    onChange={(e) => setBulkFile(e.target.files[0])}
-                    id="excelFileInput"
-                    style={{ display: 'none' }}
-                  />
-                  <label htmlFor="excelFileInput" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <Upload size={32} color={bulkFile ? '#8b5cf6' : c.textMuted} />
-                    <div style={{ fontSize: 13, fontWeight: 700, color: c.textSub }}>
-                      {bulkFile ? bulkFile.name : 'Click to select Excel (.xlsx, .xls) or CSV file'}
-                    </div>
-                    <div style={{ fontSize: 11, color: c.textMuted }}>
-                      {bulkFile ? `${(bulkFile.size / 1024).toFixed(1)} KB` : 'Maximum file size: 10MB'}
-                    </div>
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={() => setIsBulkModalOpen(false)}
-                    style={{
-                      padding: '10px 18px', borderRadius: 10, border: `1px solid ${c.border}`,
-                      background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={bulkSubmitting || !bulkFile}
-                    style={{
-                      padding: '10px 22px', borderRadius: 10, border: 'none',
-                      background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff',
-                      fontSize: 12, fontWeight: 700, cursor: (bulkSubmitting || !bulkFile) ? 'not-allowed' : 'pointer',
-                      opacity: (bulkSubmitting || !bulkFile) ? 0.6 : 1,
-                      boxShadow: '0 4px 14px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 8
-                    }}
-                  >
-                    {bulkSubmitting ? <><Spin /> Registering & Sending Emails...</> : '🚀 Upload & Register Candidates'}
-                  </button>
-                </div>
-              </form>
-
-              {/* Bulk Registration Results Display */}
-              {bulkResult && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 16, borderTop: `1px solid ${c.border}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#10b981', fontSize: 13, fontWeight: 700 }}>
-                      <CheckCircle2 size={16} />
-                      <span>{bulkResult.message}</span>
-                    </div>
-                    <button
-                      onClick={() => handleDownloadCredentialsCsv(bulkResult.candidates)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-                        borderRadius: 8, border: '1px solid rgba(16,185,129,0.3)',
-                        background: 'rgba(16,185,129,0.1)', color: '#10b981',
-                        fontSize: 11, fontWeight: 700, cursor: 'pointer'
-                      }}
-                    >
-                      <Download size={13} /> Download Candidates Credentials CSV
-                    </button>
-                  </div>
-
-                  {/* Registered Candidates Credentials Table */}
-                  <div style={{ border: `1px solid ${c.border}`, borderRadius: 12, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-                      <thead>
-                        <tr style={{ background: c.tableBg, borderBottom: `1px solid ${c.border}` }}>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', color: c.textMuted }}>Name</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', color: c.textMuted }}>Email</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', color: c.textMuted }}>Username</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', color: c.textMuted }}>Password</th>
-                          <th style={{ padding: '8px 12px', textAlign: 'left', color: c.textMuted }}>SMTP Email</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {bulkResult.candidates.map((cand, idx) => (
-                          <tr key={idx} style={{ borderBottom: `1px solid ${c.border}` }}>
-                            <td style={{ padding: '8px 12px', fontWeight: 700, color: c.textSub }}>{cand.fullName}</td>
-                            <td style={{ padding: '8px 12px', color: c.textMuted }}>{cand.email}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#8b5cf6', fontWeight: 700 }}>{cand.username}</td>
-                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#10b981', fontWeight: 700 }}>{cand.password}</td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <span style={{
-                                fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                                background: cand.emailSent ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                                color: cand.emailSent ? '#10b981' : '#f59e0b'
-                              }}>
-                                {cand.emailSent ? 'Sent ✓' : 'Skipped'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ── CANDIDATE INFO MODAL ── */}
-      {infoStudentModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 120,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: dark ? '#161922' : '#ffffff',
-            border: `1px solid ${c.border}`, borderRadius: 20,
-            width: '100%', maxWidth: 560, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.5)', overflow: 'hidden'
-          }}>
-            <div style={{
-              padding: '18px 24px', borderBottom: `1px solid ${c.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Eye size={18} color="#3b82f6" />
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: c.textSub, margin: 0 }}>Candidate Profile &amp; Information</h3>
-                  <div style={{ fontSize: 11, color: c.textMuted }}>Full details for {infoStudentModal.name}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setInfoStudentModal(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textMuted }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {infoStudentModal.loading ? (
-                <div style={{ padding: 40, textAlign: 'center', color: c.textMuted }}><Spin /> Loading candidate information...</div>
-              ) : (
-                <>
-                  {/* Avatar & Key Creds Card */}
-                  <div style={{
-                    background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)',
-                    borderRadius: 14, padding: 16, display: 'flex', alignItems: 'center', gap: 14
-                  }}>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff', fontWeight: 900, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {infoStudentModal.user?.name?.charAt(0).toUpperCase()}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: c.textSub }}>{infoStudentModal.user?.name}</div>
-                      <div style={{ fontSize: 12, color: c.textMuted }}>{infoStudentModal.user?.email}</div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, textAlign: 'right' }}>
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#a78bfa', fontWeight: 700, background: 'rgba(139,92,246,0.15)', padding: '3px 8px', borderRadius: 6 }}>
-                        User: {infoStudentModal.user?.username || 'N/A'}
-                      </span>
-                      <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#10b981', fontWeight: 700, background: 'rgba(16,185,129,0.15)', padding: '3px 8px', borderRadius: 6 }}>
-                        Pass: {infoStudentModal.user?.generatedPassword || 'Pass@1234'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Info Details Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Mobile Phone</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.mobile || infoStudentModal.profile?.phone || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Gender</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.gender || infoStudentModal.profile?.gender || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Date of Birth</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{(infoStudentModal.user?.dob || infoStudentModal.profile?.dob) ? fmt(infoStudentModal.user?.dob || infoStudentModal.profile?.dob) : 'N/A'}</div>
-                    </div>
-
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Working State</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.state || infoStudentModal.profile?.state || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Branch / Department</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.branch || infoStudentModal.profile?.branchDepartment || infoStudentModal.profile?.branch || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Year of Study</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.year || infoStudentModal.profile?.year || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ gridColumn: 'span 2', background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Training Technology</div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#8b5cf6', marginTop: 2 }}>{infoStudentModal.user?.technology || infoStudentModal.profile?.trainingType || 'N/A'}</div>
-                    </div>
-
-                    <div style={{ gridColumn: 'span 2', background: c.surfaceHov, padding: '10px 14px', borderRadius: 10, border: `1px solid ${c.border}` }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: c.textMuted, textTransform: 'uppercase' }}>Permanent Address</div>
-                      <div style={{ fontSize: 12, color: c.textSub, marginTop: 2 }}>{infoStudentModal.user?.address || infoStudentModal.profile?.address || 'N/A'}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
-                    <button
-                      onClick={() => setInfoStudentModal(null)}
-                      style={{ padding: '8px 16px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => {
-                        const std = infoStudentModal.user;
-                        setInfoStudentModal(null);
-                        openStudentEditModal(std);
-                      }}
-                      style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <Edit2 size={13} /> Edit Profile
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── EDIT CANDIDATE MODAL ── */}
+      {/* Edit Student Modal */}
       {editStudentModal && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 125,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-        }}>
-          <div style={{
-            background: dark ? '#161922' : '#ffffff',
-            border: `1px solid ${c.border}`, borderRadius: 20,
-            width: '100%', maxWidth: 640, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.5)', overflow: 'hidden'
-          }}>
-            <div style={{
-              padding: '18px 24px', borderBottom: `1px solid ${c.border}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: dark ? 'rgba(255,255,255,0.02)' : '#f8fafc'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Edit2 size={18} color="#f59e0b" />
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: c.textSub, margin: 0 }}>Edit Candidate Details</h3>
-                  <div style={{ fontSize: 11, color: c.textMuted }}>Update information for {editStudentModal.name}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setEditStudentModal(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: c.textMuted }}
-              >
-                <X size={18} />
-              </button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 480, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Edit Candidate Details</h3>
+              <button onClick={() => setEditStudentModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
             </div>
-
-            <form onSubmit={handleUpdateStudentSubmit} style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {editStudentError && (
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertCircle size={15} /> {editStudentError}
-                </div>
-              )}
-              {editStudentSuccess && (
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} /> {editStudentSuccess}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editStudentModal.name}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, name: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    value={editStudentModal.email}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, email: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Username *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editStudentModal.username}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, username: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none', fontFamily: 'monospace' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Password (Plain Text) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editStudentModal.password}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, password: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: '#10b981', fontWeight: 700, fontSize: 12, outline: 'none', fontFamily: 'monospace' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Mobile Number</label>
-                  <input
-                    type="text"
-                    value={editStudentModal.mobile}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, mobile: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Gender</label>
-                  <select
-                    value={editStudentModal.gender}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, gender: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Working State</label>
-                  <input
-                    type="text"
-                    value={editStudentModal.state}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, state: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Branch / Department</label>
-                  <input
-                    type="text"
-                    value={editStudentModal.branch}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, branch: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Year of Study</label>
-                  <input
-                    type="text"
-                    value={editStudentModal.year}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, year: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Training Technology</label>
-                  <input
-                    type="text"
-                    value={editStudentModal.technology}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, technology: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none' }}
-                  />
-                </div>
-
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: c.textMuted, marginBottom: 4 }}>Permanent Address</label>
-                  <textarea
-                    rows={2}
-                    value={editStudentModal.address}
-                    onChange={e => setEditStudentModal({ ...editStudentModal, address: e.target.value })}
-                    style={{ width: '100%', padding: '9px 12px', borderRadius: 8, background: c.inputBg, border: `1px solid ${c.inputBorder}`, color: c.text, fontSize: 12, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                </div>
+            <form onSubmit={handleUpdateStudentSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {editStudentError && <FormAlert msg={editStudentError} type="error" />}
+              {editStudentSuccess && <FormAlert msg={editStudentSuccess} type="success" />}
+              <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Full Name</label><input type="text" required value={editStudentModal.name} onChange={e => setEditStudentModal({ ...editStudentModal, name: e.target.value })} style={inputStyle} /></div>
+              <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Email</label><input type="email" required value={editStudentModal.email} onChange={e => setEditStudentModal({ ...editStudentModal, email: e.target.value })} style={inputStyle} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Username</label><input type="text" value={editStudentModal.username} onChange={e => setEditStudentModal({ ...editStudentModal, username: e.target.value })} style={inputStyle} /></div>
+                <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Password</label><input type="text" value={editStudentModal.password} onChange={e => setEditStudentModal({ ...editStudentModal, password: e.target.value })} style={inputStyle} /></div>
               </div>
-
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setEditStudentModal(null)}
-                  style={{ padding: '9px 16px', borderRadius: 8, border: `1px solid ${c.border}`, background: 'transparent', color: c.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editStudentSubmitting}
-                  style={{
-                    padding: '9px 20px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#f59e0b,#d97706)',
-                    color: '#fff', fontSize: 12, fontWeight: 700, cursor: editStudentSubmitting ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 6, opacity: editStudentSubmitting ? 0.7 : 1
-                  }}
-                >
-                  {editStudentSubmitting ? <><Spin /> Saving...</> : 'Save Candidate Details'}
-                </button>
-              </div>
+              <Pill type="submit" disabled={editStudentSubmitting} style={{ marginTop: 8 }}>{editStudentSubmitting ? <Spin /> : 'Save Changes'}</Pill>
             </form>
           </div>
         </div>
       )}
+
+      {/* Edit Curriculum Topic Modal */}
+      {editModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 440, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Edit Topic</h3>
+              <button onClick={() => setEditModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEditTopic} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {editError && <FormAlert msg={editError} type="error" />}
+              <input type="text" required value={editData.title} onChange={e => setEditData({ ...editData, title: e.target.value })} style={inputStyle} />
+              <input type="text" value={editData.description} onChange={e => setEditData({ ...editData, description: e.target.value })} style={inputStyle} />
+              <textarea value={editData.subtopics} onChange={e => setEditData({ ...editData, subtopics: e.target.value })} rows={4} style={inputStyle} />
+              <Pill type="submit" disabled={editSubmitting}>{editSubmitting ? <Spin /> : 'Update Topic'}</Pill>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Push Modal */}
+      {directPushModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 420, boxShadow: C.shadowLg, overflow: 'hidden' }}>
+            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Send Direct Push Alert</h3>
+              <button onClick={() => setDirectPushModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSendDirectPush} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {directPushResult && <FormAlert msg={directPushResult.message} type={directPushResult.success ? 'success' : 'error'} />}
+              <div style={{ fontSize: 12, color: C.muted }}>To: <strong>{directPushModal.studentName}</strong></div>
+              <input type="text" required placeholder="Push Title" value={directPushForm.title} onChange={e => setDirectPushForm({ ...directPushForm, title: e.target.value })} style={inputStyle} />
+              <textarea required rows={3} placeholder="Push Message Body" value={directPushForm.message} onChange={e => setDirectPushForm({ ...directPushForm, message: e.target.value })} style={inputStyle} />
+              <Pill type="submit" disabled={directPushSubmitting}>{directPushSubmitting ? <Spin /> : 'Send Notification'}</Pill>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
-
-const ModalBtns = ({ onCancel, submitting, label }) => (
-  <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-    <button type="button" onClick={onCancel} style={{
-      flex: 1, padding: '11px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)',
-      background: 'transparent', color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, cursor: 'pointer'
-    }}>Cancel</button>
-    <button type="submit" disabled={submitting} style={{
-      flex: 2, padding: '11px', borderRadius: 10, border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
-      background: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', color: '#fff', fontSize: 12, fontWeight: 700,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      boxShadow: '0 4px 16px rgba(139,92,246,0.3)', opacity: submitting ? 0.7 : 1
-    }}>
-      {submitting ? <><Spin /> Saving...</> : label}
-    </button>
-  </div>
-);
 
 export default TeacherDashboard;

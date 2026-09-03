@@ -57,7 +57,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (token) {
+      try {
+        await api.delete('/push/fcm-token');
+      } catch (err) {
+        // silent catch on network error or expired token during logout
+      }
+    }
     localStorage.removeItem('user_token');
     setToken(null);
     setUser(null);

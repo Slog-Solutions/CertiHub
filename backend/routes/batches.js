@@ -29,17 +29,16 @@ const findAccessibleBatch = async (batchParamId, user) => {
     return batch;
   }
 
-  // Teachers check assignment
+  // Teachers check assignment strictly
   const userIdStr = String(user?._id || '');
   const isAssignedMain = batch.teacherId && String(batch.teacherId) === userIdStr;
   const isAssignedMulti = Array.isArray(batch.teachers) && batch.teachers.some(t => String(t.teacherId || t) === userIdStr);
-  const isUnassigned = !batch.teacherId && (!batch.teachers || batch.teachers.length === 0);
 
-  if (isAssignedMain || isAssignedMulti || isUnassigned) {
+  if (isAssignedMain || isAssignedMulti) {
     return batch;
   }
 
-  return batch;
+  return null;
 };
 
 // Multer memory storage configuration for PDF uploads
@@ -240,9 +239,7 @@ router.get('/teacher', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), 
       query = {
         $or: [
           { teacherId: req.user._id },
-          { 'teachers.teacherId': req.user._id },
-          { teacherId: null },
-          { teacherId: { $exists: false } }
+          { 'teachers.teacherId': req.user._id }
         ]
       };
     }
