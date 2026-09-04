@@ -19,38 +19,122 @@ const DirectNotification = require('../models/DirectNotification');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToToken, sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 
-/* ─────────────────────────────────────────────────────────────
-   PATCH /api/push/fcm-token
-   Register or update the caller's FCM device token.
-   Supports platform parameter: 'web' | 'android' | 'ios'
-   Accessible by any authenticated user (Teacher or Student).
-───────────────────────────────────────────────────────────── */
-router.patch('/fcm-token', requireAuth, async (req, res) => {
-  const { token, platform } = req.body;
+const registerFcmTokenHandler = async (req, res) => {
+  const token = (
+    req.body.token ||
+    req.body.fcmToken ||
+    req.body.fcm_token ||
+    req.body.deviceToken ||
+    req.body.device_token ||
+    ''
+  ).toString().trim();
 
-  if (!token || typeof token !== 'string' || !token.trim()) {
-    return res.status(400).json({ error: 'Valid FCM token is required.' });
+  if (!token) {
+    return res.status(400).json({ error: 'Valid FCM token is required in body (token, fcmToken, or fcm_token).' });
   }
 
-  const cleanToken = token.trim();
+  const plat = (req.body.platform || req.body.deviceType || '').toString().toLowerCase().trim();
   const updateOps = {
-    fcmToken: cleanToken,
-    $addToSet: { fcmTokens: cleanToken }
+    fcmToken: token,
+    $addToSet: { fcmTokens: token }
   };
 
-  const plat = (platform || '').toString().toLowerCase().trim();
   if (plat === 'android') {
-    updateOps.fcmTokenAndroid = cleanToken;
+    updateOps.fcmTokenAndroid = token;
   } else if (plat === 'ios') {
-    updateOps.fcmTokenIos = cleanToken;
+    updateOps.fcmTokenIos = token;
   } else if (plat === 'web') {
-    updateOps.fcmTokenWeb = cleanToken;
+    updateOps.fcmTokenWeb = token;
+  } else {
+    updateOps.fcmTokenAndroid = token;
   }
 
   try {
     await User.findByIdAndUpdate(req.user._id, updateOps);
-    console.log(`[FCM] Token registered (${plat || 'general'}) for user: ${req.user.name} (${req.user.role})`);
+    console.log(`[FCM] Token registered successfully for user: ${req.user.name} (${req.user._id}) [Platform: ${plat || 'auto-android'}]`);
     res.json({ success: true, message: 'FCM token registered successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────
+   PATCH & POST /api/push/fcm-token
+   Register or update the caller's FCM device token.
+   Supports field names: token, fcmToken, fcm_token, deviceToken
+───────────────────────────────────────────────────────────── */
+router.patch('/fcm-token', requireAuth, registerFcmTokenHandler);
+router.post('/fcm-token', requireAuth, registerFcmTokenHandler);
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/push/test-token
+   Direct endpoint to test sending FCM push to a specific token.
+   Body: { fcmToken (or token), title, message, data }
+───────────────────────────────────────────────────────────── */
+router.post('/test-token', async (req, res) => {
+  const token = (req.body.fcmToken || req.body.token || req.body.fcm_token || '').toString().trim();
+  const title = (req.body.title || 'Test Notification').toString().trim();
+  const message = (req.body.message || req.body.body || 'Hello from CertyHub Server!').toString().trim();
+  const extraData = req.body.data || {};
+
+  if (!token) {
+    return res.status(400).json({ error: 'fcmToken (or token) is required in body.' });
+  }
+
+  try {
+    const result = await sendToToken(token, title, message, {
+      type: 'generic',
+      audience: 'all',
+      title,
+      message,
+      ...extraData
+    });
+
+    res.json({
+      success: result.success,
+      messageId: result.messageId || null,
+      error: result.error || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────
+   POST /api/push/test-user/:userId
+   Direct endpoint to test sending FCM push to a specific user ID.
+───────────────────────────────────────────────────────────── */
+router.post('/test-user/:userId', async (req, res) => {
+  const title = (req.body.title || 'Test Push Notification').toString().trim();
+  const message = (req.body.message || req.body.body || 'Server push test for user.').toString().trim();
+
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const tokens = extractUserFcmTokens(user);
+    if (tokens.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: `No FCM tokens found in DB for user "${user.name}" (${user._id}). Check if app called /api/push/fcm-token after login.`
+      });
+    }
+
+    const result = await sendToTokens(tokens, title, message, {
+      type: 'generic',
+      audience: 'all',
+      title,
+      message
+    });
+
+    res.json({
+      success: result.successCount > 0,
+      user: { id: user._id, name: user.name, email: user.email },
+      tokensFound: tokens.length,
+      result
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -59,14 +143,13 @@ router.patch('/fcm-token', requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────
    DELETE /api/push/fcm-token
    Revoke / clear caller's FCM device token on logout.
-   Accessible by any authenticated user.
 ───────────────────────────────────────────────────────────── */
 router.delete('/fcm-token', requireAuth, async (req, res) => {
-  const { token } = req.body || {};
+  const token = (req.body?.token || req.body?.fcmToken || '').toString().trim();
   try {
     const updateOps = { fcmToken: null };
-    if (token && typeof token === 'string' && token.trim()) {
-      updateOps.$pull = { fcmTokens: token.trim() };
+    if (token) {
+      updateOps.$pull = { fcmTokens: token };
     }
     await User.findByIdAndUpdate(req.user._id, updateOps);
     console.log(`[FCM] Token revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
@@ -80,11 +163,11 @@ router.delete('/fcm-token', requireAuth, async (req, res) => {
    POST /api/push/logout-fcm (Alias for token deletion on logout)
 ───────────────────────────────────────────────────────────── */
 router.post('/logout-fcm', requireAuth, async (req, res) => {
-  const { token } = req.body || {};
+  const token = (req.body?.token || req.body?.fcmToken || '').toString().trim();
   try {
     const updateOps = { fcmToken: null };
-    if (token && typeof token === 'string' && token.trim()) {
-      updateOps.$pull = { fcmTokens: token.trim() };
+    if (token) {
+      updateOps.$pull = { fcmTokens: token };
     }
     await User.findByIdAndUpdate(req.user._id, updateOps);
     console.log(`[FCM] Token revoked via logout-fcm endpoint for user: ${req.user.name}`);

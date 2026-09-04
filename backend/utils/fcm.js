@@ -61,7 +61,11 @@ const getMessaging = () => {
 const sendToToken = async (token, title, body, data = {}) => {
   const messaging = getMessaging();
   if (!messaging) return { success: false, error: 'FCM not initialized' };
-  if (!token) return { success: false, error: 'No FCM token provided' };
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    return { success: false, error: 'No valid FCM token provided' };
+  }
+
+  const cleanToken = token.trim();
 
   try {
     const formattedData = Object.fromEntries(
@@ -73,8 +77,11 @@ const sendToToken = async (token, title, body, data = {}) => {
     );
 
     const message = {
-      token,
-      notification: { title, body },
+      token: cleanToken,
+      notification: {
+        title: String(title || ''),
+        body: String(body || '')
+      },
       data: formattedData,
       webpush: {
         fcmOptions: {
@@ -85,6 +92,8 @@ const sendToToken = async (token, title, body, data = {}) => {
         priority: 'high',
         notification: {
           channelId: 'slog_alerts_high',
+          title: String(title || ''),
+          body: String(body || ''),
           sound: 'default',
           defaultSound: true,
           defaultVibrateTimings: true
@@ -100,7 +109,9 @@ const sendToToken = async (token, title, body, data = {}) => {
       }
     };
 
+    console.log(`[FCM] Attempting to send push to token: ${cleanToken.substring(0, 15)}... (channel: slog_alerts_high)`);
     const messageId = await messaging.send(message);
+    console.log(`[FCM] Push sent successfully! messageId: ${messageId}`);
     return { success: true, messageId };
   } catch (err) {
     console.error('[FCM] sendToToken error:', err.message);
@@ -121,8 +132,12 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
   const messaging = getMessaging();
   if (!messaging) return { successCount: 0, failureCount: 0, errors: ['FCM not initialized'] };
 
-  const validTokens = (tokens || []).filter(t => t && typeof t === 'string' && t.trim());
+  const validTokens = Array.from(new Set(
+    (tokens || []).filter(t => t && typeof t === 'string' && t.trim().length > 10).map(t => t.trim())
+  ));
+
   if (validTokens.length === 0) {
+    console.warn('[FCM] sendToTokens called but zero valid FCM tokens found.');
     return { successCount: 0, failureCount: 0, errors: ['No valid FCM tokens'] };
   }
 
@@ -148,7 +163,10 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
     try {
       const multicastMessage = {
         tokens: chunk,
-        notification: { title, body },
+        notification: {
+          title: String(title || ''),
+          body: String(body || '')
+        },
         data: formattedData,
         webpush: {
           fcmOptions: {
@@ -159,6 +177,8 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
           priority: 'high',
           notification: {
             channelId: 'slog_alerts_high',
+            title: String(title || ''),
+            body: String(body || ''),
             sound: 'default',
             defaultSound: true,
             defaultVibrateTimings: true
@@ -174,12 +194,14 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
         }
       };
 
+      console.log(`[FCM] Sending multicast to ${chunk.length} token(s)...`);
       const response = await messaging.sendEachForMulticast(multicastMessage);
       successCount += response.successCount;
       failureCount += response.failureCount;
 
       response.responses.forEach((r, i) => {
         if (!r.success) {
+          console.error(`[FCM] Token[${i}] failed:`, r.error?.message || 'unknown error');
           errors.push(`Token[${i}]: ${r.error?.message || 'unknown error'}`);
         }
       });
@@ -190,7 +212,7 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
     }
   }
 
-  console.log(`[FCM] Sent to ${validTokens.length} tokens — Success: ${successCount}, Failed: ${failureCount}`);
+  console.log(`[FCM] Batch finished for ${validTokens.length} tokens — Success: ${successCount}, Failed: ${failureCount}`);
   return { successCount, failureCount, errors };
 };
 
