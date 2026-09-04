@@ -140,42 +140,61 @@ router.post('/test-user/:userId', async (req, res) => {
   }
 });
 
-/* ─────────────────────────────────────────────────────────────
-   DELETE /api/push/fcm-token
-   Revoke / clear caller's FCM device token on logout.
-───────────────────────────────────────────────────────────── */
-router.delete('/fcm-token', requireAuth, async (req, res) => {
-  const token = (req.body?.token || req.body?.fcmToken || '').toString().trim();
+const handleLogoutFcmTokens = async (req, res) => {
+  const token = (
+    req.body?.token ||
+    req.body?.fcmToken ||
+    req.body?.fcm_token ||
+    ''
+  ).toString().trim();
+
   try {
-    const updateOps = { fcmToken: null };
+    let updateOps = {};
+
     if (token) {
-      updateOps.$pull = { fcmTokens: token };
+      updateOps = {
+        $pull: { fcmTokens: token }
+      };
+
+      const user = await User.findById(req.user._id);
+      if (user) {
+        const setFields = {};
+        if (user.fcmToken === token) setFields.fcmToken = null;
+        if (user.fcmTokenWeb === token) setFields.fcmTokenWeb = null;
+        if (user.fcmTokenAndroid === token) setFields.fcmTokenAndroid = null;
+        if (user.fcmTokenIos === token) setFields.fcmTokenIos = null;
+        if (Object.keys(setFields).length > 0) {
+          updateOps.$set = setFields;
+        }
+      }
+    } else {
+      // General logout: wipe ALL registered tokens for this user ID so no further pushes reach this user!
+      updateOps = {
+        $set: {
+          fcmToken: null,
+          fcmTokenWeb: null,
+          fcmTokenAndroid: null,
+          fcmTokenIos: null,
+          fcmTokens: []
+        }
+      };
     }
+
     await User.findByIdAndUpdate(req.user._id, updateOps);
-    console.log(`[FCM] Token revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
-    res.json({ success: true, message: 'FCM token revoked successfully.' });
+    console.log(`[FCM] All tokens successfully revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
+    res.json({ success: true, message: 'FCM tokens revoked successfully on logout.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 /* ─────────────────────────────────────────────────────────────
-   POST /api/push/logout-fcm (Alias for token deletion on logout)
+   DELETE & POST /api/push/fcm-token & /api/push/logout-fcm
+   Revoke / clear caller's FCM device token on logout.
 ───────────────────────────────────────────────────────────── */
-router.post('/logout-fcm', requireAuth, async (req, res) => {
-  const token = (req.body?.token || req.body?.fcmToken || '').toString().trim();
-  try {
-    const updateOps = { fcmToken: null };
-    if (token) {
-      updateOps.$pull = { fcmTokens: token };
-    }
-    await User.findByIdAndUpdate(req.user._id, updateOps);
-    console.log(`[FCM] Token revoked via logout-fcm endpoint for user: ${req.user.name}`);
-    res.json({ success: true, message: 'FCM token removed.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.delete('/fcm-token', requireAuth, handleLogoutFcmTokens);
+router.post('/fcm-token/logout', requireAuth, handleLogoutFcmTokens);
+router.post('/logout-fcm', requireAuth, handleLogoutFcmTokens);
 
 /* ─────────────────────────────────────────────────────────────
    GET /api/push/my-notifications
