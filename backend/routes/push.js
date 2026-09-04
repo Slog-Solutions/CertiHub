@@ -17,23 +17,39 @@ const User = require('../models/User');
 const Batch = require('../models/Batch');
 const DirectNotification = require('../models/DirectNotification');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { sendToToken, sendToTokens } = require('../utils/fcm');
+const { sendToToken, sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 
 /* ─────────────────────────────────────────────────────────────
    PATCH /api/push/fcm-token
    Register or update the caller's FCM device token.
+   Supports platform parameter: 'web' | 'android' | 'ios'
    Accessible by any authenticated user (Teacher or Student).
 ───────────────────────────────────────────────────────────── */
 router.patch('/fcm-token', requireAuth, async (req, res) => {
-  const { token } = req.body;
+  const { token, platform } = req.body;
 
   if (!token || typeof token !== 'string' || !token.trim()) {
     return res.status(400).json({ error: 'Valid FCM token is required.' });
   }
 
+  const cleanToken = token.trim();
+  const updateOps = {
+    fcmToken: cleanToken,
+    $addToSet: { fcmTokens: cleanToken }
+  };
+
+  const plat = (platform || '').toString().toLowerCase().trim();
+  if (plat === 'android') {
+    updateOps.fcmTokenAndroid = cleanToken;
+  } else if (plat === 'ios') {
+    updateOps.fcmTokenIos = cleanToken;
+  } else if (plat === 'web') {
+    updateOps.fcmTokenWeb = cleanToken;
+  }
+
   try {
-    await User.findByIdAndUpdate(req.user._id, { fcmToken: token.trim() });
-    console.log(`[FCM] Token registered for user: ${req.user.name} (${req.user.role})`);
+    await User.findByIdAndUpdate(req.user._id, updateOps);
+    console.log(`[FCM] Token registered (${plat || 'general'}) for user: ${req.user.name} (${req.user.role})`);
     res.json({ success: true, message: 'FCM token registered successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -46,8 +62,13 @@ router.patch('/fcm-token', requireAuth, async (req, res) => {
    Accessible by any authenticated user.
 ───────────────────────────────────────────────────────────── */
 router.delete('/fcm-token', requireAuth, async (req, res) => {
+  const { token } = req.body || {};
   try {
-    await User.findByIdAndUpdate(req.user._id, { fcmToken: null });
+    const updateOps = { fcmToken: null };
+    if (token && typeof token === 'string' && token.trim()) {
+      updateOps.$pull = { fcmTokens: token.trim() };
+    }
+    await User.findByIdAndUpdate(req.user._id, updateOps);
     console.log(`[FCM] Token revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
     res.json({ success: true, message: 'FCM token revoked successfully.' });
   } catch (err) {
@@ -59,8 +80,13 @@ router.delete('/fcm-token', requireAuth, async (req, res) => {
    POST /api/push/logout-fcm (Alias for token deletion on logout)
 ───────────────────────────────────────────────────────────── */
 router.post('/logout-fcm', requireAuth, async (req, res) => {
+  const { token } = req.body || {};
   try {
-    await User.findByIdAndUpdate(req.user._id, { fcmToken: null });
+    const updateOps = { fcmToken: null };
+    if (token && typeof token === 'string' && token.trim()) {
+      updateOps.$pull = { fcmTokens: token.trim() };
+    }
+    await User.findByIdAndUpdate(req.user._id, updateOps);
     console.log(`[FCM] Token revoked via logout-fcm endpoint for user: ${req.user.name}`);
     res.json({ success: true, message: 'FCM token removed.' });
   } catch (err) {
@@ -111,7 +137,7 @@ router.patch('/my-notifications/read', requireAuth, async (req, res) => {
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/push/batch/:batchId
-   Expert sends push notification to ALL candidates in a batch.
+   Expert sends push notification to ALL candidates in a batch across Web, Android, iOS.
    Body: { title, message }
    Access: Teacher only
 ───────────────────────────────────────────────────────────── */
@@ -135,20 +161,23 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
       return res.status(404).json({ error: 'Batch not found or not assigned to you.' });
     }
 
-    // Fetch all students and their FCM tokens
+    // Fetch all active students in batch
     const students = await User.find({
       _id: { $in: batch.students },
       isActive: true
-    }).select('name email fcmToken');
+    }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
 
-    const tokens = students.map(s => s.fcmToken).filter(Boolean);
+    // Collect ALL registered tokens (Web, Android, iOS) for all students
+    const allTokens = students.flatMap(s => extractUserFcmTokens(s));
 
-    if (tokens.length > 0) {
-      sendToTokens(tokens, title, message, {
+    if (allTokens.length > 0) {
+      sendToTokens(allTokens, title.trim(), message.trim(), {
+        type: 'announcement',
+        audience: 'student',
         batchId: batch._id.toString(),
-        batchName: batch.name,
-        type: 'batch_announcement',
-        sentBy: req.user.name
+        tab: 'resources',
+        title: title.trim(),
+        message: message.trim()
       }).catch(err => console.error('[FCM] Batch push error:', err.message));
     }
 
@@ -156,7 +185,7 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
       success: true,
       message: `Push notification broadcasted to ${batch.students.length} candidate(s) in batch ${batch.name}.`,
       totalCandidates: batch.students.length,
-      notifiedCount: tokens.length
+      notifiedCount: allTokens.length
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -165,7 +194,7 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
 
 /* ─────────────────────────────────────────────────────────────
    POST /api/push/student/:studentId
-   Expert sends a direct push notification to a SPECIFIC candidate.
+   Expert sends a direct push notification to a SPECIFIC candidate across all devices (Web, Android, iOS).
    Body: { title, message }
    Access: Teacher only (must share a batch with the student)
 ───────────────────────────────────────────────────────────── */
@@ -197,7 +226,7 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
       _id: req.params.studentId,
       role: 'Student',
       isActive: true
-    }).select('name email fcmToken');
+    }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
 
     if (!student) {
       return res.status(404).json({ error: 'Candidate not found.' });
@@ -215,16 +244,19 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
     });
     await newDirectNotif.save();
 
-    // Fire FCM push if candidate has FCM token registered
+    // Extract ALL device tokens (Web, Android, iOS) registered for this student
+    const userTokens = extractUserFcmTokens(student);
     let fcmSent = false;
-    if (student.fcmToken) {
-      const fcmResult = await sendToToken(student.fcmToken, title.trim(), message.trim(), {
-        studentId: student._id.toString(),
-        type: 'direct_message',
-        sentBy: req.user.name,
-        batchName: sharedBatch.name
+
+    if (userTokens.length > 0) {
+      const fcmResult = await sendToTokens(userTokens, title.trim(), message.trim(), {
+        type: 'generic',
+        audience: 'student',
+        batchId: sharedBatch._id.toString(),
+        title: title.trim(),
+        message: message.trim()
       });
-      fcmSent = fcmResult.success;
+      fcmSent = fcmResult.successCount > 0;
     }
 
     res.json({

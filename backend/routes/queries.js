@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Query = require('../models/Query');
 const Batch = require('../models/Batch');
+const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
+const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 
 // @route   POST /api/queries
 // @desc    Submit a new student query / doubt
@@ -131,8 +133,10 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
 
     queryDoc.replies.push(reply);
 
+    const isTeacher = ['Teacher', 'Admin', 'Staff'].includes(req.user.role);
+
     // Auto-update status if teacher/admin responds
-    if (['Teacher', 'Admin', 'Staff'].includes(req.user.role)) {
+    if (isTeacher) {
       if (queryDoc.status === 'Pending') {
         queryDoc.status = 'Answered';
       }
@@ -148,6 +152,29 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
     const updated = await Query.findById(queryDoc._id)
       .populate('teacherId', 'name email')
       .populate('studentId', 'name email');
+
+    // Fire FCM push if teacher replied to student
+    if (isTeacher && queryDoc.studentId) {
+      (async () => {
+        try {
+          const student = await User.findById(queryDoc.studentId)
+            .select('fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
+          const tokens = extractUserFcmTokens(student);
+          if (tokens.length > 0) {
+            const bodyMsg = `Your doubt on ${queryDoc.title || 'course'} has been answered.`;
+            await sendToTokens(tokens, 'Instructor Replied', bodyMsg, {
+              type: 'query_reply',
+              audience: 'student',
+              queryId: queryDoc._id.toString(),
+              title: 'Instructor Replied',
+              message: bodyMsg
+            });
+          }
+        } catch (fcmErr) {
+          console.error('[FCM] Query reply push error:', fcmErr.message);
+        }
+      })();
+    }
 
     res.json(updated);
   } catch (error) {
@@ -186,6 +213,29 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
     const updated = await Query.findById(queryDoc._id)
       .populate('teacherId', 'name email')
       .populate('studentId', 'name email');
+
+    // Notify student via FCM push if status changed by teacher
+    if (['Teacher', 'Admin', 'Staff'].includes(req.user.role) && queryDoc.studentId) {
+      (async () => {
+        try {
+          const student = await User.findById(queryDoc.studentId)
+            .select('fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
+          const tokens = extractUserFcmTokens(student);
+          if (tokens.length > 0) {
+            const bodyMsg = `Your query has been marked as ${status} by the instructor.`;
+            await sendToTokens(tokens, `Doubt ${status}`, bodyMsg, {
+              type: 'query_status',
+              audience: 'student',
+              queryId: queryDoc._id.toString(),
+              title: `Doubt ${status}`,
+              message: bodyMsg
+            });
+          }
+        } catch (fcmErr) {
+          console.error('[FCM] Query status push error:', fcmErr.message);
+        }
+      })();
+    }
 
     res.json(updated);
   } catch (error) {
