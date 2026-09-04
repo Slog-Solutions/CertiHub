@@ -64,15 +64,38 @@ const sendToToken = async (token, title, body, data = {}) => {
   if (!token) return { success: false, error: 'No FCM token provided' };
 
   try {
+    const formattedData = Object.fromEntries(
+      Object.entries({
+        title: title || '',
+        message: body || '',
+        ...data
+      }).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)])
+    );
+
     const message = {
       token,
       notification: { title, body },
-      data: Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, String(v)])
-      ),
+      data: formattedData,
       webpush: {
         fcmOptions: {
           link: '/'
+        }
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'slog_alerts_high',
+          sound: 'default',
+          defaultSound: true,
+          defaultVibrateTimings: true
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1
+          }
         }
       }
     };
@@ -103,8 +126,12 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
     return { successCount: 0, failureCount: 0, errors: ['No valid FCM tokens'] };
   }
 
-  const dataStringified = Object.fromEntries(
-    Object.entries(data).map(([k, v]) => [k, String(v)])
+  const formattedData = Object.fromEntries(
+    Object.entries({
+      title: title || '',
+      message: body || '',
+      ...data
+    }).map(([k, v]) => [k, v === null || v === undefined ? '' : String(v)])
   );
 
   // FCM allows max 500 per sendEachForMulticast; split if needed
@@ -122,10 +149,27 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
       const multicastMessage = {
         tokens: chunk,
         notification: { title, body },
-        data: dataStringified,
+        data: formattedData,
         webpush: {
           fcmOptions: {
             link: '/'
+          }
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'slog_alerts_high',
+            sound: 'default',
+            defaultSound: true,
+            defaultVibrateTimings: true
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1
+            }
           }
         }
       };
@@ -150,4 +194,36 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
   return { successCount, failureCount, errors };
 };
 
-module.exports = { sendToToken, sendToTokens, getMessaging };
+/**
+ * Extract all unique FCM tokens for a user document across web, android, ios, and legacy fields.
+ * @param {object} user - User document
+ * @returns {string[]} Array of unique FCM registration tokens
+ */
+const extractUserFcmTokens = (user) => {
+  if (!user) return [];
+  const tokenSet = new Set();
+
+  if (user.fcmToken && typeof user.fcmToken === 'string' && user.fcmToken.trim()) {
+    tokenSet.add(user.fcmToken.trim());
+  }
+  if (user.fcmTokenWeb && typeof user.fcmTokenWeb === 'string' && user.fcmTokenWeb.trim()) {
+    tokenSet.add(user.fcmTokenWeb.trim());
+  }
+  if (user.fcmTokenAndroid && typeof user.fcmTokenAndroid === 'string' && user.fcmTokenAndroid.trim()) {
+    tokenSet.add(user.fcmTokenAndroid.trim());
+  }
+  if (user.fcmTokenIos && typeof user.fcmTokenIos === 'string' && user.fcmTokenIos.trim()) {
+    tokenSet.add(user.fcmTokenIos.trim());
+  }
+  if (Array.isArray(user.fcmTokens)) {
+    user.fcmTokens.forEach(t => {
+      if (t && typeof t === 'string' && t.trim()) {
+        tokenSet.add(t.trim());
+      }
+    });
+  }
+
+  return Array.from(tokenSet);
+};
+
+module.exports = { sendToToken, sendToTokens, getMessaging, extractUserFcmTokens };

@@ -10,7 +10,7 @@ const Batch = require('../models/Batch');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { sendToTokens } = require('../utils/fcm');
+const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
 
 // Helper to find a batch by MongoDB _id or batchId string and verify user access
@@ -346,23 +346,23 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
       try {
         const students = await User.find({
           _id: { $in: batch.students },
-          fcmToken: { $ne: null },
           isActive: true
-        }).select('fcmToken');
+        }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
 
-        const tokens = students.map(s => s.fcmToken).filter(Boolean);
+        const tokens = students.flatMap(s => extractUserFcmTokens(s));
 
         if (tokens.length > 0) {
           const fcmResult = await sendToTokens(tokens, title.trim(), message.trim(), {
+            type: 'announcement',
+            audience: 'student',
             batchId: batch._id.toString(),
-            batchName: batch.name,
-            type: 'batch_announcement',
-            announcementId: created._id.toString(),
-            sentBy: req.user.name
+            tab: 'resources',
+            title: title.trim(),
+            message: message.trim()
           });
           console.log(`[FCM] Announcement push sent: ${fcmResult.successCount}/${tokens.length} delivered for batch "${batch.name}"`);
         } else {
-          console.log(`[FCM] No FCM tokens registered for batch "${batch.name}" — skipping push.`);
+          console.log(`[FCM] No FCM tokens registered for batch "${batch.name}" (total candidates in batch: ${batch.students?.length || 0}) — skipping push.`);
         }
       } catch (fcmErr) {
         console.error('[FCM] Error sending announcement push:', fcmErr.message);

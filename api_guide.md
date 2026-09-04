@@ -1,1105 +1,786 @@
-# CertyHub - Backend API Reference Guide for Mobile App (Flutter)
-
-This document provides a comprehensive guide to all backend API routes. This reference is designed for consumption by mobile app (Flutter) developers. 
-
-All endpoints use JSON as the request/response payload format unless specified otherwise (e.g., file upload endpoints which use `multipart/form-data`).
-
----
-
-## Table of Contents
-1. [Authentication API](#1-authentication-api)
-2. [Public Masters & Form Metadata API](#2-public-masters--form-metadata-api)
-3. [Student Registration & Profiles API](#3-student-registration--profiles-api)
-4. [Notifications API](#4-notifications-api)
-5. [Certificate Verification & Management API](#5-certificate-verification--management-api)
-6. [Fee & Payment Management API](#6-fee--payment-management-api)
-7. [Enquiries (CRM) API](#7-enquiries-crm-api)
-8. [Dashboard & Reports Analytics API](#8-dashboard--reports-analytics-api)
-9. [User Management API](#9-user-management-api)
-10. [Application Color Palette & Typography](#10-application-color-palette--typography)
+# API Implementation & Integration Guide for Flutter App
+**Target Platforms:** Flutter iOS & Android Mobile Apps  
+**Base URL:** `http://localhost:5000/api` (or Production Server Endpoint)  
+**Authentication Scheme:** Bearer Token Header (`Authorization: Bearer <JWT_TOKEN>`)
 
 ---
 
-## 1. Authentication API
+## 1. Architectural Application Flow
 
-### Authenticate User (Login)
-* **Endpoint**: `POST /api/auth/login`
-* **Access**: Public
-* **Request Headers**:
-  ```http
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "username": "admin",
-    "password": "your_secure_password"
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "60d5ec4b9b1d8b2c4c8d45a1",
-      "username": "admin",
-      "role": "Admin",
-      "name": "System Administrator",
-      "email": "admin@slogsolutions.com"
-    }
-  }
-  ```
-* **Error Response** (400 Bad Request / 403 Forbidden):
-  ```json
-  {
-    "error": "Invalid credentials"
-  }
-  ```
-  *or*
-  ```json
-  {
-    "error": "This account has been deactivated"
-  }
-  ```
+```
+                     ┌──────────────────────────┐
+                     │   Flutter App Launch     │
+                     └────────────┬─────────────┘
+                                  │
+                                  ▼
+                     ┌──────────────────────────┐
+                     │ Secure Storage Token     │
+                     │      Check               │
+                     └─────┬──────────────┬─────┘
+                           │              │
+                    Token  │              │ No Token
+                    Valid  │              │
+                           ▼              ▼
+           ┌─────────────────────┐   ┌──────────────────────────┐
+           │ Role-Based Routing  │   │  Login / Register Screen │
+           └──────┬──────────┬───┘   │  (Role Toggle Pill Switch│
+                  │          │       └────────────┬─────────────┘
+                  │          │                    │
+                  ▼          ▼                    │ Successful Auth
+             Student        Teacher               │ (Returns Token & Role)
+              Portal        Portal                ▼
+                │              │       ┌──────────────────────────┐
+                │              └───────┤ Save Token to Storage    │
+                └──────────────────────┤ & Navigate to Portal     │
+                                       └──────────────────────────┘
+```
 
 ---
 
-### Get Current User Profile
-* **Endpoint**: `GET /api/auth/profile`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "id": "60d5ec4b9b1d8b2c4c8d45a1",
-    "username": "admin",
-    "name": "System Administrator",
-    "email": "admin@slogsolutions.com",
-    "mobile": "9999999999",
-    "address": "Main Tech Block, Slog Solutions Campus",
-    "role": "Admin",
+## 2. Shared Authentication Endpoints
+
+### 2.1 User Login (Candidate / Expert)
+Authenticates a student candidate or teacher instructor. Returns JWT token and user profile.
+
+- **HTTP Method:** `POST`
+- **Endpoint:** `/auth/login`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "username": "candidate_john",
+  "password": "Password123"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "_id": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "name": "John Doe",
+    "username": "candidate_john",
+    "email": "john.doe@example.com",
+    "role": "Student",
+    "mobile": "9876543210",
+    "address": "Dehradun, Uttarakhand"
+  }
+}
+```
+
+#### Error Response (`400 Bad Request` / `401 Unauthorized`):
+```json
+{
+  "error": "Invalid username or password"
+}
+```
+
+---
+
+### 2.2 Student Candidate Registration
+Public registration endpoint for new student candidates.
+
+- **HTTP Method:** `POST`
+- **Endpoint:** `/auth/register-student`
+- **Headers:** `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "username": "candidate_john",
+  "password": "Password123",
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "mobile": "9876543210",
+  "address": "Dehradun, Uttarakhand"
+}
+```
+
+#### Success Response (`201 Created`):
+```json
+{
+  "message": "Student account registered successfully",
+  "user": {
+    "_id": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "name": "John Doe",
+    "username": "candidate_john",
+    "email": "john.doe@example.com",
+    "role": "Student",
+    "mobile": "9876543210",
+    "address": "Dehradun, Uttarakhand",
     "isActive": true
   }
-  ```
-* **Error Response** (401 Unauthorized):
-  ```json
-  {
-    "error": "No token, authorization denied"
-  }
-  ```
+}
+```
+
+#### Error Response (`400 Bad Request`):
+```json
+{
+  "error": "Username is already taken"
+}
+```
 
 ---
 
-### Logout User
-* **Endpoint**: `POST /api/auth/logout`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "message": "Logged out successfully"
-  }
-  ```
+## 3. Student (Candidate) Portal Endpoints & Flow
+
+### Student Application Step-by-Step Flow:
+1. **Launch App**: Read stored token from Flutter Secure Storage. If valid, navigate to `StudentHomeScreen`.
+2. **Fetch Enrolled Batches**: Call `GET /batches/student` to populate candidate's active course batches.
+3. **Select Active Batch**: Call `GET /batches/student/:batchId` to load syllabus curriculum, announcements, study PDFs, and shared links.
+4. **Join New Batch**: Provide `batchId` and `uniqueKey` passcode to `POST /batches/student/join`.
+5. **View & Complete Curriculum**: View topics & subtopics checklist.
+6. **Submit Assignments**: Call `GET /assignments/batch/:batchId` to view tasks, and `POST /assignments/:id/submit` to submit written solution or project URL.
+7. **Submit Doubts / Queries**: Call `GET /queries/student?batchId=:id` to list questions, `POST /queries` to ask doubt, and `POST /queries/:id/reply` for follow-ups.
+8. **Rate Course**: Call `POST /batches/student/:batchId/feedback` to rate (1-5 stars) and write course review.
+9. **Push Alerts**: Save device FCM token via `PATCH /push/fcm-token` and fetch notifications via `GET /push/my-notifications`.
 
 ---
 
-## 2. Public Masters & Form Metadata API
-These endpoints are unauthenticated and are primarily used to populate dropdown selections (Colleges, Technologies, Course Details, Branches) in forms like registration or inquiry.
+### 3.1 Fetch Candidate's Enrolled Batches
+- **HTTP Method:** `GET`
+- **Endpoint:** `/batches/student`
+- **Headers:** `Authorization: Bearer <TOKEN>`
 
-### Get Public Branches
-* **Endpoint**: `GET /api/masters/branch/public`
-* **Access**: Public
-* **Success Response** (200 OK):
-  ```json
-  [
+#### Success Response (`200 OK`):
+```json
+[
+  {
+    "_id": "65e8b1001122334455667788",
+    "name": "Full Stack Web Development - Batch 1",
+    "batchId": "FSWD-2026-B1",
+    "uniqueKey": "SECURE99",
+    "startDate": "2026-01-10T00:00:00.000Z",
+    "endDate": "2026-06-30T00:00:00.000Z",
+    "students": ["65e8a9b2c3d4e5f6a7b8c9d0"],
+    "teachers": ["65e8a0000000000000000001"]
+  }
+]
+```
+
+---
+
+### 3.2 Join New Course Batch
+- **HTTP Method:** `POST`
+- **Endpoint:** `/batches/student/join`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "batchId": "FSWD-2026-B1",
+  "uniqueKey": "SECURE99"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Successfully joined batch!",
+  "batch": {
+    "_id": "65e8b1001122334455667788",
+    "name": "Full Stack Web Development - Batch 1",
+    "batchId": "FSWD-2026-B1"
+  }
+}
+```
+
+---
+
+### 3.3 Fetch Specific Batch Full Details
+- **HTTP Method:** `GET`
+- **Endpoint:** `/batches/student/:batchId`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+{
+  "_id": "65e8b1001122334455667788",
+  "name": "Full Stack Web Development - Batch 1",
+  "batchId": "FSWD-2026-B1",
+  "notifications": [
     {
-      "_id": "60d5ec4b9b1d8b2c4c8d45f1",
-      "name": "Computer Science & Engineering"
-    },
+      "_id": "65e8c0011223344556677889",
+      "title": "React Hooks Masterclass Live Session",
+      "message": "Tomorrow live class starts at 10 AM IST. Please review State hooks.",
+      "date": "2026-09-02T10:00:00.000Z"
+    }
+  ],
+  "pdfs": [
     {
-      "_id": "60d5ec4b9b1d8b2c4c8d45f2",
-      "name": "Information Technology"
+      "_id": "65e8c0021223344556677889",
+      "title": "React Architecture & Patterns Guide",
+      "description": "Complete PDF notes covering components, hooks, and state.",
+      "pdfUrl": "https://example.com/uploads/react-guide.pdf",
+      "date": "2026-09-01T08:00:00.000Z"
     }
-  ]
-  ```
-
----
-
-### Get Public Technologies
-* **Endpoint**: `GET /api/masters/technology/public`
-* **Access**: Public
-* **Success Response** (200 OK):
-  ```json
-  [
+  ],
+  "links": [
     {
-      "_id": "60d5ec4b9b1d8b2c4c8d45t1",
-      "name": "Flutter Development",
-      "note": "Mobile Application Development"
-    },
+      "_id": "65e8c0031223344556677889",
+      "title": "React Official Documentation",
+      "url": "https://react.dev"
+    }
+  ],
+  "curriculum": [
     {
-      "_id": "60d5ec4b9b1d8b2c4c8d45t2",
-      "name": "Node.js & Express",
-      "note": "Backend Web Development"
-    }
-  ]
-  ```
-
----
-
-### Get Public Course Details
-Fetches active course offerings mapping technologies to durations.
-* **Endpoint**: `GET /api/masters/coursedetail/public`
-* **Access**: Public
-* **Success Response** (200 OK):
-  ```json
-  [
-    {
-      "_id": "60d5ec4b9b1d8b2c4c8d45c1",
-      "isActive": true,
-      "technologyId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45t1",
-        "name": "Flutter Development",
-        "note": "Mobile Application Development"
-      },
-      "durationId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45d1",
-        "value": 6,
-        "unit": "month"
-      },
-      "price": 15000
-    }
-  ]
-  ```
-
----
-
-### Get Public Colleges
-* **Endpoint**: `GET /api/masters/college/public`
-* **Access**: Public
-* **Success Response** (200 OK):
-  ```json
-  [
-    {
-      "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-      "collegeName": "State Institute of Technology",
-      "shortForm": "SIT",
-      "cityName": "Dehradun",
-      "logoImageUrl": "/uploads/logos/Sit_logo.png"
-    }
-  ]
-  ```
-
----
-
-## 3. Student Registration & Profiles API
-
-### Get Shareable Link Details
-Retrieves pre-filled course and price parameters associated with a registration code/link.
-* **Endpoint**: `GET /api/registration/links/public/:id`
-* **Access**: Public
-* **URL Parameters**:
-  * `id`: The unique link ID string
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d45d9",
-    "price": 12000,
-    "location": "Online / Remote",
-    "isActive": true,
-    "collegeId": {
-      "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-      "collegeName": "State Institute of Technology",
-      "shortForm": "SIT",
-      "isActive": true
-    },
-    "courseDetailId": {
-      "_id": "60d5ec4b9b1d8b2c4c8d45c1",
-      "isActive": true,
-      "technologyId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45t1",
-        "name": "Flutter Development",
-        "isActive": true
-      },
-      "durationId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45d1",
-        "value": 6,
-        "unit": "month",
-        "isActive": true
-      }
-    }
-  }
-  ```
-* **Error Response** (404 Not Found):
-  ```json
-  {
-    "error": "Registration link is inactive or invalid"
-  }
-  ```
-
----
-
-### Register a Student
-Allows a student to register. Can be done publicly if a `linkId` is supplied, or privately by an authorized dashboard user.
-* **Endpoint**: `POST /api/registration/register`
-* **Access**: Public (if using `linkId`) OR Private (Requires token)
-* **Request Headers**:
-  * `Content-Type: multipart/form-data`
-  * `Authorization: Bearer <JWT_TOKEN>` (Only if registration is from staff/admin dashboard, i.e., no `linkId` is passed)
-* **Multipart Body Fields**:
-  * `photo`: File (optional, JPEG/PNG image)
-  * `linkId`: String (optional, if using the public registration link)
-  * `name`: String (required)
-  * `fatherName`: String (required)
-  * `dob`: Date String "YYYY-MM-DD" (required)
-  * `gender`: String (required, e.g., "Male", "Female")
-  * `email`: String (required)
-  * `phone`: String (required, exactly 10 digits)
-  * `address`: String (required)
-  * `branchId`: String (required, ID of selected branch)
-  * `startDate`: Date String "YYYY-MM-DD" (required)
-  * **If NOT using `linkId` (Admin flow)**:
-    * `collegeId`: String (required)
-    * `courseDetailId`: String (required)
-    * `durationId`: String (required)
-    * `totalFee`: Number (required)
-    * `amountSubmitted`: Number (optional, initial fee payment)
-    * `paymentType`: String (optional, e.g. "cash", "online", "cheque")
-  * **If using `linkId` (Public link flow)**:
-    * `feeChoice`: String (required, choose from: `"free"`, `"full"`, or `"partial"`)
-* **Success Response** (201 Created):
-  ```json
-  {
-    "message": "Student registered successfully",
-    "registrationNo": "STP-2026-08-18-ABCDE",
-    "student": {
-      "registrationNo": "STP-2026-08-18-ABCDE",
-      "name": "Jane Doe",
-      "fatherName": "John Doe Senior",
-      "dob": "2002-04-12T00:00:00.000Z",
-      "gender": "Female",
-      "email": "janedoe@gmail.com",
-      "phone": "9876543210",
-      "nationality": "Indian",
-      "address": "456 Park Avenue, Dehradun",
-      "photoUrl": "/uploads/photos/photo-1723961234567.png",
-      "workingStatus": "student",
-      "collegeId": "60d5ec4b9b1d8b2c4c8d45a5",
-      "branchId": "60d5ec4b9b1d8b2c4c8d45f1",
-      "courseDetailId": "60d5ec4b9b1d8b2c4c8d45c1",
-      "durationId": "60d5ec4b9b1d8b2c4c8d45d1",
-      "startDate": "2026-09-01T00:00:00.000Z",
-      "totalFee": 12000,
-      "isActive": true,
-      "_id": "60d5ec4b9b1d8b2c4c8d45aa"
-    }
-  }
-  ```
-
----
-
-### Get All Registered Students
-* **Endpoint**: `GET /api/registration/students`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Query Parameters**:
-  * `page`: Integer (default: 1)
-  * `limit`: Integer (default: 10)
-  * `search`: String (searches name, registrationNo, email, phone)
-  * `isActive`: Boolean string (`true`/`false`)
-  * `collegeId`: String
-  * `courseDetailId`: String
-  * `all`: Boolean string (`true` to bypass pagination limit)
-* **Success Response** (200 OK):
-  ```json
-  {
-    "data": [
-      {
-        "_id": "60d5ec4b9b1d8b2c4c8d45aa",
-        "registrationNo": "STP-2026-08-18-ABCDE",
-        "name": "Jane Doe",
-        "email": "janedoe@gmail.com",
-        "phone": "9876543210",
-        "collegeId": {
-          "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-          "collegeName": "State Institute of Technology"
-        },
-        "branchId": {
-          "_id": "60d5ec4b9b1d8b2c4c8d45f1",
-          "name": "Computer Science & Engineering"
-        },
-        "courseDetailId": {
-          "_id": "60d5ec4b9b1d8b2c4c8d45c1",
-          "technologyId": {
-            "name": "Flutter Development"
-          },
-          "durationId": {
-            "value": 6,
-            "unit": "month"
-          }
-        },
-        "totalFee": 12000,
-        "isActive": true
-      }
-    ],
-    "total": 1,
-    "page": 1,
-    "pages": 1
-  }
-  ```
-
----
-
-### Update Student Profile
-* **Endpoint**: `PUT /api/registration/students/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  * `Content-Type: multipart/form-data`
-  * `Authorization: Bearer <JWT_TOKEN>`
-* **URL Parameters**:
-  * `id`: The unique student ID string
-* **Multipart Body Fields**: (All fields optional)
-  * `photo`: File (updated JPEG/PNG image)
-  * `name`, `fatherName`, `dob`, `gender`, `email`, `phone`, `address`, `nationality`, `workingStatus`, `collegeId`, `branchId`, `year`, `state`, `city`, `trainingType`, `courseDetailId`, `durationId`, `startDate`, `location`, `totalFee`, `isActive`
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d45aa",
-    "name": "Jane Updated Doe",
-    "phone": "9876543210",
-    "isActive": true
-  }
-  ```
-
----
-
-### Delete a Student
-* **Endpoint**: `DELETE /api/registration/students/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "message": "Student registration deleted successfully"
-  }
-  ```
-
----
-
-## 4. Notifications API
-
-### Get Student-Specific Notifications
-Fetches notifications targeted to a student's college and course.
-* **Endpoint**: `GET /api/notifications/student`
-* **Access**: Public
-* **Query Parameters**: (Provide either `email` OR `phone` to automatically resolve college and course, or pass them explicitly)
-  * `email`: String (optional)
-  * `phone`: String (optional)
-  * `collegeId`: String (optional)
-  * `courseDetailId`: String (optional)
-* **Success Response** (200 OK):
-  ```json
-  [
-    {
-      "_id": "60d5ec4b9b1d8b2c4c8d4610",
-      "title": "Flutter Workshop Schedule",
-      "message": "The online Flutter workshop is rescheduled to Saturday 3 PM.",
-      "collegeId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-        "collegeName": "State Institute of Technology"
-      },
-      "courseDetailId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45c1",
-        "technologyId": {
-          "name": "Flutter Development"
-        }
-      },
-      "createdAt": "2026-08-18T10:30:00.000Z"
-    }
-  ]
-  ```
-* **Error Response** (404 Not Found):
-  ```json
-  {
-    "error": "Student record not found."
-  }
-  ```
-
----
-
-### Get All Portal Notifications
-* **Endpoint**: `GET /api/notifications`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  [
-    {
-      "_id": "60d5ec4b9b1d8b2c4c8d4610",
-      "title": "Flutter Workshop Schedule",
-      "message": "The online Flutter workshop is rescheduled to Saturday 3 PM.",
-      "collegeId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-        "collegeName": "State Institute of Technology"
-      },
-      "courseDetailId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45c1"
-      },
-      "sentBy": {
-        "name": "System Administrator",
-        "username": "admin"
-      },
-      "createdAt": "2026-08-18T10:30:00.000Z"
-    }
-  ]
-  ```
-
----
-
-### Create a Notification
-* **Endpoint**: `POST /api/notifications`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "title": "Exam Announcement",
-    "message": "The final certification assessment will take place next Friday.",
-    "collegeId": "60d5ec4b9b1d8b2c4c8d45a5",
-    "courseDetailId": "60d5ec4b9b1d8b2c4c8d45c1"
-  }
-  ```
-* **Success Response** (201 Created):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d4611",
-    "title": "Exam Announcement",
-    "message": "The final certification assessment will take place next Friday.",
-    "collegeId": {
-      "_id": "60d5ec4b9b1d8b2c4c8d45a5",
-      "collegeName": "State Institute of Technology"
-    },
-    "courseDetailId": {
-      "_id": "60d5ec4b9b1d8b2c4c8d45c1"
-    },
-    "sentBy": {
-      "name": "System Administrator"
-    }
-  }
-  ```
-
----
-
-### Delete a Notification
-* **Endpoint**: `DELETE /api/notifications/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "message": "Notification deleted successfully"
-  }
-  ```
-
----
-
-## 5. Certificate Verification & Management API
-
-### Verify Certificate (Public Verification)
-Useful for QR code scanners embedded in the Flutter app to retrieve certificate confirmation.
-* **Endpoint**: `GET /api/certificates/verify/:certificateId`
-* **Access**: Public
-* **URL Parameters**:
-  * `certificateId`: The certificate ID (e.g. `CERT-2026-X7Y8Z9`)
-* **Success Response** (200 OK):
-  ```json
-  {
-    "verified": true,
-    "certificateId": "CERT-2026-X7Y8Z9",
-    "studentName": "Jane Doe",
-    "registrationNo": "STP-2026-08-18-ABCDE",
-    "courseName": "Flutter Development",
-    "duration": "6 month(s)",
-    "issueDate": "2026-08-18T00:00:00.000Z",
-    "status": "Active",
-    "pdfUrl": "/uploads/certificates/CERT-2026-X7Y8Z9.pdf"
-  }
-  ```
-* **Error Response** (404 Not Found):
-  ```json
-  {
-    "verified": false,
-    "error": "Invalid Certificate ID: No matching certificate found"
-  }
-  ```
-
----
-
-### List All Issued Certificates
-* **Endpoint**: `GET /api/certificates`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Query Parameters**:
-  * `page`: Integer (default: 1)
-  * `limit`: Integer (default: 10)
-  * `search`: String (searches certificate ID or student details)
-  * `status`: String (options: `"Active"`, `"Revoked"`)
-* **Success Response** (200 OK):
-  ```json
-  {
-    "data": [
-      {
-        "_id": "60d5ec4b9b1d8b2c4c8d47aa",
-        "certificateId": "CERT-2026-X7Y8Z9",
-        "studentId": {
-          "_id": "60d5ec4b9b1d8b2c4c8d45aa",
-          "name": "Jane Doe",
-          "registrationNo": "STP-2026-08-18-ABCDE",
-          "email": "janedoe@gmail.com"
-        },
-        "courseDetailId": {
-          "technologyId": {
-            "name": "Flutter Development"
-          }
-        },
-        "pdfUrl": "/uploads/certificates/CERT-2026-X7Y8Z9.pdf",
-        "status": "Active",
-        "issueDate": "2026-08-18T00:00:00.000Z"
-      }
-    ],
-    "total": 1,
-    "page": 1,
-    "pages": 1
-  }
-  ```
-
----
-
-### Update Certificate Status or PDF
-* **Endpoint**: `PUT /api/certificates/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "status": "Revoked",
-    "regenerate": false
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d47aa",
-    "certificateId": "CERT-2026-X7Y8Z9",
-    "status": "Revoked"
-  }
-  ```
-
----
-
-### Delete Certificate
-* **Endpoint**: `DELETE /api/certificates/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "message": "Certificate deleted and file removed successfully"
-  }
-  ```
-
----
-
-## 6. Fee & Payment Management API
-
-### List Students with Fee Balances
-* **Endpoint**: `GET /api/fee/students`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Query Parameters**:
-  * `page`, `limit`, `search`, `isActive`
-* **Success Response** (200 OK):
-  ```json
-  {
-    "data": [
-      {
-        "_id": "60d5ec4b9b1d8b2c4c8d45aa",
-        "registrationNo": "STP-2026-08-18-ABCDE",
-        "name": "Jane Doe",
-        "totalFee": 12000,
-        "college": "State Institute of Technology",
-        "discountAmount": 1000,
-        "totalToPay": 11000,
-        "submittedFee": 5000,
-        "remainingFee": 6000,
-        "paymentStatus": "Pending",
-        "courseName": "Flutter Development"
-      }
-    ],
-    "total": 1,
-    "page": 1,
-    "pages": 1
-  }
-  ```
-
----
-
-### List Installment Payments of a Student
-* **Endpoint**: `GET /api/fee/installments/:studentId`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  [
-    {
-      "_id": "60d5ec4b9b1d8b2c4c8d48bb",
-      "studentId": "60d5ec4b9b1d8b2c4c8d45aa",
-      "amount": 5000,
-      "paymentType": "online",
-      "paidOn": "2026-08-18T10:00:00.000Z"
-    }
-  ]
-  ```
-
----
-
-### Record an Installment Payment
-* **Endpoint**: `POST /api/fee/installments`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**: (Provide either `studentId` OR `registrationNo`)
-  ```json
-  {
-    "registrationNo": "STP-2026-08-18-ABCDE",
-    "amount": 3000,
-    "paymentType": "cash",
-    "paidOn": "2026-08-18"
-  }
-  ```
-* **Success Response** (201 Created):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d48bc",
-    "studentId": "60d5ec4b9b1d8b2c4c8d45aa",
-    "amount": 3000,
-    "paymentType": "cash",
-    "paidOn": "2026-08-18T00:00:00.000Z"
-  }
-  ```
-
----
-
-### Update Fee Installment Payment
-* **Endpoint**: `PUT /api/fee/installments/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "amount": 3500,
-    "paymentType": "online"
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d48bc",
-    "amount": 3500,
-    "paymentType": "online"
-  }
-  ```
-
----
-
-### Delete Installment Payment
-* **Endpoint**: `DELETE /api/fee/installments/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "message": "Installment payment deleted successfully"
-  }
-  ```
-
----
-
-### Apply or Update a Fee Discount
-* **Endpoint**: `POST /api/fee/discounts`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "registrationNo": "STP-2026-08-18-ABCDE",
-    "discountAmount": 1500
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d49cc",
-    "studentId": "60d5ec4b9b1d8b2c4c8d45aa",
-    "totalFee": 12000,
-    "discountAmount": 1500,
-    "totalToPay": 10500
-  }
-  ```
-
----
-
-## 7. Enquiries (CRM) API
-
-### Submit Public Inquiry
-* **Endpoint**: `POST /api/enquiry/public`
-* **Access**: Public
-* **Request Headers**:
-  ```http
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "name": "Alex Johnson",
-    "phone": "9988776655",
-    "email": "alex@gmail.com",
-    "courseInterested": "Flutter App Development",
-    "message": "I would like to query about the batch schedules."
-  }
-  ```
-* **Success Response** (201 Created):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d4a11",
-    "name": "Alex Johnson",
-    "phone": "9988776655",
-    "email": "alex@gmail.com",
-    "courseInterested": "Flutter App Development",
-    "message": "I would like to query about the batch schedules.",
-    "status": "New"
-  }
-  ```
-
----
-
-### List CRM Enquiries
-* **Endpoint**: `GET /api/enquiry`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Query Parameters**:
-  * `page`, `limit`, `search`, `status`
-* **Success Response** (200 OK):
-  ```json
-  {
-    "data": [
-      {
-        "_id": "60d5ec4b9b1d8b2c4c8d4a11",
-        "name": "Alex Johnson",
-        "phone": "9988776655",
-        "status": "New"
-      }
-    ],
-    "total": 1,
-    "page": 1,
-    "pages": 1
-  }
-  ```
-
----
-
-### Update CRM Enquiry Status / Details
-* **Endpoint**: `PUT /api/enquiry/:id`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "status": "Contacted",
-    "message": "Spoke to student, joining next week."
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d4a11",
-    "name": "Alex Johnson",
-    "status": "Contacted"
-  }
-  ```
-
----
-
-## 8. Dashboard & Reports Analytics API
-
-### Get Dashboard Statistics
-Returns aggregated metrics for top KPI cards and registration/payment charts.
-* **Endpoint**: `GET /api/dashboard/stats`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "cards": {
-      "totalStudents": 156,
-      "totalCourses": 12,
-      "totalRevenue": 482000,
-      "totalCertificates": 45
-    },
-    "charts": {
-      "registrations": [
+      "_id": "65e8c0041223344556677889",
+      "title": "Module 1: Modern JavaScript & ES6+",
+      "description": "Arrow functions, destructuring, promises, async/await.",
+      "order": 1,
+      "isCompleted": true,
+      "subtopics": [
         {
-          "date": "2026-07",
-          "registrations": 14
-        },
-        {
-          "date": "2026-08",
-          "registrations": 22
-        }
-      ],
-      "payments": [
-        {
-          "date": "2026-07",
-          "amount": 45000
-        },
-        {
-          "date": "2026-08",
-          "amount": 62000
+          "_id": "65e8c0051223344556677889",
+          "title": "Promises and Async/Await",
+          "isCompleted": true
         }
       ]
     }
-  }
-  ```
+  ]
+}
+```
 
 ---
 
-### Get Date-Wise Fee Collection Report
-* **Endpoint**: `GET /api/reports/date-wise-fee`
-* **Access**: Private (Requires token)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  ```
-* **Query Parameters**:
-  * `startDate`: Date String "YYYY-MM-DD" (optional)
-  * `endDate`: Date String "YYYY-MM-DD" (optional)
-  * `paymentType`: String (optional, e.g. `"all"`, `"online"`, `"cash"`)
-* **Success Response** (200 OK):
-  ```json
-  [
+### 3.4 Fetch Batch Assignments
+- **HTTP Method:** `GET`
+- **Endpoint:** `/assignments/batch/:batchId`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+[
+  {
+    "_id": "65e8d0011223344556677889",
+    "title": "Build a Responsive Dashboard Component",
+    "description": "Create a modern SaaS dashboard UI with responsive grid columns.",
+    "dueDate": "2026-09-10T23:59:59.000Z",
+    "totalPoints": 100,
+    "fileUrl": "https://example.com/uploads/assignment-guidelines.pdf",
+    "submissions": [
+      {
+        "_id": "65e8d0021223344556677889",
+        "studentId": "65e8a9b2c3d4e5f6a7b8c9d0",
+        "answerText": "Implemented layout with 3-column desktop grid and fluid CSS.",
+        "submissionUrl": "https://github.com/candidate/dashboard-app",
+        "status": "Graded",
+        "grade": 95,
+        "feedback": "Excellent responsive design and dynamic data binding!",
+        "submittedAt": "2026-09-03T05:00:00.000Z"
+      }
+    ]
+  }
+]
+```
+
+---
+
+### 3.5 Submit Assignment Solution
+- **HTTP Method:** `POST`
+- **Endpoint:** `/assignments/:assignmentId/submit`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "answerText": "Implemented layout with 3-column desktop grid and fluid CSS.",
+  "submissionUrl": "https://github.com/candidate/dashboard-app"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Assignment submitted successfully!",
+  "submission": {
+    "studentId": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "answerText": "Implemented layout with 3-column desktop grid and fluid CSS.",
+    "submissionUrl": "https://github.com/candidate/dashboard-app",
+    "status": "Submitted",
+    "submittedAt": "2026-09-03T12:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 3.6 Submit Doubt / Query to Expert Instructor
+- **HTTP Method:** `POST`
+- **Endpoint:** `/queries`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "batchId": "65e8b1001122334455667788",
+  "topicId": "65e8c0041223344556677889",
+  "topicTitle": "Module 1: Modern JavaScript & ES6+",
+  "title": "How does async/await handle rejected promises?",
+  "description": "I need clarification on try/catch blocks with async functions.",
+  "priority": "High"
+}
+```
+
+#### Success Response (`201 Created`):
+```json
+{
+  "message": "Query submitted successfully!",
+  "query": {
+    "_id": "65e8e0011223344556677889",
+    "batchId": "65e8b1001122334455667788",
+    "studentId": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "studentName": "John Doe",
+    "title": "How does async/await handle rejected promises?",
+    "description": "I need clarification on try/catch blocks with async functions.",
+    "status": "Pending",
+    "priority": "High",
+    "replies": [],
+    "createdAt": "2026-09-03T12:30:00.000Z"
+  }
+}
+```
+
+---
+
+### 3.7 Add Follow-up Message to Doubt Thread
+- **HTTP Method:** `POST`
+- **Endpoint:** `/queries/:queryId/reply`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "message": "Thank you! Could you also provide a code example for Promise.allSettled?"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Reply added successfully",
+  "reply": {
+    "senderId": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "senderName": "John Doe",
+    "senderRole": "Student",
+    "message": "Thank you! Could you also provide a code example for Promise.allSettled?",
+    "createdAt": "2026-09-03T12:45:00.000Z"
+  }
+}
+```
+
+---
+
+### 3.8 Submit Course Review & Rating
+- **HTTP Method:** `POST`
+- **Endpoint:** `/batches/student/:batchId/feedback`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "rating": 5,
+  "review": "Fantastic course! The instructor provided clear explanations and great assignments."
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "_id": "65e8f0011223344556677889",
+  "batchId": "65e8b1001122334455667788",
+  "studentId": "65e8a9b2c3d4e5f6a7b8c9d0",
+  "studentName": "John Doe",
+  "rating": 5,
+  "review": "Fantastic course! The instructor provided clear explanations and great assignments.",
+  "createdAt": "2026-09-03T13:00:00.000Z"
+}
+```
+
+---
+
+## 4. Teacher (Expert) Portal Endpoints & Flow
+
+### Teacher Application Step-by-Step Flow:
+1. **Launch App**: Verify stored JWT token role is `Teacher`. Navigate to `TeacherHomeScreen`.
+2. **Fetch Assigned Batches**: Call `GET /batches/teacher` to load assigned instructor batches.
+3. **Select Active Batch**: Call `GET /batches/teacher/:batchId` to load full batch state (enrolled candidate roster, curriculum progress, notifications, PDFs, links, reviews).
+4. **Broadcast Announcement**: Call `POST /batches/teacher/:batchId/notifications` to send broadcast to all enrolled candidates.
+5. **Upload Study PDF Link**: Call `POST /batches/teacher/:batchId/pdfs` to attach study material notes.
+6. **Add Resource Link**: Call `POST /batches/teacher/:batchId/links` to share reference link.
+7. **Manage Syllabus Curriculum**: Call `POST /batches/teacher/:batchId/curriculum` to add topics & subtopics.
+8. **Mark Subtopic Completion**: Call `PATCH /batches/teacher/:batchId/curriculum/:topicId/subtopics/:subtopicId/complete`.
+9. **Create & Grade Assignments**: Call `POST /assignments` to publish assignment, and `PATCH /assignments/:assignmentId/grade/:submissionId` to grade candidate solutions.
+10. **Answer Candidate Doubts**: Call `GET /queries/teacher` to list candidate doubts, `POST /queries/:queryId/reply` to post expert answers, and `PATCH /queries/:queryId/status` to update status (`Answered`, `Resolved`).
+
+---
+
+### 4.1 Fetch Teacher's Assigned Batches
+- **HTTP Method:** `GET`
+- **Endpoint:** `/batches/teacher`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+[
+  {
+    "_id": "65e8b1001122334455667788",
+    "name": "Full Stack Web Development - Batch 1",
+    "batchId": "FSWD-2026-B1",
+    "uniqueKey": "SECURE99",
+    "studentsCount": 24,
+    "startDate": "2026-01-10T00:00:00.000Z"
+  }
+]
+```
+
+---
+
+### 4.2 Fetch Full Teacher Batch Details (Includes Enrolled Candidates)
+- **HTTP Method:** `GET`
+- **Endpoint:** `/batches/teacher/:batchId`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+{
+  "_id": "65e8b1001122334455667788",
+  "name": "Full Stack Web Development - Batch 1",
+  "batchId": "FSWD-2026-B1",
+  "uniqueKey": "SECURE99",
+  "students": [
     {
-      "_id": "60d5ec4b9b1d8b2c4c8d48bb",
-      "amount": 5000,
-      "paymentType": "online",
-      "paidOn": "2026-08-18T10:00:00.000Z",
-      "studentId": {
-        "_id": "60d5ec4b9b1d8b2c4c8d45aa",
-        "name": "Jane Doe",
-        "registrationNo": "STP-2026-08-18-ABCDE",
-        "totalFee": 12000
-      },
-      "discountAmount": 1000,
-      "totalToPay": 11000
+      "_id": "65e8a9b2c3d4e5f6a7b8c9d0",
+      "name": "John Doe",
+      "username": "candidate_john",
+      "email": "john.doe@example.com",
+      "mobile": "9876543210"
+    }
+  ],
+  "notifications": [],
+  "pdfs": [],
+  "links": [],
+  "curriculum": []
+}
+```
+
+---
+
+### 4.3 Post Broadcast Announcement
+- **HTTP Method:** `POST`
+- **Endpoint:** `/batches/teacher/:batchId/notifications`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "title": "Weekend Hands-on Hackathon Alert",
+  "message": "Join us this Saturday at 11 AM IST for a live coding sprint."
+}
+```
+
+#### Success Response (`201 Created`):
+```json
+{
+  "message": "Notification broadcasted successfully!",
+  "notifications": [
+    {
+      "_id": "65e8c0011223344556677889",
+      "title": "Weekend Hands-on Hackathon Alert",
+      "message": "Join us this Saturday at 11 AM IST for a live coding sprint.",
+      "date": "2026-09-03T14:00:00.000Z"
     }
   ]
-  ```
+}
+```
 
 ---
 
-### Get Course Enrollments Student Count Report
-* **Endpoint**: `GET /api/reports/course-students`
-* **Access**: Private (Requires token)
-* **Success Response** (200 OK):
-  ```json
-  [
+### 4.4 Add Study PDF Material
+- **HTTP Method:** `POST`
+- **Endpoint:** `/batches/teacher/:batchId/pdfs`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "title": "Advanced React Patterns Handbook",
+  "description": "Complete reference manual for context, reducers, and custom hooks.",
+  "pdfUrl": "https://example.com/uploads/react-patterns.pdf"
+}
+```
+
+#### Success Response (`201 Created`):
+```json
+{
+  "message": "PDF material added successfully!",
+  "pdfs": [
     {
-      "courseId": "60d5ec4b9b1d8b2c4c8d45c1",
-      "courseName": "Flutter Development",
-      "duration": "6 month(s)",
-      "price": 15000,
-      "studentCount": 38
-    },
-    {
-      "courseId": "60d5ec4b9b1d8b2c4c8d45c2",
-      "courseName": "Node.js & Express",
-      "duration": "3 month(s)",
-      "price": 10000,
-      "studentCount": 12
+      "_id": "65e8c0021223344556677889",
+      "title": "Advanced React Patterns Handbook",
+      "description": "Complete reference manual for context, reducers, and custom hooks.",
+      "pdfUrl": "https://example.com/uploads/react-patterns.pdf",
+      "date": "2026-09-03T14:15:00.000Z"
     }
   ]
-  ```
+}
+```
 
 ---
 
-## 9. User Management API
-*These endpoints are restricted to users with the Admin role and are used to manage staff/admin user accounts.*
+### 4.5 Add Curriculum Topic & Subtopics
+- **HTTP Method:** `POST`
+- **Endpoint:** `/batches/teacher/:batchId/curriculum`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
 
-### Create a User Account
-* **Endpoint**: `POST /api/users`
-* **Access**: Private (Requires token + Admin role)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **Request Body**:
-  ```json
-  {
-    "username": "johndoe",
-    "password": "TemporaryPassword123",
-    "name": "John Doe",
-    "email": "johndoe@slogsolutions.com",
-    "mobile": "9876543211",
-    "address": "Staff Quarters, Slog Solutions",
-    "role": "Staff",
-    "isActive": true
-  }
-  ```
-* **Success Response** (201 Created):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d4b1a",
-    "username": "johndoe",
-    "name": "John Doe",
-    "email": "johndoe@slogsolutions.com",
-    "mobile": "9876543211",
-    "address": "Staff Quarters, Slog Solutions",
-    "role": "Staff",
-    "isActive": true
-  }
-  ```
+#### Request Payload:
+```json
+{
+  "title": "Module 2: State Management & Redux Toolkit",
+  "description": "Store setup, reducers, actions, and thunk middleware.",
+  "subtopics": [
+    { "title": "Store & Slice Configuration" },
+    { "title": "Async Thunk Operations" }
+  ]
+}
+```
 
----
-
-### Update User Account
-* **Endpoint**: `PUT /api/users/:id`
-* **Access**: Private (Requires token + Admin role)
-* **Request Headers**:
-  ```http
-  Authorization: Bearer <JWT_TOKEN>
-  Content-Type: application/json
-  ```
-* **URL Parameters**:
-  * `id`: User ID to update
-* **Request Body**: (All fields optional)
-  ```json
-  {
-    "name": "John Updated Doe",
-    "isActive": false
-  }
-  ```
-* **Success Response** (200 OK):
-  ```json
-  {
-    "_id": "60d5ec4b9b1d8b2c4c8d4b1a",
-    "username": "johndoe",
-    "name": "John Updated Doe",
-    "isActive": false
-  }
-  ```
+#### Success Response (`201 Created`):
+```json
+{
+  "message": "Curriculum updated successfully",
+  "curriculum": [
+    {
+      "_id": "65e8c0061223344556677889",
+      "title": "Module 2: State Management & Redux Toolkit",
+      "description": "Store setup, reducers, actions, and thunk middleware.",
+      "order": 2,
+      "isCompleted": false,
+      "subtopics": [
+        {
+          "_id": "65e8c0071223344556677889",
+          "title": "Store & Slice Configuration",
+          "isCompleted": false
+        }
+      ]
+    }
+  ]
+}
+```
 
 ---
 
-## 10. Application Color Palette & Typography
+### 4.6 Mark Subtopic Completion Status
+- **HTTP Method:** `PATCH`
+- **Endpoint:** `/batches/teacher/:batchId/curriculum/:topicId/subtopics/:subtopicId/complete`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
 
-To ensure design consistency between the frontend web portal and the mobile Flutter application, the following design system tokens should be used. These colors are defined in HSL format within the application's global styles and map to Tailwind CSS design tokens.
+#### Request Payload:
+```json
+{
+  "isCompleted": true
+}
+```
 
-### Theme Modes
-
-#### Light Mode Colors
-| Token Name | HSL Representation | Hex Code | Flutter Color Instance | Primary Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| `primary` | `206 84% 63%` | `#54AFF6` | `Color(0xFF54AFF6)` | Buttons, active states, focus indicators, highlight accents |
-| `background` | `0 0% 98%` | `#FAFAFA` | `Color(0xFFFAFAFA)` | Main page background |
-| `foreground` | `240 10% 3.9%` | `#09090B` | `Color(0xFF09090B)` | High-contrast body text, primary headings |
-| `card` | `0 0% 100%` | `#FFFFFF` | `Color(0xFFFFFFFF)` | Background for cards, form sections, and containers |
-| `secondary` | `240 4.8% 95.9%` | `#F4F4F5` | `Color(0xFFF4F4F5)` | Subtle panels, secondary button background |
-| `muted` | `40 6% 88%` | `#E2DED9` | `Color(0xFFE2DED9)` | Placeholder backgrounds, dividers, inactive states |
-| `muted-foreground` | `240 3.8% 46.1%` | `#71717A` | `Color(0xFF71717A)` | Subtitles, disabled text labels, secondary text |
-| `accent` | `27 37% 45%` | `#9C634C` | `Color(0xFF9C634C)` | Brand secondary highlights, warm brown tone alerts |
-| `destructive` | `0 84.2% 60.2%` | `#EF4444` | `Color(0xFFEF4444)` | Warnings, errors, delete button actions |
-| `border` / `input` | `0 0% 89.8%` | `#E5E5E5` | `Color(0xFFE5E5E5)` | Input field borders, thin table lines, grid dividers |
-
-#### Dark Mode Colors
-| Token Name | HSL Representation | Hex Code | Flutter Color Instance | Primary Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| `primary` | `206 84% 63%` | `#54AFF6` | `Color(0xFF54AFF6)` | Same primary blue color for consistency |
-| `background` | `240 10% 3.9%` | `#09090B` | `Color(0xFF09090B)` | Dark background canvas |
-| `foreground` | `0 0% 98%` | `#FAFAFA` | `Color(0xFFFAFAFA)` | High-contrast white text |
-| `card` | `240 10% 3.9%` | `#09090B` | `Color(0xFF09090B)` | Container panels overlaying backgrounds |
-| `secondary` | `240 3.7% 15.9%` | `#27272A` | `Color(0xFF27272A)` | Dark mode secondary button/panel backgrounds |
-| `muted` | `240 3.7% 15.9%` | `#27272A` | `Color(0xFF27272A)` | Muted panels and section separators |
-| `muted-foreground` | `240 5% 64.9%` | `#A1A1AA` | `Color(0xFFA1A1AA)` | Secondary descriptions, placeholder labels |
-| `accent` | `27 37% 45%` | `#9C634C` | `Color(0xFF9C634C)` | Copper accents in dark theme layouts |
-| `destructive` | `0 62.8% 30.6%` | `#7F1D1D` | `Color(0xFF7F1D1D)` | Deep crimson red for dark mode errors |
-| `border` / `input` | `240 3.7% 15.9%` | `#27272A` | `Color(0xFF27272A)` | Dark field borders and layout dividers |
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Subtopic completion status updated successfully!"
+}
+```
 
 ---
 
-### Typography (Fonts)
-The application standardizes on two main Google Fonts:
-* **Headers / Titles**: `Poiret One` (a highly elegant, thin, geometric art-deco style font).
-  * Flutter Implementation: `GoogleFonts.poiretOne()`
-* **Body / Forms**: `Quicksand` (a friendly, rounded sans-serif font).
-  * Flutter Implementation: `GoogleFonts.quicksand()`
+### 4.7 Create New Assignment
+- **HTTP Method:** `POST`
+- **Endpoint:** `/assignments`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "batchId": "65e8b1001122334455667788",
+  "title": "Build a Responsive Dashboard Component",
+  "description": "Create a modern SaaS dashboard UI with responsive grid columns.",
+  "dueDate": "2026-09-10T23:59:59.000Z",
+  "totalPoints": 100,
+  "fileUrl": "https://example.com/uploads/assignment-guidelines.pdf"
+}
+```
+
+#### Success Response (`201 Created`):
+```json
+{
+  "_id": "65e8d0011223344556677889",
+  "batchId": "65e8b1001122334455667788",
+  "title": "Build a Responsive Dashboard Component",
+  "description": "Create a modern SaaS dashboard UI with responsive grid columns.",
+  "dueDate": "2026-09-10T23:59:59.000Z",
+  "totalPoints": 100,
+  "submissions": []
+}
+```
+
+---
+
+### 4.8 Grade Candidate Submission
+- **HTTP Method:** `PATCH`
+- **Endpoint:** `/assignments/:assignmentId/grade/:submissionId`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "grade": 95,
+  "feedback": "Excellent responsive design and dynamic data binding!"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Submission graded successfully!",
+  "assignment": {
+    "_id": "65e8d0011223344556677889",
+    "title": "Build a Responsive Dashboard Component"
+  }
+}
+```
+
+---
+
+### 4.9 Fetch Candidate Doubts Assigned to Expert
+- **HTTP Method:** `GET`
+- **Endpoint:** `/queries/teacher`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+[
+  {
+    "_id": "65e8e0011223344556677889",
+    "batchId": "65e8b1001122334455667788",
+    "batchName": "Full Stack Web Development - Batch 1",
+    "studentId": "65e8a9b2c3d4e5f6a7b8c9d0",
+    "studentName": "John Doe",
+    "title": "How does async/await handle rejected promises?",
+    "description": "I need clarification on try/catch blocks with async functions.",
+    "status": "Pending",
+    "priority": "High",
+    "replies": []
+  }
+]
+```
+
+---
+
+### 4.10 Reply to Candidate Doubt Thread & Update Status
+- **HTTP Method:** `POST`
+- **Endpoint:** `/queries/:queryId/reply`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "message": "Async functions return a rejected Promise when an error is thrown inside try/catch."
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Reply added successfully",
+  "reply": {
+    "senderName": "Instructor Expert",
+    "senderRole": "Teacher",
+    "message": "Async functions return a rejected Promise when an error is thrown inside try/catch.",
+    "createdAt": "2026-09-03T14:30:00.000Z"
+  }
+}
+```
+
+---
+
+### 4.11 Update Doubt Status
+- **HTTP Method:** `PATCH`
+- **Endpoint:** `/queries/:queryId/status`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "status": "Answered"
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "Status updated successfully",
+  "query": {
+    "_id": "65e8e0011223344556677889",
+    "status": "Answered"
+  }
+}
+```
+
+---
+
+## 5. Push Notifications & FCM Integration
+
+### 5.1 Save Firebase FCM Device Token
+- **HTTP Method:** `PATCH`
+- **Endpoint:** `/push/fcm-token`
+- **Headers:** `Authorization: Bearer <TOKEN>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "fcmToken": "fcm_device_token_string_here..."
+}
+```
+
+#### Success Response (`200 OK`):
+```json
+{
+  "message": "FCM Token registered successfully"
+}
+```
+
+---
+
+### 5.2 Fetch Candidate Direct Push Notifications
+- **HTTP Method:** `GET`
+- **Endpoint:** `/push/my-notifications`
+- **Headers:** `Authorization: Bearer <TOKEN>`
+
+#### Success Response (`200 OK`):
+```json
+{
+  "notifications": [
+    {
+      "title": "Assignment Graded",
+      "message": "Your submission for Dashboard Component has been graded: 95/100.",
+      "date": "2026-09-03T15:00:00.000Z",
+      "read": false
+    }
+  ],
+  "unreadCount": 1
+}
+```
+
+---
+
+## 6. HTTP Status Summary Table for Flutter Mobile Integration
+
+| Status Code | Meaning | Flutter App Handling Strategy |
+| :--- | :--- | :--- |
+| **`200 OK`** | Request Successful | Process JSON body and update state / UI widgets. |
+| **`201 Created`** | Resource Created | Show success snackbar / toast, pop modal, refresh list. |
+| **`400 Bad Request`** | Validation / Client Error | Display error message banner from `res.data.error`. |
+| **`401 Unauthorized`** | Missing / Expired Token | Clear secure storage token, redirect user to `LoginScreen`. |
+| **`403 Forbidden`** | Role Mismatch | Alert user ("This account does not have access to this portal"). |
+| **`404 Not Found`** | Resource Missing | Display empty state widget. |
+| **`500 Server Error`** | Internal Server Fail | Display "Server error. Please try again later." |

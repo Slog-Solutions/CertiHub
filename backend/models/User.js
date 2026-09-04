@@ -45,6 +45,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  fcmTokenWeb: {
+    type: String,
+    default: null
+  },
+  fcmTokenAndroid: {
+    type: String,
+    default: null
+  },
+  fcmTokenIos: {
+    type: String,
+    default: null
+  },
+  fcmTokens: [{
+    type: String
+  }],
   dob: {
     type: Date,
     default: null
