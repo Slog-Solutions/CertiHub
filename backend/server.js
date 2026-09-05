@@ -13,6 +13,9 @@ const initBackupScheduler = require('./utils/backupScheduler');
 
 const app = express();
 
+// Trust reverse proxy (Nginx / Cloudflare / PM2) for IP rate-limiting
+app.set('trust proxy', 1);
+
 // Middleware
 const allowedOrigins = [
   'http://localhost:5173',
