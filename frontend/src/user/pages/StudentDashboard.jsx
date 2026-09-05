@@ -7,7 +7,7 @@ import {
   AlertCircle, ChevronRight, Sparkles, Search,
   ListChecks, CheckCircle, Clock, ChevronDown, ChevronUp, ClipboardList,
   MessageSquare, Star, Send, Edit2, CheckCircle2, HelpCircle, Tag, Check, CornerDownRight,
-  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload
+  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload, BarChart2
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────
@@ -231,11 +231,100 @@ const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric'
    MAIN COMPONENT — Student Dashboard (Mentori UI Layout)
 ───────────────────────────────────────────────────────── */
 const StudentDashboard = () => {
-  const { user, logout, api } = useAuth();
+  const { user, logout, api, setUser } = useAuth();
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Candidate Profile State
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    mobile: '',
+    address: '',
+    dob: '',
+    gender: '',
+    state: '',
+    branch: '',
+    year: '',
+    technology: '',
+    photoUrl: ''
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [photoUrlInput, setPhotoUrlInput] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        mobile: user.mobile || '',
+        address: user.address || '',
+        dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
+        gender: user.gender || '',
+        state: user.state || '',
+        branch: user.branch || '',
+        year: user.year || '',
+        technology: user.technology || '',
+        photoUrl: user.photoUrl || ''
+      });
+      setPhotoUrlInput(user.photoUrl || '');
+    }
+  }, [user]);
+
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSuccess('');
+    try {
+      const res = await api.put('/auth/profile', profileForm);
+      setProfileSuccess('Profile updated successfully!');
+      if (setUser) setUser(res.data);
+      setTimeout(() => setProfileSuccess(''), 4000);
+    } catch (err) {
+      setProfileError(err.response?.data?.error || err.message || 'Failed to update profile');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleUploadPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileError('Image size must be less than 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    setProfileError('');
+    setProfileSuccess('');
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    try {
+      const res = await api.post('/auth/profile/upload-photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.photoUrl) {
+        setProfileForm(prev => ({ ...prev, photoUrl: res.data.photoUrl }));
+        setPhotoUrlInput(res.data.photoUrl);
+        setProfileSuccess('Profile photo uploaded! Click Save Changes to apply.');
+        setTimeout(() => setProfileSuccess(''), 4000);
+      }
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      setProfileError(err.response?.data?.error || 'Failed to upload photo');
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
@@ -734,7 +823,8 @@ const StudentDashboard = () => {
               { id: 'pdfs', label: 'Study PDFs', icon: FileText },
               { id: 'links', label: 'Shared Links', icon: Link2 },
               { id: 'queries', label: 'My Doubts', icon: HelpCircle, count: pendingQueriesCount > 0 ? `${pendingQueriesCount}` : undefined },
-              { id: 'feedback', label: 'Course Review', icon: MessageSquare }
+              { id: 'feedback', label: 'Course Review', icon: MessageSquare },
+              { id: 'profile', label: 'My Profile', icon: User }
             ].map(item => (
               <button
                 key={item.id}
@@ -759,20 +849,30 @@ const StudentDashboard = () => {
         </div>
 
         {/* Bottom Floating Profile Card */}
-        <div style={{
-          background: C.darkNav, borderRadius: RADIUS.md, padding: '12px 14px',
-          display: 'flex', alignItems: 'center', gap: 10, color: '#fff',
-          boxShadow: '0 8px 24px rgba(30,27,75,0.3)'
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#fff'
-          }}>{user?.name?.charAt(0).toUpperCase()}</div>
+        <div
+          onClick={() => setActiveTab('profile')}
+          title="Click to view & edit profile"
+          style={{
+            background: C.darkNav, borderRadius: RADIUS.md, padding: '12px 14px',
+            display: 'flex', alignItems: 'center', gap: 10, color: '#fff',
+            boxShadow: '0 8px 24px rgba(30,27,75,0.3)', cursor: 'pointer',
+            border: activeTab === 'profile' ? `1px solid ${C.primary}` : '1px solid transparent',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          {user?.photoUrl ? (
+            <img src={user.photoUrl} alt={user.name} style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'cover' }} />
+          ) : (
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#fff'
+            }}>{user?.name?.charAt(0).toUpperCase()}</div>
+          )}
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name}</div>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
           </div>
-          <button onClick={logout} title="Sign Out" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 4 }}>
+          <button onClick={(e) => { e.stopPropagation(); logout(); }} title="Sign Out" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 4 }}>
             <LogOut size={15} />
           </button>
         </div>
@@ -846,6 +946,7 @@ const StudentDashboard = () => {
               { label: 'Submit Task', color: C.teal, bg: C.tealSoft, icon: ClipboardList, action: () => setActiveTab('assignments') },
               { label: 'Ask Doubt', color: C.orange, bg: C.orangeSoft, icon: HelpCircle, action: () => handleOpenQueryModal() },
               { label: 'Submit Review', color: C.blue, bg: C.blueSoft, icon: Star, action: () => setActiveTab('feedback') },
+              { label: 'My Profile', color: C.purpleText, bg: C.purpleSoft, icon: User, action: () => setActiveTab('profile') },
               { label: 'Study PDFs', color: C.greenText, bg: C.greenSoft, icon: FileText, action: () => setActiveTab('pdfs') },
               { label: 'Join Batch', color: C.primary, bg: C.primarySoft, icon: Plus, action: () => setIsJoinOpen(true) },
             ].map(act => (
@@ -1418,6 +1519,246 @@ const StudentDashboard = () => {
                   </Pill>
                 </form>
               </Card>
+            </div>
+          )}
+
+          {/* MY PROFILE TAB */}
+          {activeTab === 'profile' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }} className="animate-in">
+              <SectionHeader
+                title="My Profile Settings"
+                sub="View and edit your personal details, academic information, and profile picture"
+              />
+
+              <div className="dashboard-grid-2" style={{ alignItems: 'flex-start' }}>
+                
+                {/* Left Card: Profile Picture & Quick Details */}
+                <Card style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
+                  <div style={{ position: 'relative', width: 110, height: 110 }}>
+                    {profileForm.photoUrl ? (
+                      <img
+                        src={profileForm.photoUrl}
+                        alt={profileForm.name || 'Candidate'}
+                        style={{
+                          width: 110, height: 110, borderRadius: RADIUS.lg,
+                          objectFit: 'cover', border: `3px solid ${C.primarySoft}`,
+                          boxShadow: C.shadowMd
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 110, height: 110, borderRadius: RADIUS.lg,
+                        background: `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryDark} 100%)`,
+                        color: '#fff', fontSize: 38, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: C.shadowMd
+                      }}>
+                        {(profileForm.name || user?.name || 'C').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    {uploadingPhoto && (
+                      <div style={{
+                        position: 'absolute', inset: 0, borderRadius: RADIUS.lg,
+                        background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(2px)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontSize: 11, fontWeight: 700, gap: 6
+                      }}>
+                        <Spin color="#fff" size={20} />
+                        Uploading...
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ textAlign: 'center' }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: C.ink, margin: '0 0 4px' }}>{profileForm.name || user?.name}</h3>
+                    <Badge color={C.purpleText} bg={C.purpleSoft}>Candidate ({user?.role || 'Student'})</Badge>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{user?.email}</div>
+                  </div>
+
+                  <div style={{ width: '100%', borderTop: `1px solid ${C.borderSoft}`, paddingTop: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.ink, marginBottom: 10, textAlign: 'left' }}>Profile Picture</div>
+
+                    <div>
+                      <label style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        padding: '10px 16px', borderRadius: RADIUS.sm, border: `1px dashed ${C.primary}`,
+                        background: C.primarySoft, color: C.primaryDark, fontSize: 12, fontWeight: 700,
+                        cursor: uploadingPhoto ? 'not-allowed' : 'pointer', transition: 'all 0.15s ease'
+                      }}>
+                        <Upload size={15} /> {uploadingPhoto ? 'Uploading Photo...' : 'Upload Profile Photo'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleUploadPhoto}
+                          disabled={uploadingPhoto}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                      <div style={{ fontSize: 10.5, color: C.muted, marginTop: 6, textAlign: 'center' }}>
+                        Supports JPG, PNG, WEBP (Max 5MB)
+                      </div>
+                    </div>
+
+                    {profileForm.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileForm(prev => ({ ...prev, photoUrl: '' }));
+                          setPhotoUrlInput('');
+                        }}
+                        style={{
+                          width: '100%', marginTop: 10, padding: '6px', background: 'none',
+                          border: `1px solid ${C.redSoft}`, borderRadius: RADIUS.sm,
+                          color: C.redText, fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Remove Current Photo
+                      </button>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Right Card: Editable Profile Details Form */}
+                <Card style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <SectionHeader title="Edit Candidate Details" sub="Update your personal, contact, and academic records" />
+
+                  <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {profileError && <FormAlert msg={profileError} type="error" />}
+                    {profileSuccess && <FormAlert msg={profileSuccess} type="success" />}
+
+                    {/* Account Fixed Info */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Username / Registration ID</label>
+                        <input type="text" readOnly value={user?.username || ''} style={{ ...inputStyle, background: '#F1F5F9', cursor: 'not-allowed' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Registered Email</label>
+                        <input type="email" readOnly value={user?.email || ''} style={{ ...inputStyle, background: '#F1F5F9', cursor: 'not-allowed' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: `1px solid ${C.borderSoft}`, paddingTop: 4 }} />
+
+                    {/* Personal Info */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Full Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={profileForm.name}
+                          onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                          placeholder="Enter full name"
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Phone / Mobile Number</label>
+                        <input
+                          type="text"
+                          value={profileForm.mobile}
+                          onChange={e => setProfileForm({ ...profileForm, mobile: e.target.value })}
+                          placeholder="10-digit mobile number"
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Date of Birth (DOB)</label>
+                        <input
+                          type="date"
+                          value={profileForm.dob}
+                          onChange={e => setProfileForm({ ...profileForm, dob: e.target.value })}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Gender</label>
+                        <select
+                          value={profileForm.gender}
+                          onChange={e => setProfileForm({ ...profileForm, gender: e.target.value })}
+                          style={inputStyle}
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Address</label>
+                      <textarea
+                        rows={2}
+                        value={profileForm.address}
+                        onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
+                        placeholder="Enter address"
+                        style={{ ...inputStyle, resize: 'vertical' }}
+                      />
+                    </div>
+
+                    <div style={{ borderTop: `1px solid ${C.borderSoft}`, paddingTop: 4 }} />
+
+                    {/* Academic & Training Info */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>State</label>
+                        <input
+                          type="text"
+                          value={profileForm.state}
+                          onChange={e => setProfileForm({ ...profileForm, state: e.target.value })}
+                          placeholder="e.g. Uttar Pradesh"
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Branch / Department</label>
+                        <input
+                          type="text"
+                          value={profileForm.branch}
+                          onChange={e => setProfileForm({ ...profileForm, branch: e.target.value })}
+                          placeholder="e.g. Computer Science"
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Year of Study</label>
+                        <input
+                          type="text"
+                          value={profileForm.year}
+                          onChange={e => setProfileForm({ ...profileForm, year: e.target.value })}
+                          placeholder="e.g. 3rd Year / 2025"
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>Training Technology</label>
+                        <input
+                          type="text"
+                          value={profileForm.technology}
+                          onChange={e => setProfileForm({ ...profileForm, technology: e.target.value })}
+                          placeholder="e.g. Full Stack Web Dev"
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 12, marginTop: 8, justifyContent: 'flex-end' }}>
+                      <Pill type="submit" disabled={profileSaving} style={{ minWidth: 140 }}>
+                        {profileSaving ? <Spin /> : 'Save Changes'}
+                      </Pill>
+                    </div>
+                  </form>
+                </Card>
+
+              </div>
             </div>
           )}
 

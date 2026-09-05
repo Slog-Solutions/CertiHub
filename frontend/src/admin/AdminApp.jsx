@@ -23,6 +23,7 @@ import Reports from './views/Reports';
 import Backup from './views/Backup';
 import Notifications from './views/Notifications';
 import PublicRegistration from './views/PublicRegistration';
+import PublicBootcampRegistration from './views/PublicBootcampRegistration';
 import Projects from './views/Projects';
 import ManageCourses from './views/ManageCourses';
 
@@ -153,6 +154,8 @@ export default function AdminApp() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<PublicLayout><PublicRegistration /></PublicLayout>} />
+            <Route path="/bootcamp-register" element={<PublicLayout><PublicBootcampRegistration /></PublicLayout>} />
+            <Route path="/register/bootcamp" element={<PublicLayout><PublicBootcampRegistration /></PublicLayout>} />
             <Route
               path="/dashboard/*"
               element={

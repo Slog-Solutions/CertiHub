@@ -9,6 +9,7 @@ const xlsx = require('xlsx');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 const Student = require('../models/Student');
+const SystemSetting = require('../models/SystemSetting');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
@@ -1087,6 +1088,383 @@ router.get('/teacher/:id/feedback', requireAuth, requireRole(['Teacher']), async
       : null;
 
     res.json({ feedback, avgRating: avg, totalReviews: feedback.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ==========================================
+   PUBLIC BOOTCAMP REGISTRATION & ADMIN CONFIG ROUTES
+   ========================================== */
+
+// @route   GET /api/batches/public-bootcamp-info
+// @route   GET /api/batches/public-bootcamp-info/:batchId
+// @desc    Get details of batch assigned for public registration
+router.get('/public-bootcamp-info', async (req, res) => {
+  try {
+    let batch = null;
+
+    // 1. Check SystemSetting key for active public bootcamp batch
+    const setting = await SystemSetting.findOne({ key: 'active_public_bootcamp_batch' });
+    if (setting && setting.value) {
+      batch = await Batch.findById(setting.value).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    // 2. Fallback to batch marked as default public bootcamp
+    if (!batch) {
+      batch = await Batch.findOne({ isDefaultPublicBootcamp: true }).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    // 3. Fallback to batch marked with public registration active
+    if (!batch) {
+      batch = await Batch.findOne({ isPublicRegistrationActive: true }).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    // 4. Fallback to latest batch
+    if (!batch) {
+      batch = await Batch.findOne().sort({ createdAt: -1 }).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    if (!batch) {
+      return res.status(404).json({ error: 'No bootcamp batch is currently available for registration.' });
+    }
+
+    res.json(batch);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/public-bootcamp-info/:batchId', async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const isObjId = mongoose.Types.ObjectId.isValid(batchId);
+    const query = isObjId ? { $or: [{ _id: batchId }, { batchId }] } : { batchId };
+    
+    const batch = await Batch.findOne(query).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    if (!batch) {
+      return res.status(404).json({ error: 'Specified bootcamp batch was not found.' });
+    }
+
+    res.json(batch);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/batches/public-bootcamp-register
+// @desc    Public route to register a candidate into the active or specified bootcamp batch
+router.post('/public-bootcamp-register', async (req, res) => {
+  try {
+    const {
+      batchId,
+      name,
+      fatherName,
+      dob,
+      gender,
+      email,
+      phone,
+      address,
+      state,
+      city,
+      branch,
+      year,
+      technology
+    } = req.body;
+
+    const trimmedName = (name || '').toString().trim();
+    const trimmedEmail = (email || '').toString().trim().toLowerCase();
+    const trimmedPhone = (phone || '').toString().trim().replace(/\D/g, '');
+
+    if (!trimmedName || !trimmedEmail) {
+      return res.status(400).json({ error: 'Full Name and Email Address are mandatory.' });
+    }
+
+    if (trimmedPhone && trimmedPhone.length !== 10) {
+      return res.status(400).json({ error: 'Phone number must be a valid 10-digit number.' });
+    }
+
+    // 1. Resolve Target Batch
+    let batch = null;
+    if (batchId) {
+      const isObjId = mongoose.Types.ObjectId.isValid(batchId);
+      batch = await Batch.findOne(isObjId ? { $or: [{ _id: batchId }, { batchId }] } : { batchId });
+    }
+
+    if (!batch) {
+      const setting = await SystemSetting.findOne({ key: 'active_public_bootcamp_batch' });
+      if (setting && setting.value) {
+        batch = await Batch.findById(setting.value);
+      }
+    }
+
+    if (!batch) {
+      batch = await Batch.findOne({ isDefaultPublicBootcamp: true });
+    }
+
+    if (!batch) {
+      batch = await Batch.findOne({ isPublicRegistrationActive: true });
+    }
+
+    if (!batch) {
+      batch = await Batch.findOne().sort({ createdAt: -1 });
+    }
+
+    if (!batch) {
+      return res.status(404).json({ error: 'No active bootcamp batch is configured for public registration.' });
+    }
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    // 2. Generate Username & Password
+    let username = '';
+    let isUnique = false;
+    const yearStr = new Date().getFullYear();
+    while (!isUnique) {
+      const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
+      username = `STP-${yearStr}-${rand}`;
+      const existingUser = await User.findOne({ username });
+      if (!existingUser) isUnique = true;
+    }
+
+    const randNum = Math.floor(1000 + Math.random() * 9000);
+    const plainPassword = `Slog@${randNum}`;
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+
+    // 3. Upsert User
+    let user = await User.findOne({ email: trimmedEmail });
+    let isNewUser = false;
+
+    if (user) {
+      if (user.role !== 'Student') {
+        user.role = 'Student';
+      }
+      if (!user.generatedPassword) {
+        user.passwordHash = passwordHash;
+        user.generatedPassword = plainPassword;
+      }
+      if (trimmedName) user.name = trimmedName;
+      if (trimmedPhone) user.mobile = trimmedPhone;
+      if (address) user.address = address;
+      if (dob) user.dob = new Date(dob);
+      if (gender) user.gender = gender;
+      if (state) user.state = state;
+      if (branch) user.branch = branch;
+      if (year) user.year = year;
+      if (technology) user.technology = technology;
+      await user.save();
+    } else {
+      isNewUser = true;
+      user = new User({
+        username,
+        passwordHash,
+        generatedPassword: plainPassword,
+        name: trimmedName,
+        email: trimmedEmail,
+        mobile: trimmedPhone || '0000000000',
+        address: address || '',
+        dob: dob ? new Date(dob) : null,
+        gender: gender || '',
+        state: state || '',
+        branch: branch || '',
+        year: year || '',
+        technology: technology || '',
+        role: 'Student',
+        isActive: true
+      });
+      await user.save();
+    }
+
+    // 4. Upsert Student Profile
+    try {
+      let studentProfile = await Student.findOne({
+        $or: [{ email: user.email }, { registrationNo: user.username }]
+      });
+      if (!studentProfile) {
+        studentProfile = new Student({
+          registrationNo: user.username,
+          name: trimmedName,
+          fatherName: fatherName || 'N/A',
+          dob: dob ? new Date(dob) : new Date(),
+          gender: gender || 'Not Specified',
+          email: trimmedEmail,
+          phone: trimmedPhone || '0000000000',
+          address: address || 'N/A',
+          state: state || '',
+          city: city || '',
+          year: year || '',
+          trainingType: technology || 'Bootcamp',
+          totalFee: 0
+        });
+      } else {
+        studentProfile.name = trimmedName;
+        if (fatherName) studentProfile.fatherName = fatherName;
+        if (dob) studentProfile.dob = new Date(dob);
+        if (gender) studentProfile.gender = gender;
+        if (address) studentProfile.address = address;
+        if (state) studentProfile.state = state;
+        if (city) studentProfile.city = city;
+        if (year) studentProfile.year = year;
+        if (technology) studentProfile.trainingType = technology;
+      }
+      await studentProfile.save();
+    } catch (profileErr) {
+      console.error('Bootcamp student profile save error:', profileErr.message);
+    }
+
+    // 5. Enroll student into batch automatically
+    const isAlreadyEnrolled = batch.students.some(sId => sId.toString() === user._id.toString());
+    if (!isAlreadyEnrolled) {
+      batch.students.push(user._id);
+      await batch.save();
+    }
+
+    // 6. Send Email Credentials via SMTP
+    const studentPassword = user.generatedPassword || plainPassword;
+    let emailResult = { success: false };
+    try {
+      emailResult = await sendEmail({
+        to: trimmedEmail,
+        subject: `🎉 Registration Confirmed: ${batch.name} - Candidate Login Credentials`,
+        text: `Hello ${trimmedName},\n\nCongratulations! You have successfully registered for the bootcamp batch "${batch.name}" (Batch ID: ${batch.batchId}) at Slog Solutions.\n\nLogin URL: ${clientUrl}/user\nEnrolled Batch: ${batch.name}\nUsername: ${user.username}\nPassword: ${studentPassword}\n\nSimply log in to access your course curriculum, learning materials, and batch updates automatically!\n\nBest Regards,\nSlog Solutions Team`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+            <div style="text-align: center; margin-bottom: 24px; border-bottom: 2px solid #10b981; padding-bottom: 16px;">
+              <h2 style="color: #0f172a; margin: 0; font-size: 22px;">🎓 Slog Solutions Candidate Portal</h2>
+              <p style="color: #10b981; font-weight: bold; font-size: 14px; margin-top: 6px;">Bootcamp Registration Successful!</p>
+            </div>
+            <p style="font-size: 15px; color: #1e293b; margin-bottom: 12px;">Dear <strong>${trimmedName}</strong>,</p>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 18px;">
+              Congratulations! Your registration for <strong>"${batch.name}"</strong> (Batch Code: <code>${batch.batchId}</code>) is confirmed. You have been automatically enrolled into the batch.
+            </p>
+            <div style="background: #f8fafc; border: 1.5px solid #10b981; border-radius: 12px; padding: 20px; margin: 20px 0;">
+              <h4 style="margin: 0 0 12px 0; color: #0f172a; font-size: 15px;">🔑 Your Login Credentials:</h4>
+              <p style="margin: 6px 0; font-size: 14px; color: #334155;"><strong>Login Portal:</strong> <a href="${clientUrl}/user" style="color: #10b981; font-weight: bold; text-decoration: underline;">${clientUrl}/user</a></p>
+              <p style="margin: 6px 0; font-size: 14px; color: #334155;"><strong>Enrolled Batch:</strong> <span style="color: #8b5cf6; font-weight: bold;">${batch.name}</span></p>
+              <p style="margin: 6px 0; font-size: 14px; color: #334155;"><strong>Username:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 6px; color: #0f172a; font-weight: bold; font-family: monospace;">${user.username}</code></p>
+              <p style="margin: 6px 0; font-size: 14px; color: #334155;"><strong>Password:</strong> <code style="background: #d1fae5; padding: 3px 8px; border-radius: 6px; color: #047857; font-weight: bold; font-family: monospace;">${studentPassword}</code></p>
+            </div>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.6;">
+              When you log into your Candidate Portal, your bootcamp batch <strong>${batch.name}</strong> will automatically appear in your active batches list.
+            </p>
+            <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 12px; color: #94a3b8;">
+              <p style="margin: 0;">Slog Solutions Candidate Portal &copy; ${new Date().getFullYear()}</p>
+            </div>
+          </div>
+        `
+      });
+    } catch (mailErr) {
+      console.error('Bootcamp registration mail send error:', mailErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: isAlreadyEnrolled 
+        ? 'You are already registered for this bootcamp! Registration credentials have been re-sent to your email.' 
+        : 'Registration successful! Your login credentials have been sent to your email.',
+      student: {
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        password: studentPassword
+      },
+      batch: {
+        id: batch._id,
+        batchId: batch.batchId,
+        name: batch.name
+      },
+      emailSent: emailResult.success
+    });
+  } catch (err) {
+    console.error('Public bootcamp registration error:', err);
+    res.status(500).json({ error: err.message || 'Bootcamp registration failed. Please try again.' });
+  }
+});
+
+// @route   GET /api/batches/admin/public-bootcamp-config
+// @desc    Get admin public bootcamp configuration and active assigned batch
+router.get('/admin/public-bootcamp-config', requireAuth, requireRole(['Admin', 'Staff']), async (req, res) => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'active_public_bootcamp_batch' });
+    let activeBatch = null;
+    if (setting && setting.value) {
+      activeBatch = await Batch.findById(setting.value).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    if (!activeBatch) {
+      activeBatch = await Batch.findOne({ isDefaultPublicBootcamp: true }).select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt');
+    }
+
+    const batches = await Batch.find().select('batchId name uniqueKey isPublicRegistrationActive isDefaultPublicBootcamp createdAt').sort({ createdAt: -1 });
+
+    res.json({
+      activeBatchId: activeBatch ? activeBatch._id : null,
+      activeBatch,
+      batches
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/batches/admin/set-active-public-bootcamp
+// @desc    Set the active public bootcamp batch for the public registration route
+router.post('/admin/set-active-public-bootcamp', requireAuth, requireRole(['Admin']), async (req, res) => {
+  try {
+    const { batchId, isPublicRegistrationActive } = req.body;
+
+    if (!batchId) {
+      return res.status(400).json({ error: 'Please select a batch to assign to the public registration route.' });
+    }
+
+    const targetBatch = await Batch.findById(batchId);
+    if (!targetBatch) {
+      return res.status(404).json({ error: 'Selected batch was not found.' });
+    }
+
+    // 1. Update SystemSetting
+    await SystemSetting.findOneAndUpdate(
+      { key: 'active_public_bootcamp_batch' },
+      { key: 'active_public_bootcamp_batch', value: targetBatch._id, description: 'Batch assigned to public bootcamp registration route' },
+      { upsert: true, new: true }
+    );
+
+    // 2. Unset default flag on all other batches
+    await Batch.updateMany({ _id: { $ne: targetBatch._id } }, { isDefaultPublicBootcamp: false });
+
+    // 3. Mark target batch as default public bootcamp and set public registration flag
+    targetBatch.isDefaultPublicBootcamp = true;
+    targetBatch.isPublicRegistrationActive = isPublicRegistrationActive !== undefined ? Boolean(isPublicRegistrationActive) : true;
+    await targetBatch.save();
+
+    res.json({
+      success: true,
+      message: `Batch "${targetBatch.name}" (${targetBatch.batchId}) is now assigned as the Active Public Bootcamp Batch!`,
+      activeBatch: targetBatch
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   PATCH /api/batches/admin/:id/toggle-public
+// @desc    Toggle public registration status for a batch
+router.patch('/admin/:id/toggle-public', requireAuth, requireRole(['Admin', 'Staff']), async (req, res) => {
+  try {
+    const batch = await Batch.findById(req.params.id);
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found.' });
+    }
+
+    const { isPublicRegistrationActive } = req.body;
+    batch.isPublicRegistrationActive = isPublicRegistrationActive !== undefined ? Boolean(isPublicRegistrationActive) : !batch.isPublicRegistrationActive;
+    await batch.save();
+
+    res.json({
+      success: true,
+      message: `Public registration ${batch.isPublicRegistrationActive ? 'enabled' : 'disabled'} for batch "${batch.name}".`,
+      batch
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

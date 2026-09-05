@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Loader, AlertCircle, CheckCircle2, BookOpen, X, Edit2, Trash2, Eye, Users, User, FileText, Link2, Bell, Key, Calendar } from 'lucide-react';
+import { Plus, Search, Loader, AlertCircle, CheckCircle2, BookOpen, X, Edit2, Trash2, Eye, Users, User, FileText, Link2, Bell, Key, Calendar, Sparkles, Copy, Check, ExternalLink } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 
@@ -12,6 +12,11 @@ const Batches = () => {
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  // Public Bootcamp Config State
+  const [activePublicBatch, setActivePublicBatch] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [assigningPublic, setAssigningPublic] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,10 +54,45 @@ const Batches = () => {
     }
   };
 
+  const fetchPublicConfig = async () => {
+    try {
+      const res = await api.get('/batches/admin/public-bootcamp-config');
+      setActivePublicBatch(res.data?.activeBatch || null);
+    } catch (err) {
+      console.error('Failed to load public bootcamp config:', err.message);
+    }
+  };
+
   useEffect(() => {
     fetchBatches();
     fetchTeachers();
+    fetchPublicConfig();
   }, []);
+
+  const handleAssignPublicBatch = async (batchId) => {
+    try {
+      setAssigningPublic(true);
+      setMessage('');
+      setError('');
+      const res = await api.post('/batches/admin/set-active-public-bootcamp', { batchId, isPublicRegistrationActive: true });
+      setMessage(res.data?.message || 'Batch assigned to public registration route!');
+      await fetchBatches();
+      await fetchPublicConfig();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to assign public batch.');
+    } finally {
+      setAssigningPublic(false);
+    }
+  };
+
+  const handleCopyLink = (batchId) => {
+    const url = batchId 
+      ? `${window.location.origin}/bootcamp-register?batchId=${batchId}`
+      : `${window.location.origin}/bootcamp-register`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(batchId || 'default');
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
 
   const handleOpenAddModal = () => {
     setEditingBatch(null);
@@ -240,6 +280,68 @@ const Batches = () => {
         </div>
       )}
 
+      {/* Public Bootcamp Registration Active Banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20 shrink-0">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-[var(--text-dark)]">Public Bootcamp Registration Route</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500 text-white">
+                  Live
+                </span>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                Students registering via the public link will automatically get their credentials sent to email and enrolled in the assigned batch below:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              onClick={() => handleCopyLink(null)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-card)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] border border-[var(--border-color)] rounded-xl text-xs font-bold transition shadow-sm"
+            >
+              {copiedLink === 'default' ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-emerald-500" />}
+              <span>{copiedLink === 'default' ? 'Link Copied!' : 'Copy Main Public Link'}</span>
+            </button>
+            
+            <a
+              href="/bootcamp-register"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/10"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Preview Public Form</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Currently Assigned Active Batch Badge */}
+        <div className="pt-2 border-t border-emerald-500/10 flex flex-wrap items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--text-muted)]">Currently Assigned Batch:</span>
+            {activePublicBatch ? (
+              <span className="font-bold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5" />
+                {activePublicBatch.name} ({activePublicBatch.batchId})
+              </span>
+            ) : (
+              <span className="font-semibold text-rose-400 bg-rose-500/10 px-3 py-1 rounded-lg border border-rose-500/20">
+                No Batch Assigned (Will use latest batch)
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] text-[var(--text-muted)] italic">
+            Select any batch in the table below and click "Assign to Public Route" to change it dynamically!
+          </span>
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:w-80">
@@ -281,7 +383,7 @@ const Batches = () => {
                   <th className="py-4 px-6">Access Key</th>
                   <th className="py-4 px-6">Teacher Assigned</th>
                   <th className="py-4 px-6">Enrolled Students</th>
-                  <th className="py-4 px-6">Created On</th>
+                  <th className="py-4 px-6">Public Status</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -318,8 +420,42 @@ const Batches = () => {
                         {item.students?.length || 0} students
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-[var(--text-muted)]">{formatDate(item.createdAt)}</td>
+                    <td className="py-4 px-6">
+                      {activePublicBatch?._id === item._id || item.isDefaultPublicBootcamp ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500 text-white shadow-sm">
+                          <Sparkles className="h-3 w-3" />
+                          Active Public Batch
+                        </span>
+                      ) : item.isPublicRegistrationActive ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          Public Enabled
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-[var(--text-muted)] opacity-60">
+                          Private Only
+                        </span>
+                      )}
+                    </td>
                     <td className="py-4 px-6 text-right space-x-1.5">
+                      <button
+                        onClick={() => handleAssignPublicBatch(item._id)}
+                        disabled={assigningPublic || activePublicBatch?._id === item._id}
+                        className={`inline-flex items-center justify-center p-1.5 rounded-lg border transition ${
+                          activePublicBatch?._id === item._id
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 cursor-default'
+                            : 'border-[var(--border-color)]/60 hover:bg-emerald-500/10 text-[var(--text-muted)] hover:text-emerald-500'
+                        }`}
+                        title={activePublicBatch?._id === item._id ? 'Currently Active Public Batch' : 'Assign to Public Registration Route'}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleCopyLink(item._id)}
+                        className="inline-flex items-center justify-center p-1.5 rounded-lg border border-[var(--border-color)]/60 hover:bg-teal-500/10 text-[var(--text-muted)] hover:text-teal-500"
+                        title="Copy Public Registration Link for this batch"
+                      >
+                        {copiedLink === item._id ? <Check className="h-4 w-4 text-emerald-500" /> : <Link2 className="h-4 w-4" />}
+                      </button>
                       <button
                         onClick={() => handleOpenDetail(item)}
                         className="inline-flex items-center justify-center p-1.5 rounded-lg border border-[var(--border-color)]/60 hover:bg-emerald-500/5 text-[var(--text-muted)] hover:text-emerald-500"

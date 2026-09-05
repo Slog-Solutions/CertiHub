@@ -83,6 +83,10 @@ const userSchema = new mongoose.Schema({
   technology: {
     type: String,
     default: ''
+  },
+  photoUrl: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
