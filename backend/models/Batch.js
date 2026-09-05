@@ -153,6 +153,14 @@ const batchSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  isPublicRegistrationActive: {
+    type: Boolean,
+    default: false
+  },
+  isDefaultPublicBootcamp: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

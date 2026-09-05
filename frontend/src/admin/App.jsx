@@ -29,6 +29,7 @@ import Reports from './views/Reports';
 import Backup from './views/Backup';
 import VerifyCertificate from './views/VerifyCertificate';
 import PublicRegistration from './views/PublicRegistration';
+import PublicBootcampRegistration from './views/PublicBootcampRegistration';
 import Notifications from './views/Notifications';
 import Projects from './views/Projects';
 import ManageCourses from './views/ManageCourses';
@@ -146,6 +147,8 @@ const App = () => {
           <Route path="/verify" element={<PublicLayout><VerifyCertificateWrapper /></PublicLayout>} />
           <Route path="/verify/:id" element={<PublicLayout><VerifyCertificateWrapper /></PublicLayout>} />
           <Route path="/register" element={<PublicLayout><PublicRegistration /></PublicLayout>} />
+          <Route path="/bootcamp-register" element={<PublicLayout><PublicBootcampRegistration /></PublicLayout>} />
+          <Route path="/register/bootcamp" element={<PublicLayout><PublicBootcampRegistration /></PublicLayout>} />
 
           {/* Secure Portal Dashboard layout (Contains subroutes) */}
           <Route path="/login" element={<Login />} />

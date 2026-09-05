@@ -2,10 +2,20 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
 const User = require('../models/User');
+const Student = require('../models/Student');
 const { requireAuth } = require('../middleware/auth');
 const { JWT_SECRET } = require('../config/env');
 const rateLimit = require('express-rate-limit');
+const { uploadBuffer } = require('../utils/cloudinary');
+
+// Multer memory storage configuration for Avatar Uploads
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Basic brute-force protection on login: 100 attempts per 15 minutes per IP (increased for testing)
 const loginLimiter = rateLimit({
@@ -51,10 +61,20 @@ router.post('/login', loginLimiter, async (req, res) => {
       token,
       user: {
         id: user._id,
+        _id: user._id,
         username: user.username,
         role: user.role,
         name: user.name,
-        email: user.email
+        email: user.email,
+        mobile: user.mobile || '',
+        address: user.address || '',
+        dob: user.dob || null,
+        gender: user.gender || '',
+        state: user.state || '',
+        branch: user.branch || '',
+        year: user.year || '',
+        technology: user.technology || '',
+        photoUrl: user.photoUrl || ''
       }
     });
   } catch (error) {
@@ -69,14 +89,119 @@ router.post('/login', loginLimiter, async (req, res) => {
 router.get('/profile', requireAuth, (req, res) => {
   res.json({
     id: req.user._id,
+    _id: req.user._id,
     username: req.user.username,
     name: req.user.name,
     email: req.user.email,
-    mobile: req.user.mobile,
-    address: req.user.address,
+    mobile: req.user.mobile || '',
+    address: req.user.address || '',
     role: req.user.role,
-    isActive: req.user.isActive
+    isActive: req.user.isActive,
+    dob: req.user.dob || null,
+    gender: req.user.gender || '',
+    state: req.user.state || '',
+    branch: req.user.branch || '',
+    year: req.user.year || '',
+    technology: req.user.technology || '',
+    photoUrl: req.user.photoUrl || ''
   });
+});
+
+// @route   PUT /api/auth/profile
+// @desc    Update current user profile
+// @access  Private
+router.put('/profile', requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { name, mobile, address, dob, gender, state, branch, year, technology, photoUrl } = req.body;
+
+    if (name !== undefined) user.name = String(name).trim();
+    if (mobile !== undefined) user.mobile = String(mobile).trim();
+    if (address !== undefined) user.address = String(address).trim();
+    if (dob !== undefined) user.dob = dob ? new Date(dob) : null;
+    if (gender !== undefined) user.gender = String(gender).trim();
+    if (state !== undefined) user.state = String(state).trim();
+    if (branch !== undefined) user.branch = String(branch).trim();
+    if (year !== undefined) user.year = String(year).trim();
+    if (technology !== undefined) user.technology = String(technology).trim();
+    if (photoUrl !== undefined) user.photoUrl = String(photoUrl).trim();
+
+    await user.save();
+
+    // Sync to Student model if user is a Student and a matching Student document exists
+    if (user.role === 'Student') {
+      try {
+        const studentDoc = await Student.findOne({
+          $or: [
+            { email: user.email },
+            { registrationNo: user.username }
+          ]
+        });
+        if (studentDoc) {
+          if (name !== undefined) studentDoc.name = user.name;
+          if (mobile !== undefined && /^\d{10}$/.test(user.mobile)) studentDoc.phone = user.mobile;
+          if (address !== undefined) studentDoc.address = user.address;
+          if (dob !== undefined && user.dob) studentDoc.dob = user.dob;
+          if (gender !== undefined) studentDoc.gender = user.gender;
+          if (state !== undefined) studentDoc.state = user.state;
+          if (year !== undefined) studentDoc.year = user.year;
+          if (photoUrl !== undefined) studentDoc.photoUrl = user.photoUrl;
+          await studentDoc.save();
+        }
+      } catch (err) {
+        console.error('Error syncing Student model profile:', err.message);
+      }
+    }
+
+    const updatedProfile = {
+      id: user._id,
+      _id: user._id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile || '',
+      address: user.address || '',
+      role: user.role,
+      isActive: user.isActive,
+      dob: user.dob || null,
+      gender: user.gender || '',
+      state: user.state || '',
+      branch: user.branch || '',
+      year: user.year || '',
+      technology: user.technology || '',
+      photoUrl: user.photoUrl || ''
+    };
+
+    res.json(updatedProfile);
+  } catch (err) {
+    console.error('Update profile error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/auth/profile/upload-photo
+// @desc    Upload profile photo to Cloudinary
+// @access  Private
+router.post('/profile/upload-photo', requireAuth, upload.single('photo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file uploaded' });
+    }
+
+    const result = await uploadBuffer(req.file.buffer, 'student_avatars');
+    if (!result || !result.secure_url) {
+      return res.status(500).json({ error: 'Cloudinary upload failed' });
+    }
+
+    res.json({ photoUrl: result.secure_url });
+  } catch (err) {
+    console.error('Cloudinary avatar upload error:', err);
+    res.status(500).json({ error: err.message || 'Image upload failed' });
+  }
 });
 
 // @route   POST /api/auth/register-student
