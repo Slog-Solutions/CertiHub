@@ -60,8 +60,7 @@ const PublicBootcampRegistration = () => {
         const endpoint = queryBatchId 
           ? `/batches/public-bootcamp-info/${queryBatchId}`
           : `/batches/public-bootcamp-info`;
-        const url = `${API_BASE_URL}${endpoint}`;
-        const res = await axios.get(url);
+        const res = await axios.get(endpoint);
         setBatchData(res.data);
       } catch (err) {
         setError(err.response?.data?.error || 'Active bootcamp batch not found or registration is closed.');
@@ -75,7 +74,7 @@ const PublicBootcampRegistration = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/masters/branch/public`);
+        const res = await axios.get('/masters/branch/public');
         setBranches(res.data || []);
       } catch (err) {
         console.error('Failed to load branches:', err.message);
@@ -111,7 +110,7 @@ const PublicBootcampRegistration = () => {
         batchId: batchData?._id || queryBatchId,
         ...formData
       };
-      const res = await axios.post(`${API_BASE_URL}/batches/public-bootcamp-register`, payload);
+      const res = await axios.post('/batches/public-bootcamp-register', payload);
       setSuccessData(res.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Bootcamp registration failed. Please try again.');
@@ -119,6 +118,7 @@ const PublicBootcampRegistration = () => {
       setIsSubmitting(false);
     }
   };
+
 
   const copyCredentials = () => {
     if (!successData?.student) return;
