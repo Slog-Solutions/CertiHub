@@ -3,7 +3,6 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const xlsx = require('xlsx');
 const Batch = require('../models/Batch');
@@ -13,6 +12,7 @@ const SystemSetting = require('../models/SystemSetting');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
+const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
 
 // Helper to find a batch by MongoDB _id or batchId string and verify user access
 const findAccessibleBatch = async (batchParamId, user) => {
@@ -42,11 +42,11 @@ const findAccessibleBatch = async (batchParamId, user) => {
   return null;
 };
 
-// Multer memory storage configuration for PDF uploads
+// Multer memory storage — files stay in memory buffer, then go to Cloudinary
 const storage = multer.memoryStorage();
 const uploadPdf = multer({
   storage: storage,
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — Cloudinary free plan limit for raw files
   fileFilter: (req, file, cb) => {
     const filetypes = /pdf/;
     const mimetype = filetypes.test(file.mimetype);
@@ -70,13 +70,6 @@ const uploadExcel = multer({
     cb(new Error('Only Excel (.xlsx, .xls) and CSV (.csv) files are allowed!'));
   }
 });
-
-// Ensure directory exists utility
-const ensureDirectoryExists = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
-};
 
 /* ==========================================
    ADMIN ROUTES (Requires requireRole(['Admin']))
@@ -205,19 +198,13 @@ router.delete('/:id', requireAuth, requireRole(['Admin']), async (req, res) => {
       return res.status(404).json({ error: 'Batch not found' });
     }
 
-    // Optionally clean up any PDFs uploaded to this batch
+    // Clean up any PDFs uploaded to Cloudinary for this batch
     if (batch.pdfs && batch.pdfs.length > 0) {
-      batch.pdfs.forEach(pdf => {
-        const filename = path.basename(pdf.pdfUrl);
-        const filepath = path.join(__dirname, '../uploads/pdfs', filename);
-        if (fs.existsSync(filepath)) {
-          try {
-            fs.unlinkSync(filepath);
-          } catch (e) {
-            console.error('Failed to delete file:', filepath, e.message);
-          }
-        }
-      });
+      await Promise.allSettled(
+        batch.pdfs
+          .filter(pdf => pdf.publicId)
+          .map(pdf => deleteByPublicId(pdf.publicId, 'raw'))
+      );
     }
 
     await Batch.findByIdAndDelete(req.params.id);
@@ -276,7 +263,7 @@ router.post('/teacher/:id/links', requireAuth, requireRole(['Teacher', 'Admin', 
   }
 });
 
-// Upload a PDF to a batch
+// Upload a PDF to a batch — stored on Cloudinary
 router.post('/teacher/:id/pdfs', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), uploadPdf.single('pdf'), async (req, res) => {
   const { title, description } = req.body;
 
@@ -293,18 +280,18 @@ router.post('/teacher/:id/pdfs', requireAuth, requireRole(['Teacher', 'Admin', '
       return res.status(404).json({ error: 'Batch not found or not assigned to you' });
     }
 
-    const pdfsDir = path.join(__dirname, '../uploads/pdfs');
-    ensureDirectoryExists(pdfsDir);
+    // Upload to Cloudinary — folder: certyhub/pdfs
+    const safeBase = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.pdf$/i, '');
+    const uploadResult = await uploadPdfBuffer(
+      req.file.buffer,
+      'certyhub/pdfs',
+      `${Date.now()}_${safeBase}`
+    );
 
-    const safeFilename = Date.now() + '-' + req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filepath = path.join(pdfsDir, safeFilename);
-
-    fs.writeFileSync(filepath, req.file.buffer);
-
-    const pdfUrl = `/uploads/pdfs/${safeFilename}`;
     const newPdf = {
       title: title.trim(),
-      pdfUrl,
+      pdfUrl: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
       description: description ? description.trim() : '',
       date: new Date()
     };
@@ -313,7 +300,8 @@ router.post('/teacher/:id/pdfs', requireAuth, requireRole(['Teacher', 'Admin', '
     await batch.save();
     res.status(201).json(batch.pdfs[batch.pdfs.length - 1]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[Cloudinary] PDF upload error:', err);
+    res.status(500).json({ error: err.message || 'Failed to upload PDF to Cloudinary.' });
   }
 });
 
@@ -394,17 +382,15 @@ router.delete('/teacher/:id/resources/:type/:resourceId', requireAuth, requireRo
       return res.status(404).json({ error: 'Batch not found or not assigned to you' });
     }
 
+    // For PDFs: delete from Cloudinary before removing from DB
     if (type === 'pdfs') {
       const pdf = batch.pdfs.id(resourceId);
-      if (pdf) {
-        const filename = path.basename(pdf.pdfUrl);
-        const filepath = path.join(__dirname, '../uploads/pdfs', filename);
-        if (fs.existsSync(filepath)) {
-          try {
-            fs.unlinkSync(filepath);
-          } catch (e) {
-            console.error('Failed to delete file:', filepath, e.message);
-          }
+      if (pdf && pdf.publicId) {
+        try {
+          await deleteByPublicId(pdf.publicId, 'raw');
+        } catch (cloudErr) {
+          console.error('[Cloudinary] Failed to delete PDF:', pdf.publicId, cloudErr.message);
+          // Non-fatal — continue with DB removal
         }
       }
     }

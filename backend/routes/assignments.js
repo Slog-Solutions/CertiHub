@@ -1,15 +1,41 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const multer = require('multer');
 const Assignment = require('../models/Assignment');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 const { requireAuth } = require('../middleware/auth');
 const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
+const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
+
+/* ─────────────────────────────────────────────────────────
+   Multer — memory storage for Cloudinary uploads
+───────────────────────────────────────────────────────── */
+const uploadPdf = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB — Cloudinary free plan cap for raw files
+  fileFilter: (req, file, cb) => {
+    const ok = /pdf/.test(file.mimetype) &&
+               /\.pdf$/i.test(path.extname(file.originalname));
+    ok ? cb(null, true) : cb(new Error('Only PDF files are allowed!'));
+  }
+});
+
+/* ─────────────────────────────────────────────────────────
+   Helper — upload a file buffer to Cloudinary
+───────────────────────────────────────────────────────── */
+const cloudUpload = async (buffer, originalname, folder) => {
+  const safeBase = originalname
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.pdf$/i, '');
+  return uploadPdfBuffer(buffer, folder, `${Date.now()}_${safeBase}`);
+};
 
 // @route   POST /api/assignments
-// @desc    Create a new assignment for a batch
+// @desc    Create a new assignment for a batch (with optional PDF attachment)
 // @access  Private (Teacher/Admin/Staff)
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, uploadPdf.single('pdf'), async (req, res) => {
   try {
     const { batchId, title, description, dueDate, totalPoints, fileUrl } = req.body;
 
@@ -22,6 +48,20 @@ router.post('/', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Batch not found.' });
     }
 
+    // Upload PDF attachment to Cloudinary (if provided)
+    let resolvedFileUrl = fileUrl ? fileUrl.trim() : '';
+    let resolvedFilePublicId = '';
+
+    if (req.file) {
+      const uploadResult = await cloudUpload(
+        req.file.buffer,
+        req.file.originalname,
+        'certyhub/assignments'
+      );
+      resolvedFileUrl = uploadResult.secure_url;
+      resolvedFilePublicId = uploadResult.public_id;
+    }
+
     const newAssignment = new Assignment({
       batchId: batch._id,
       teacherId: req.user._id,
@@ -29,7 +69,8 @@ router.post('/', requireAuth, async (req, res) => {
       description: description.trim(),
       dueDate: new Date(dueDate),
       totalPoints: totalPoints ? Number(totalPoints) : 100,
-      fileUrl: fileUrl ? fileUrl.trim() : '',
+      fileUrl: resolvedFileUrl,
+      filePublicId: resolvedFilePublicId,
       submissions: []
     });
 
@@ -85,14 +126,19 @@ router.get('/batch/:batchId', requireAuth, async (req, res) => {
 });
 
 // @route   POST /api/assignments/:id/submit
-// @desc    Submit candidate solution for an assignment
+// @desc    Submit candidate solution — supports optional PDF upload + plain URL
 // @access  Private (Student)
-router.post('/:id/submit', requireAuth, async (req, res) => {
+router.post('/:id/submit', requireAuth, uploadPdf.single('submissionPdf'), async (req, res) => {
   try {
     const { answerText, submissionUrl } = req.body;
+    const hasPdf = !!req.file;
+    const hasUrl = !!submissionUrl?.trim();
+    const hasText = !!answerText?.trim();
 
-    if (!answerText?.trim() && !submissionUrl?.trim()) {
-      return res.status(400).json({ error: 'Please provide either a written response or solution URL.' });
+    if (!hasText && !hasUrl && !hasPdf) {
+      return res.status(400).json({
+        error: 'Please provide a written response, a solution URL, or a PDF file.'
+      });
     }
 
     const assignment = await Assignment.findById(req.params.id);
@@ -100,9 +146,35 @@ router.post('/:id/submit', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Assignment not found.' });
     }
 
+    // Upload submission PDF to Cloudinary if provided
+    let submissionPdfUrl = '';
+    let submissionPdfPublicId = '';
+
+    if (hasPdf) {
+      const uploadResult = await cloudUpload(
+        req.file.buffer,
+        req.file.originalname,
+        'certyhub/submissions'
+      );
+      submissionPdfUrl = uploadResult.secure_url;
+      submissionPdfPublicId = uploadResult.public_id;
+    }
+
     const existingIdx = assignment.submissions.findIndex(
       s => s.studentId.toString() === req.user._id.toString()
     );
+
+    // If re-submitting and had an old PDF, clean up from Cloudinary
+    if (existingIdx >= 0 && hasPdf) {
+      const oldSub = assignment.submissions[existingIdx];
+      if (oldSub.submissionPdfPublicId) {
+        try {
+          await deleteByPublicId(oldSub.submissionPdfPublicId, 'raw');
+        } catch (e) {
+          console.error('[Cloudinary] Old submission PDF cleanup failed:', e.message);
+        }
+      }
+    }
 
     const submissionData = {
       studentId: req.user._id,
@@ -110,6 +182,8 @@ router.post('/:id/submit', requireAuth, async (req, res) => {
       studentEmail: req.user.email || '',
       answerText: (answerText || '').trim(),
       submissionUrl: (submissionUrl || '').trim(),
+      submissionPdfUrl,
+      submissionPdfPublicId,
       submittedAt: new Date(),
       status: 'Submitted'
     };
@@ -156,7 +230,7 @@ router.post('/:id/submit', requireAuth, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('Error submitting assignment:', error);
-    res.status(500).json({ error: 'Failed to submit assignment.' });
+    res.status(500).json({ error: error.message || 'Failed to submit assignment.' });
   }
 });
 
@@ -216,13 +290,31 @@ router.patch('/:id/submissions/:submissionId/grade', requireAuth, async (req, re
 });
 
 // @route   DELETE /api/assignments/:id
-// @desc    Delete an assignment
+// @desc    Delete an assignment (and clean up Cloudinary PDFs)
 // @access  Private (Teacher/Admin/Staff)
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const assignment = await Assignment.findById(req.params.id);
     if (!assignment) {
       return res.status(404).json({ error: 'Assignment not found.' });
+    }
+
+    // Clean up teacher-attached PDF from Cloudinary
+    if (assignment.filePublicId) {
+      try {
+        await deleteByPublicId(assignment.filePublicId, 'raw');
+      } catch (e) {
+        console.error('[Cloudinary] Assignment PDF cleanup failed:', e.message);
+      }
+    }
+
+    // Clean up all student submission PDFs from Cloudinary
+    const submissionCleanups = assignment.submissions
+      .filter(s => s.submissionPdfPublicId)
+      .map(s => deleteByPublicId(s.submissionPdfPublicId, 'raw'));
+
+    if (submissionCleanups.length > 0) {
+      await Promise.allSettled(submissionCleanups);
     }
 
     await Assignment.findByIdAndDelete(req.params.id);

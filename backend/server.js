@@ -228,6 +228,7 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api/custom-courses', require('./routes/customCourses'));
 app.use('/api/queries', require('./routes/queries'));
 app.use('/api/assignments', require('./routes/assignments'));
+app.use('/api/delete-requests', require('./routes/deleteRequests'));
 app.use('/api/push', require('./routes/push'));
 
 // Dummy endpoints for frontend CMS components to prevent 404 console errors

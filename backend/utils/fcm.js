@@ -100,10 +100,18 @@ const sendToToken = async (token, title, body, data = {}) => {
         }
       },
       apns: {
+        headers: {
+          'apns-priority': '10' // 10 = immediate delivery on iOS
+        },
         payload: {
           aps: {
+            alert: {
+              title: String(title || ''),
+              body: String(body || '')
+            },
             sound: 'default',
-            badge: 1
+            badge: 1,
+            'content-available': 1
           }
         }
       }
@@ -185,10 +193,18 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
           }
         },
         apns: {
+          headers: {
+            'apns-priority': '10' // 10 = immediate delivery on iOS
+          },
           payload: {
             aps: {
+              alert: {
+                title: String(title || ''),
+                body: String(body || '')
+              },
               sound: 'default',
-              badge: 1
+              badge: 1,
+              'content-available': 1
             }
           }
         }

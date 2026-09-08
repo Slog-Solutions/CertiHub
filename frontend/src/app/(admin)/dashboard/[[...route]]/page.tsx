@@ -20,7 +20,8 @@ export async function generateStaticParams() {
     { route: ["reports", "fee-collection"] },
     { route: ["reports", "date-wise-fee"] },
     { route: ["reports", "course"] },
-    { route: ["reports", "course-students"] }
+    { route: ["reports", "course-students"] },
+    { route: ["delete-requests"] }
   ];
 }
 

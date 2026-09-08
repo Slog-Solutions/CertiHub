@@ -26,6 +26,7 @@ import PublicRegistration from './views/PublicRegistration';
 import PublicBootcampRegistration from './views/PublicBootcampRegistration';
 import Projects from './views/Projects';
 import ManageCourses from './views/ManageCourses';
+import DeleteRequests from './views/DeleteRequests';
 
 // Import Components
 import Sidebar from './components/Sidebar';
@@ -116,6 +117,7 @@ const DashboardLayout = () => {
             <Route path="/users" element={<AdminRoute><Users /></AdminRoute>} />
             <Route path="/backup" element={<AdminRoute><Backup /></AdminRoute>} />
             <Route path="/batches" element={<AdminRoute><Batches /></AdminRoute>} />
+            <Route path="/delete-requests" element={<AdminRoute><DeleteRequests /></AdminRoute>} />
             
             {/* Common dashboard views */}
             <Route path="/registration" element={<Registration />} />

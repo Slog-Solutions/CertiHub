@@ -487,7 +487,8 @@ const TeacherDashboard = () => {
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [isCreateAssignmentOpen, setIsCreateAssignmentOpen] = useState(false);
-  const [assignmentFormData, setAssignmentFormData] = useState({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' });
+  const [assignmentFormData, setAssignmentFormData] = useState({ title: '', description: '', dueDate: '', totalPoints: 100 });
+  const [assignmentPdfFile, setAssignmentPdfFile] = useState(null); // PDF attachment for assignment
   const [assignmentSubmitting, setAssignmentSubmitting] = useState(false);
   const [assignmentError, setAssignmentError] = useState('');
   const [assignmentSuccess, setAssignmentSuccess] = useState('');
@@ -589,20 +590,27 @@ const TeacherDashboard = () => {
     }
 
     try {
-      await api.post('/assignments', {
-        batchId: selectedBatchId,
-        title: assignmentFormData.title.trim(),
-        description: assignmentFormData.description.trim(),
-        dueDate: assignmentFormData.dueDate,
-        totalPoints: Number(assignmentFormData.totalPoints) || 100,
-        fileUrl: assignmentFormData.fileUrl.trim()
+      // Use FormData so we can send an optional PDF file alongside JSON fields
+      const fd = new FormData();
+      fd.append('batchId', selectedBatchId);
+      fd.append('title', assignmentFormData.title.trim());
+      fd.append('description', assignmentFormData.description.trim());
+      fd.append('dueDate', assignmentFormData.dueDate);
+      fd.append('totalPoints', String(Number(assignmentFormData.totalPoints) || 100));
+      if (assignmentPdfFile) {
+        fd.append('pdf', assignmentPdfFile);
+      }
+
+      await api.post('/assignments', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       setAssignmentSuccess('Assignment created & assigned successfully!');
       fetchAssignments(selectedBatchId);
       setTimeout(() => {
         setIsCreateAssignmentOpen(false);
         setAssignmentSuccess('');
-        setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' });
+        setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100 });
+        setAssignmentPdfFile(null);
       }, 900);
     } catch (err) {
       setAssignmentError(err.response?.data?.error || 'Failed to create assignment.');
@@ -1749,6 +1757,11 @@ const TeacherDashboard = () => {
                                       </div>
                                       {sub.answerText && <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, whiteSpace: 'pre-line', background: '#fff', padding: '10px 12px', borderRadius: RADIUS.sm }}><strong>Answer:</strong> {sub.answerText}</div>}
                                       {sub.submissionUrl && <a href={sub.submissionUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.purple, fontWeight: 700, textDecoration: 'none' }}>🔗 Submitted Solution Link</a>}
+                                      {sub.submissionPdfUrl && (
+                                        <a href={sub.submissionPdfUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.greenText, fontWeight: 700, textDecoration: 'none' }}>
+                                          <FileText size={13} /> View Candidate PDF Submission
+                                        </a>
+                                      )}
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4, background: C.purpleSoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                           <label style={{ fontSize: 11.5, fontWeight: 700, color: C.ink }}>Score:</label>
@@ -1988,7 +2001,7 @@ const TeacherDashboard = () => {
           <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 480, boxShadow: C.shadowLg, overflow: 'hidden' }}>
             <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Create New Assignment</h3>
-              <button onClick={() => setIsCreateAssignmentOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+              <button onClick={() => { setIsCreateAssignmentOpen(false); setAssignmentPdfFile(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreateAssignment} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               {assignmentError && <FormAlert msg={assignmentError} type="error" />}
@@ -1999,7 +2012,59 @@ const TeacherDashboard = () => {
                 <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Due Date *</label><input type="date" required value={assignmentFormData.dueDate} onChange={e => setAssignmentFormData({ ...assignmentFormData, dueDate: e.target.value })} style={inputStyle} /></div>
                 <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Total Score *</label><input type="number" min={1} max={1000} value={assignmentFormData.totalPoints} onChange={e => setAssignmentFormData({ ...assignmentFormData, totalPoints: e.target.value })} style={inputStyle} /></div>
               </div>
-              <Pill type="submit" disabled={assignmentSubmitting} style={{ marginTop: 8 }}>{assignmentSubmitting ? <Spin /> : 'Publish Assignment'}</Pill>
+
+              {/* PDF Attachment — uploaded to Cloudinary */}
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6 }}>
+                  PDF Attachment <span style={{ fontWeight: 400, color: C.muted }}>(optional — max 10 MB)</span>
+                </label>
+                <div style={{
+                  border: `1.5px dashed ${assignmentPdfFile ? C.greenText : C.border}`,
+                  borderRadius: RADIUS.sm, padding: '12px 16px',
+                  background: assignmentPdfFile ? C.greenSoft : '#F8FAFC',
+                  display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                  onClick={() => document.getElementById('assignment-pdf-input').click()}
+                >
+                  <Upload size={16} color={assignmentPdfFile ? C.greenText : C.muted} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {assignmentPdfFile ? (
+                      <>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: C.greenText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {assignmentPdfFile.name}</div>
+                        <div style={{ fontSize: 11, color: C.muted }}>{(assignmentPdfFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: C.muted }}>Click to attach a PDF guideline file...</div>
+                    )}
+                  </div>
+                  {assignmentPdfFile && (
+                    <button type="button" onClick={e => { e.stopPropagation(); setAssignmentPdfFile(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.redText, padding: 2 }}>
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="assignment-pdf-input"
+                  type="file"
+                  accept=".pdf"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const f = e.target.files[0];
+                    if (f && f.size > 10 * 1024 * 1024) {
+                      setAssignmentError('PDF file must be under 10 MB.');
+                      return;
+                    }
+                    setAssignmentPdfFile(f || null);
+                    setAssignmentError('');
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+
+              <Pill type="submit" disabled={assignmentSubmitting} style={{ marginTop: 8 }}>
+                {assignmentSubmitting ? <><Spin /> Uploading...</> : 'Publish Assignment'}
+              </Pill>
             </form>
           </div>
         </div>
