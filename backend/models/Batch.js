@@ -61,6 +61,10 @@ const batchSchema = new mongoose.Schema({
       type: String,
       required: true
     },
+    publicId: {
+      type: String,
+      default: ''  // Cloudinary public_id — used for deletion
+    },
     description: {
       type: String,
       default: ''

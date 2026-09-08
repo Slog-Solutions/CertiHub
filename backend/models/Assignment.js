@@ -26,6 +26,16 @@ const submissionSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  // Optional PDF file upload to Cloudinary (alternative / supplement to submissionUrl)
+  submissionPdfUrl: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  submissionPdfPublicId: {
+    type: String,
+    default: ''
+  },
   submittedAt: {
     type: Date,
     default: Date.now
@@ -83,6 +93,11 @@ const assignmentSchema = new mongoose.Schema({
     type: String,
     default: '',
     trim: true
+  },
+  // Cloudinary public_id for teacher-attached PDF — used for cleanup on delete
+  filePublicId: {
+    type: String,
+    default: ''
   },
   submissions: [submissionSchema]
 }, {

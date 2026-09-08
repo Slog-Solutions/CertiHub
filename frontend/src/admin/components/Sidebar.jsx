@@ -22,7 +22,8 @@ import {
   Bell,
   BookOpen,
   FolderGit2,
-  BookMarked
+  BookMarked,
+  Trash2
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -50,6 +51,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Masters',         path: '/dashboard/masters', icon: Settings },
     { name: 'Mentors',         path: '/dashboard/masters?tab=mentor', icon: ShieldCheck },
     { name: 'Users',           path: '/dashboard/users', icon: Users },
+    { name: 'Delete Requests', path: '/dashboard/delete-requests', icon: Trash2 },
     { name: 'Batches',         path: '/dashboard/batches', icon: BookOpen },
     { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
     { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },

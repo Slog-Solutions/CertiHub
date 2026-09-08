@@ -7,7 +7,7 @@ import {
   AlertCircle, ChevronRight, Sparkles, Search,
   ListChecks, CheckCircle, Clock, ChevronDown, ChevronUp, ClipboardList,
   MessageSquare, Star, Send, Edit2, CheckCircle2, HelpCircle, Tag, Check, CornerDownRight,
-  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload, BarChart2
+  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload, BarChart2, Trash2, ShieldAlert
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────
@@ -363,9 +363,20 @@ const StudentDashboard = () => {
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [selectedAssignmentForSubmit, setSelectedAssignmentForSubmit] = useState(null);
   const [submitFormData, setSubmitFormData] = useState({ answerText: '', submissionUrl: '' });
+  const [submissionPdfFile, setSubmissionPdfFile] = useState(null);
   const [submitSubmitting, setSubmitSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
+
+  // ── Delete Account Request State ────────────────────────────────────────────
+  const [deleteReqStatus, setDeleteReqStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
+  const [deleteReqData, setDeleteReqData] = useState(null);     // full request object
+  const [deleteReason, setDeleteReason] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState('');
 
   // Firebase Push Notifications State
   const [pushPermission, setPushPermission] = useState(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default');
@@ -543,6 +554,13 @@ const StudentDashboard = () => {
     }
   }, [selectedBatchId]);
 
+  // Fetch delete request status whenever the profile tab becomes active
+  useEffect(() => {
+    if (activeTab === 'profile') {
+      fetchDeleteRequestStatus();
+    }
+  }, [activeTab]);
+
   const handleOpenSubmitModal = (assignment) => {
     setSelectedAssignmentForSubmit(assignment);
     const mySub = assignment.submissions?.find(
@@ -552,6 +570,7 @@ const StudentDashboard = () => {
       answerText: mySub ? mySub.answerText : '',
       submissionUrl: mySub ? mySub.submissionUrl : ''
     });
+    setSubmissionPdfFile(null);
     setSubmitError('');
     setSubmitSuccess('');
     setIsSubmitModalOpen(true);
@@ -563,19 +582,33 @@ const StudentDashboard = () => {
     setSubmitSuccess('');
     setSubmitSubmitting(true);
 
-    if (!submitFormData.answerText.trim() && !submitFormData.submissionUrl.trim()) {
-      setSubmitError('Please provide either a written solution or project link.');
+    if (!submitFormData.answerText.trim() && !submitFormData.submissionUrl.trim() && !submissionPdfFile) {
+      setSubmitError('Please provide either a written solution, solution URL, or upload a PDF document.');
       setSubmitSubmitting(false);
       return;
     }
 
     try {
-      await api.post(`/assignments/${selectedAssignmentForSubmit._id}/submit`, {
-        answerText: submitFormData.answerText.trim(),
-        submissionUrl: submitFormData.submissionUrl.trim()
-      });
+      let payload;
+      let headers = {};
+
+      if (submissionPdfFile) {
+        payload = new FormData();
+        payload.append('answerText', submitFormData.answerText.trim());
+        payload.append('submissionUrl', submitFormData.submissionUrl.trim());
+        payload.append('submissionPdf', submissionPdfFile);
+        headers = { 'Content-Type': 'multipart/form-data' };
+      } else {
+        payload = {
+          answerText: submitFormData.answerText.trim(),
+          submissionUrl: submitFormData.submissionUrl.trim()
+        };
+      }
+
+      await api.post(`/assignments/${selectedAssignmentForSubmit._id}/submit`, payload, { headers });
 
       setSubmitSuccess('Assignment submitted successfully!');
+      setSubmissionPdfFile(null);
       fetchStudentAssignments(selectedBatchId);
       setTimeout(() => {
         setIsSubmitModalOpen(false);
@@ -694,6 +727,45 @@ const StudentDashboard = () => {
       setTimeout(() => { setIsJoinOpen(false); setJoinSuccess(''); }, 1000);
     } catch (err) { setJoinError(err.response?.data?.error || 'Invalid credentials or batch already joined.'); }
     finally { setJoining(false); }
+  };
+
+  // ── Delete Account handlers ──────────────────────────────────────────────
+  const fetchDeleteRequestStatus = async () => {
+    try {
+      const r = await api.get('/delete-requests/mine');
+      if (r.data?.request) {
+        setDeleteReqData(r.data.request);
+        setDeleteReqStatus(r.data.request.status);
+      } else {
+        setDeleteReqData(null);
+        setDeleteReqStatus(null);
+      }
+    } catch (e) {
+      // silent – non-critical
+    }
+  };
+
+  const handleRequestDeletion = async () => {
+    if (deleteConfirmText.trim().toLowerCase() !== 'delete my account') {
+      setDeleteError('Please type the exact phrase to confirm.');
+      return;
+    }
+    setDeleteSubmitting(true);
+    setDeleteError('');
+    setDeleteSuccess('');
+    try {
+      const r = await api.post('/delete-requests', { reason: deleteReason.trim() });
+      setDeleteSuccess(r.data.message);
+      setDeleteReqStatus('pending');
+      setDeleteReqData(r.data.request);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText('');
+      setDeleteReason('');
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Failed to submit request. Please try again.');
+    } finally {
+      setDeleteSubmitting(false);
+    }
   };
 
   const curriculum = batchDetails?.curriculum || [];
@@ -1346,7 +1418,14 @@ const StudentDashboard = () => {
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.borderSoft}`, background: C.purpleSoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
                             <div style={{ fontSize: 12, fontWeight: 800, color: C.purpleText, marginBottom: 4 }}>My Submission Details</div>
                             {mySub.answerText && <div style={{ fontSize: 12, color: C.ink, marginBottom: 4 }}><strong>Written Response:</strong> {mySub.answerText}</div>}
-                            {mySub.submissionUrl && <a href={mySub.submissionUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.primaryDark, fontWeight: 700, textDecoration: 'none' }}>🔗 Submitted Link</a>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                              {mySub.submissionUrl && <a href={mySub.submissionUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: C.primaryDark, fontWeight: 700, textDecoration: 'none' }}>🔗 Submitted Link</a>}
+                              {mySub.submissionPdfUrl && (
+                                <a href={mySub.submissionPdfUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: C.greenText, fontWeight: 700, textDecoration: 'none' }}>
+                                  <FileText size={13} /> Submitted PDF Document
+                                </a>
+                              )}
+                            </div>
                             {mySub.feedback && <div style={{ fontSize: 12, color: C.greenText, marginTop: 6 }}><strong>Instructor Feedback:</strong> {mySub.feedback}</div>}
                           </div>
                         )}
@@ -1759,6 +1838,139 @@ const StudentDashboard = () => {
                 </Card>
 
               </div>
+
+              {/* ── DANGER ZONE — Delete Account ── */}
+              <div style={{
+                border: `1.5px solid ${C.red}30`,
+                borderRadius: RADIUS.md,
+                overflow: 'hidden'
+              }}>
+                {/* Header */}
+                <div style={{
+                  padding: '14px 22px',
+                  background: C.redSoft,
+                  borderBottom: `1px solid ${C.red}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10
+                }}>
+                  <ShieldAlert size={18} color={C.redText} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.redText }}>Danger Zone</div>
+                    <div style={{ fontSize: 11.5, color: C.muted }}>Actions here are irreversible. Please proceed with caution.</div>
+                  </div>
+                </div>
+
+                <div style={{ padding: '20px 22px', background: '#fff' }}>
+                  {/* No request yet */}
+                  {deleteReqStatus === null && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink }}>Request Account Deletion</div>
+                        <div style={{ fontSize: 12, color: C.muted, marginTop: 3, maxWidth: 480, lineHeight: 1.6 }}>
+                          Submitting this request will flag your account for deletion. An admin will review it within <strong>15–30 days</strong>.
+                          Your data will be permanently removed only after admin approval.
+                        </div>
+                      </div>
+                      <button
+                        id="btn-request-delete-account"
+                        onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 7,
+                          padding: '9px 18px', borderRadius: RADIUS.pill,
+                          background: 'transparent', border: `1.5px solid ${C.red}`,
+                          color: C.redText, fontSize: 13, fontWeight: 700,
+                          cursor: 'pointer', transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = C.redSoft; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <Trash2 size={14} /> Delete My Account
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Pending */}
+                  {deleteReqStatus === 'pending' && (
+                    <div style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 14,
+                      padding: '16px 20px',
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                      borderRadius: RADIUS.sm,
+                      border: '1.5px solid #F59E0B40'
+                    }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                        background: '#F59E0B20', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <Clock size={20} color="#D97706" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 800, color: '#92400E' }}>Request Received — Under Review</div>
+                        <div style={{ fontSize: 12.5, color: '#78350F', marginTop: 4, lineHeight: 1.7 }}>
+                          Your account deletion request has been submitted and is being reviewed by our admin team.
+                          This process typically takes <strong>15 to 30 days</strong>. You will be notified once a decision is made.
+                        </div>
+                        {deleteReqData?.createdAt && (
+                          <div style={{ fontSize: 11, color: '#92400E', marginTop: 8, fontWeight: 600 }}>
+                            📅 Requested on: {new Date(deleteReqData.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejected */}
+                  {deleteReqStatus === 'rejected' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 14,
+                        padding: '16px 20px',
+                        background: C.redSoft, borderRadius: RADIUS.sm,
+                        border: `1.5px solid ${C.red}30`
+                      }}>
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                          background: `${C.red}15`, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          <X size={20} color={C.redText} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13.5, fontWeight: 800, color: C.redText }}>Deletion Request Rejected</div>
+                          <div style={{ fontSize: 12.5, color: '#7F1D1D', marginTop: 4, lineHeight: 1.7 }}>
+                            Your previous deletion request was not approved. {deleteReqData?.adminNote ? (
+                              <><strong>Admin note:</strong> {deleteReqData.adminNote}</>
+                            ) : 'You may submit a new request if you still wish to delete your account.'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => {
+                            setDeleteError('');
+                            setDeleteReqStatus(null);
+                            setDeleteReqData(null);
+                            setShowDeleteConfirm(true);
+                          }}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 7,
+                            padding: '9px 18px', borderRadius: RADIUS.pill,
+                            background: 'transparent', border: `1.5px solid ${C.red}`,
+                            color: C.redText, fontSize: 13, fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={14} /> Submit New Request
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Success message */}
+                  {deleteSuccess && <FormAlert msg={deleteSuccess} type="success" />}
+                </div>
+              </div>
+
             </div>
           )}
 
@@ -1766,9 +1978,104 @@ const StudentDashboard = () => {
       </div>
 
       {/* ── ALL CANDIDATE MODALS ── */}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', border: `1.5px solid ${C.red}40`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 460, boxShadow: '0 24px 64px rgba(239,68,68,0.18)', overflow: 'hidden' }}>
+            {/* Modal Header */}
+            <div style={{ padding: '18px 24px', background: C.redSoft, borderBottom: `1px solid ${C.red}20`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${C.red}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 size={18} color={C.redText} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: C.redText }}>Delete Account</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>This action will be reviewed by admin</div>
+                </div>
+              </div>
+              <button onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteReason(''); setDeleteError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Warning banner */}
+              <div style={{ display: 'flex', gap: 10, padding: '12px 14px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: RADIUS.sm }}>
+                <AlertCircle size={16} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div style={{ fontSize: 12.5, color: '#7C2D12', lineHeight: 1.6 }}>
+                  <strong>What happens next:</strong> Your request will be sent to admin for review.
+                  If approved (within <strong>15–30 days</strong>), your entire account data will be <strong>permanently deleted</strong>.
+                  You can continue using your account until then.
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+                  Reason for deletion <span style={{ color: C.muted, fontWeight: 500 }}>(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={deleteReason}
+                  onChange={e => setDeleteReason(e.target.value)}
+                  placeholder="Tell us why you want to delete your account..."
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Confirmation phrase */}
+              <div>
+                <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: C.redText, marginBottom: 6 }}>
+                  Type <code style={{ background: C.redSoft, padding: '2px 6px', borderRadius: 4, fontFamily: 'monospace', fontSize: 11 }}>delete my account</code> to confirm
+                </label>
+                <input
+                  id="delete-confirm-input"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={e => { setDeleteConfirmText(e.target.value); setDeleteError(''); }}
+                  placeholder="delete my account"
+                  style={{ ...inputStyle, border: deleteConfirmText && deleteConfirmText.trim().toLowerCase() !== 'delete my account' ? `1.5px solid ${C.red}` : `1px solid ${C.border}` }}
+                  autoComplete="off"
+                />
+              </div>
+
+              {deleteError && <FormAlert msg={deleteError} type="error" />}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteConfirmText(''); setDeleteReason(''); setDeleteError(''); }}
+                  style={{ padding: '9px 20px', borderRadius: RADIUS.pill, border: `1px solid ${C.border}`, background: '#fff', color: C.body, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  id="btn-confirm-delete-account"
+                  onClick={handleRequestDeletion}
+                  disabled={deleteSubmitting || deleteConfirmText.trim().toLowerCase() !== 'delete my account'}
+                  style={{
+                    padding: '9px 22px', borderRadius: RADIUS.pill,
+                    background: deleteConfirmText.trim().toLowerCase() === 'delete my account' ? C.red : '#CBD5E1',
+                    color: '#fff', fontSize: 13, fontWeight: 700,
+                    border: 'none', cursor: deleteConfirmText.trim().toLowerCase() === 'delete my account' ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex', alignItems: 'center', gap: 7,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {deleteSubmitting ? <><Spin /> Submitting...</> : <><Trash2 size={14} /> Submit Deletion Request</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Join Batch Modal */}
       {isJoinOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+
           <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 420, boxShadow: C.shadowLg, overflow: 'hidden' }}>
             <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Join New Batch</h3>
@@ -1801,6 +2108,22 @@ const StudentDashboard = () => {
               {submitSuccess && <FormAlert msg={submitSuccess} type="success" />}
               <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Written Response / Notes</label><textarea rows={4} value={submitFormData.answerText} onChange={e => setSubmitFormData({ ...submitFormData, answerText: e.target.value })} placeholder="Type solution explanation..." style={{ ...inputStyle, resize: 'vertical' }} /></div>
               <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Solution URL (GitHub / Drive Link)</label><input type="url" value={submitFormData.submissionUrl} onChange={e => setSubmitFormData({ ...submitFormData, submissionUrl: e.target.value })} placeholder="https://..." style={inputStyle} /></div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>
+                  Attach Solution PDF Document (Cloudinary)
+                </label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={e => setSubmissionPdfFile(e.target.files[0] || null)}
+                  style={{ ...inputStyle, padding: '8px' }}
+                />
+                {submissionPdfFile && (
+                  <div style={{ fontSize: 11, color: C.greenText, marginTop: 4, fontWeight: 600 }}>
+                    Selected PDF: {submissionPdfFile.name} ({(submissionPdfFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </div>
+                )}
+              </div>
               <Pill type="submit" disabled={submitSubmitting} style={{ marginTop: 8 }}>{submitSubmitting ? <Spin /> : 'Submit Solution'}</Pill>
             </form>
           </div>
