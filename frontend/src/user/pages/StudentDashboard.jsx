@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { requestNotificationPermission, onForegroundMessage } from '../../lib/firebase';
+import { API_BASE_URL } from '@/admin/config';
 import {
   GraduationCap, LogOut, Plus, Bell, FileText, Link2,
   Download, ExternalLink, Calendar, User, BookOpen, X,
@@ -378,6 +379,12 @@ const StudentDashboard = () => {
   const [deleteError, setDeleteError] = useState('');
   const [deleteSuccess, setDeleteSuccess] = useState('');
 
+  // ── My Certificate State ──────────────────────────────────────────────────────
+  const [myCertificates, setMyCertificates] = useState([]);
+  const [certLoading, setCertLoading] = useState(false);
+  const [certGenerating, setCertGenerating] = useState(false);
+  const [certError, setCertError] = useState('');
+
   // Firebase Push Notifications State
   const [pushPermission, setPushPermission] = useState(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default');
   const [fcmToken, setFcmToken] = useState(null);
@@ -406,6 +413,28 @@ const StudentDashboard = () => {
   const [directNotifications, setDirectNotifications] = useState([]);
   const [unreadDirectCount, setUnreadDirectCount] = useState(0);
   const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+
+  // ── Derived Progress & Metrics Calculations ──
+  const curriculum = batchDetails?.curriculum || [];
+  const { totalUnits, completedUnits } = curriculum.reduce((acc, topic) => {
+    if (topic.subtopics && topic.subtopics.length > 0) {
+      acc.totalUnits += topic.subtopics.length;
+      acc.completedUnits += topic.subtopics.filter(s => s.isCompleted).length;
+    } else {
+      acc.totalUnits += 1;
+      acc.completedUnits += topic.isCompleted ? 1 : 0;
+    }
+    return acc;
+  }, { totalUnits: 0, completedUnits: 0 });
+
+  const totalCount = curriculum.length;
+  const progressPct = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
+
+  const submittedAssignmentsCount = studentAssignments.filter(a =>
+    a.submissions?.some(s => s.studentId?.toString() === user?._id?.toString() || s.studentId === user?._id)
+  ).length;
+
+  const pendingQueriesCount = queries.filter(q => q.status === 'Pending').length;
 
   const fetchMyNotifications = async () => {
     try {
@@ -539,6 +568,43 @@ const StudentDashboard = () => {
     }
   };
 
+  const fetchMyCertificate = async () => {
+    try {
+      setCertLoading(true);
+      setCertError('');
+      const r = await api.get('/certificates/my');
+      setMyCertificates(r.data?.certificates || []);
+    } catch (e) {
+      console.error('Error fetching certificate:', e);
+      setMyCertificates([]);
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
+  const requestCertificate = async (batchId) => {
+    if (!batchId || certGenerating) return;
+    try {
+      setCertGenerating(true);
+      setCertError('');
+      const r = await api.post(`/batches/student/${batchId}/request-certificate`);
+      // After generation, fetch the updated cert list
+      await fetchMyCertificate();
+    } catch (e) {
+      const msg = e.response?.data?.error || 'Failed to generate certificate. Please try again.';
+      const code = e.response?.data?.code;
+      if (code === 'NO_STUDENT_RECORD') {
+        setCertError('Your account is not linked to a student registration record. Please contact your training coordinator to generate your certificate.');
+      } else if (code === 'NO_COURSE_DETAIL') {
+        setCertError('No course details are linked to your student record. Please contact your training coordinator.');
+      } else {
+        setCertError(msg);
+      }
+    } finally {
+      setCertGenerating(false);
+    }
+  };
+
   useEffect(() => { fetchBatches(); }, []);
   useEffect(() => {
     if (selectedBatchId) {
@@ -546,11 +612,14 @@ const StudentDashboard = () => {
       fetchMyFeedback(selectedBatchId);
       fetchQueries(selectedBatchId);
       fetchStudentAssignments(selectedBatchId);
+      fetchMyCertificate();
     } else {
       setBatchDetails(null);
       setMyFeedback(null);
       setQueries([]);
       setStudentAssignments([]);
+      setMyCertificates([]);
+      setCertError('');
     }
   }, [selectedBatchId]);
 
@@ -560,6 +629,20 @@ const StudentDashboard = () => {
       fetchDeleteRequestStatus();
     }
   }, [activeTab]);
+
+  // Automatically issue certificate immediately when course progress reaches 100% and student has no cert yet
+  useEffect(() => {
+    if (
+      selectedBatchId &&
+      progressPct === 100 &&
+      myCertificates.length === 0 &&
+      !certLoading &&
+      !certGenerating &&
+      !certError
+    ) {
+      requestCertificate(selectedBatchId);
+    }
+  }, [selectedBatchId, progressPct, myCertificates.length, certLoading, certGenerating, certError]);
 
   const handleOpenSubmitModal = (assignment) => {
     setSelectedAssignmentForSubmit(assignment);
@@ -768,26 +851,6 @@ const StudentDashboard = () => {
     }
   };
 
-  const curriculum = batchDetails?.curriculum || [];
-  const { totalUnits, completedUnits } = curriculum.reduce((acc, topic) => {
-    if (topic.subtopics && topic.subtopics.length > 0) {
-      acc.totalUnits += topic.subtopics.length;
-      acc.completedUnits += topic.subtopics.filter(s => s.isCompleted).length;
-    } else {
-      acc.totalUnits += 1;
-      acc.completedUnits += topic.isCompleted ? 1 : 0;
-    }
-    return acc;
-  }, { totalUnits: 0, completedUnits: 0 });
-
-  const totalCount = curriculum.length;
-  const progressPct = totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
-
-  const submittedAssignmentsCount = studentAssignments.filter(a =>
-    a.submissions?.some(s => s.studentId?.toString() === user?._id?.toString() || s.studentId === user?._id)
-  ).length;
-
-  const pendingQueriesCount = queries.filter(q => q.status === 'Pending').length;
 
   return (
     <div style={{ minHeight: '100vh', background: C.page, display: 'flex', fontFamily: FONT, color: C.body }}>
@@ -896,6 +959,7 @@ const StudentDashboard = () => {
               { id: 'links', label: 'Shared Links', icon: Link2 },
               { id: 'queries', label: 'My Doubts', icon: HelpCircle, count: pendingQueriesCount > 0 ? `${pendingQueriesCount}` : undefined },
               { id: 'feedback', label: 'Course Review', icon: MessageSquare },
+              { id: 'certificate', label: 'My Certificate', icon: Award, count: myCertificates.length > 0 ? myCertificates.length : undefined },
               { id: 'profile', label: 'My Profile', icon: User }
             ].map(item => (
               <button
@@ -1020,6 +1084,7 @@ const StudentDashboard = () => {
               { label: 'Submit Review', color: C.blue, bg: C.blueSoft, icon: Star, action: () => setActiveTab('feedback') },
               { label: 'My Profile', color: C.purpleText, bg: C.purpleSoft, icon: User, action: () => setActiveTab('profile') },
               { label: 'Study PDFs', color: C.greenText, bg: C.greenSoft, icon: FileText, action: () => setActiveTab('pdfs') },
+              { label: 'My Certificate', color: C.gold, bg: '#FFFBEB', icon: Award, action: () => setActiveTab('certificate') },
               { label: 'Join Batch', color: C.primary, bg: C.primarySoft, icon: Plus, action: () => setIsJoinOpen(true) },
             ].map(act => (
               <div key={act.label} onClick={act.action} style={{
@@ -1177,9 +1242,49 @@ const StudentDashboard = () => {
 
               </div>
 
+              {/* Certificate Ready Banner — shown when progress = 100% */}
+              {progressPct === 100 && (
+                <div style={{
+                  borderRadius: RADIUS.lg, overflow: 'hidden',
+                  background: 'linear-gradient(135deg, #FEF9C3 0%, #FEF3C7 40%, #FFFBEB 100%)',
+                  border: '2px solid #F59E0B40',
+                  boxShadow: '0 4px 20px rgba(245,158,11,0.15)'
+                }}>
+                  <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg,#F59E0B,#D97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(245,158,11,0.35)' }}>
+                      <Award size={26} color="#fff" strokeWidth={2.2} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#92400E', marginBottom: 3 }}>
+                        🎉 Course Complete — {myCertificates.length > 0 ? 'Certificate Issued!' : 'Certificate Being Generated…'}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#B45309', lineHeight: 1.5 }}>
+                        {myCertificates.length > 0
+                          ? `Your certificate is ready. ID: ${myCertificates[0].certificateId}`
+                          : 'You have completed 100% of the curriculum. Your certificate is being generated — check the "My Certificate" tab soon!'}
+                      </div>
+                    </div>
+                    {myCertificates.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('certificate')}
+                        style={{
+                          padding: '10px 20px', background: 'linear-gradient(135deg,#F59E0B,#D97706)',
+                          color: '#fff', border: 'none', borderRadius: RADIUS.pill,
+                          fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(245,158,11,0.4)',
+                          display: 'flex', alignItems: 'center', gap: 6
+                        }}
+                      >
+                        <Award size={15} /> View Certificate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Bottom Row Grid: Course Syllabus & Candidate Progress */}
               <div className="dashboard-grid-2">
-                
+
                 {/* Course Syllabus Overview */}
                 <Card style={{ padding: '20px 24px' }}>
                   <SectionHeader
@@ -1971,6 +2076,230 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* MY CERTIFICATE TAB */}
+          {activeTab === 'certificate' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }} className="animate-in">
+              <SectionHeader
+                title="My Certificate"
+                sub="Your course completion certificate issued upon finishing the curriculum"
+                action={
+                  <Pill variant="outline" icon={Download} onClick={fetchMyCertificate} style={{ fontSize: 11, padding: '5px 12px' }}>
+                    Refresh
+                  </Pill>
+                }
+              />
+
+              {certLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', gap: 12 }}>
+                  <Spin color={C.primary} size={22} />
+                  <span style={{ fontSize: 14, color: C.muted, fontWeight: 500 }}>Loading your certificate…</span>
+                </div>
+              ) : certGenerating ? (
+                <div style={{
+                  background: 'linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 100%)',
+                  border: `2px dashed ${C.primary}40`, borderRadius: RADIUS.lg,
+                  padding: '56px 32px', textAlign: 'center',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16
+                }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,#6366F1,#4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
+                    <Spin color="#fff" size={32} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: C.ink, marginBottom: 6 }}>
+                      Generating Your Certificate...
+                    </h3>
+                    <p style={{ fontSize: 13, color: C.muted, maxWidth: 420, margin: '0 auto', lineHeight: 1.6 }}>
+                      Congratulations on completing the course! We are preparing your official verified certificate with QR code validation. This will take just a moment...
+                    </p>
+                  </div>
+                </div>
+              ) : myCertificates.length === 0 ? (
+                /* ── Empty State ── */
+                <div style={{
+                  background: 'linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 100%)',
+                  border: `2px dashed ${C.primary}40`, borderRadius: RADIUS.lg,
+                  padding: '56px 32px', textAlign: 'center'
+                }}>
+                  <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg,#6366F1,#4F46E5)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(99,102,241,0.3)' }}>
+                    <Award size={32} color="#fff" strokeWidth={2} />
+                  </div>
+
+                  {progressPct === 100 ? (
+                    <>
+                      <h3 style={{ fontSize: 18, fontWeight: 800, color: C.ink, marginBottom: 8 }}>
+                        🎉 Course Completed!
+                      </h3>
+                      {certError ? (
+                        <div style={{ margin: '0 auto 20px', maxWidth: 480, padding: '12px 16px', background: `${C.red}10`, border: `1px solid ${C.red}30`, borderRadius: RADIUS.sm, color: C.redText, fontSize: 13 }}>
+                          {certError}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, margin: '0 auto 16px' }}>
+                          <Spin color={C.primary} size={18} />
+                          <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>
+                            Issuing your official certificate automatically...
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <h3 style={{ fontSize: 18, fontWeight: 800, color: C.ink, marginBottom: 8 }}>
+                        Certificate Not Yet Issued
+                      </h3>
+                      <p style={{ fontSize: 13, color: C.muted, maxWidth: 400, margin: '0 auto 20px', lineHeight: 1.7 }}>
+                        Your certificate will be automatically generated once your expert marks all curriculum topics as complete (100% course progress).
+                      </p>
+                      {/* Progress bar */}
+                      <div style={{ maxWidth: 320, margin: '0 auto 8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 700, color: C.muted, marginBottom: 6 }}>
+                          <span>Current Progress</span><span>{progressPct}%</span>
+                        </div>
+                        <div style={{ height: 10, background: '#E2E8F0', borderRadius: RADIUS.pill, overflow: 'hidden' }}>
+                          <div style={{ width: `${progressPct}%`, height: '100%', background: 'linear-gradient(90deg,#6366F1,#8B5CF6)', borderRadius: RADIUS.pill, transition: 'width 1s ease' }} />
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>{completedUnits} of {totalUnits} subtopics completed</div>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('curriculum')}
+                        style={{ marginTop: 16, padding: '10px 24px', background: C.primary, color: '#fff', border: 'none', borderRadius: RADIUS.pill, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        View Curriculum
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* ── Certificate Cards ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {myCertificates.map((cert) => {
+                    const stu = cert.studentId || {};
+                    const cd = cert.courseDetailId || {};
+                    const tech = cd.technologyId?.name || 'N/A';
+                    const dur = cd.durationId ? `${cd.durationId.value} ${cd.durationId.unit}(s)` : 'N/A';
+                    const college = stu.collegeId?.collegeName || 'N/A';
+                    const branch = stu.branchId?.branchName || stu.branch || 'N/A';
+                    const issued = cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+                    // Derive backend base URL: strip trailing /api from API_BASE_URL
+                    const backendBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+
+                    return (
+                      <div key={cert._id} style={{
+                        background: '#fff', borderRadius: RADIUS.lg,
+                        border: `1px solid ${C.border}`,
+                        boxShadow: '0 8px 32px rgba(99,102,241,0.08)',
+                        overflow: 'hidden'
+                      }}>
+                        {/* Gold gradient header */}
+                        <div style={{ background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 60%, #4338CA 100%)', padding: '28px 32px', position: 'relative', overflow: 'hidden' }}>
+                          {/* Decorative circle */}
+                          <div style={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+                          <div style={{ position: 'absolute', bottom: -40, right: 60, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                                <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#F59E0B,#D97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(245,158,11,0.4)' }}>
+                                  <Award size={22} color="#fff" strokeWidth={2.2} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Certificate of Completion</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#F59E0B', letterSpacing: '0.02em' }}>{cert.certificateId}</div>
+                                </div>
+                              </div>
+                              <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', marginBottom: 4 }}>
+                                {user?.name || stu.name || '—'}
+                              </div>
+                              <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                                has successfully completed <span style={{ color: '#FDE68A', fontWeight: 700 }}>{tech}</span>
+                              </div>
+                            </div>
+
+                            {/* QR Code display */}
+                            {cert.qrCodeUrl && (
+                              <div style={{ background: '#fff', borderRadius: 12, padding: 8, flexShrink: 0 }}>
+                                <img src={cert.qrCodeUrl} alt="QR" style={{ width: 72, height: 72, display: 'block' }} />
+                                <div style={{ fontSize: 9, textAlign: 'center', color: C.muted, marginTop: 4, fontWeight: 600 }}>Scan to Verify</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Details grid */}
+                        <div style={{ padding: '24px 32px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+                            {[
+                              { label: 'Registration No', value: stu.registrationNo || '—', icon: User },
+                              { label: 'Course / Technology', value: tech, icon: BookOpen },
+                              { label: 'Duration', value: dur, icon: Clock },
+                              { label: 'Issue Date', value: issued, icon: Calendar },
+                              { label: 'Institution', value: college, icon: GraduationCap },
+                              { label: 'Branch / Stream', value: branch, icon: Tag },
+                            ].map(({ label, value, icon: Icon }) => (
+                              <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                <div style={{ width: 32, height: 32, borderRadius: 9, background: C.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                                  <Icon size={14} color={C.primary} strokeWidth={2.2} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 10.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{label}</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{value}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Status badge */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: '10px 14px', background: C.greenSoft, borderRadius: RADIUS.sm, border: `1px solid ${C.greenText}20` }}>
+                            <CheckCircle size={15} color={C.greenText} />
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: C.greenText }}>Certificate Status: Active & Verified</span>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            {cert.pdfUrl && (
+                              <>
+                                <a
+                                  href={`${backendBase}${cert.pdfUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 22px', borderRadius: RADIUS.pill,
+                                    background: 'linear-gradient(135deg,#6366F1,#4F46E5)', color: '#fff',
+                                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
+                                    boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <ExternalLink size={15} /> View Certificate
+                                </a>
+                                <a
+                                  href={`${backendBase}${cert.pdfUrl}`}
+                                  download={`Certificate_${stu.name || user?.name}_${cert.certificateId}.pdf`}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 22px', borderRadius: RADIUS.pill,
+                                    background: '#fff', color: C.ink,
+                                    border: `1.5px solid ${C.border}`,
+                                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
+                                    boxShadow: C.shadow,
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <Download size={15} /> Download PDF
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
