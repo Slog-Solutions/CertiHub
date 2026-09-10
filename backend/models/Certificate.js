@@ -9,17 +9,27 @@ const certificateSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student',
-    required: true
+    default: null
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  batchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Batch',
+    default: null
   },
   courseDetailId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CourseDetail',
-    required: true
+    default: null
   },
   templateId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CertificateTemplate',
-    required: true
+    default: null
   },
   issueDate: {
     type: Date,

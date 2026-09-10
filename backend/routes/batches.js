@@ -3,16 +3,167 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const xlsx = require('xlsx');
+const qrcode = require('qrcode');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 const Student = require('../models/Student');
+const Certificate = require('../models/Certificate');
+const CertificateTemplate = require('../models/CertificateTemplate');
+const CourseDetail = require('../models/CourseDetail');
 const SystemSetting = require('../models/SystemSetting');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
 const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
+const { generateCertificatePDF } = require('../utils/pdfGenerator');
+
+// ── Certificate constants ───────────────────────────────────────────────────
+const certsDir = path.join(__dirname, '../uploads/certificates');
+if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
+
+const generateCertificateId = () => {
+  const year = new Date().getFullYear();
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let r = '';
+  for (let i = 0; i < 6; i++) r += chars.charAt(Math.floor(Math.random() * chars.length));
+  return `CERT-${year}-${r}`;
+};
+
+/**
+ * Recalculates batch progress percentage server-side from curriculum data.
+ * @param {Object} batch - Mongoose Batch document
+ * @returns {number} 0-100
+ */
+const calcProgressPct = (batch) => {
+  const curriculum = batch.curriculum || [];
+  let totalUnits = 0;
+  let completedUnits = 0;
+  curriculum.forEach(topic => {
+    if (topic.subtopics && topic.subtopics.length > 0) {
+      totalUnits += topic.subtopics.length;
+      completedUnits += topic.subtopics.filter(s => s.isCompleted).length;
+    } else {
+      totalUnits += 1;
+      completedUnits += topic.isCompleted ? 1 : 0;
+    }
+  });
+  return totalUnits > 0 ? Math.round((completedUnits / totalUnits) * 100) : 0;
+};
+
+/**
+ * Fire-and-forget: auto-generate certificates for all students in a batch
+ * when course progress reaches 100%.
+ */
+const triggerAutoCertificates = async (batch) => {
+  try {
+    const pct = calcProgressPct(batch);
+    if (pct < 100) return; // Not yet complete
+
+    console.log(`[AutoCert] Batch "${batch.name}" reached 100% — generating certificates for ${batch.students.length} student(s).`);
+
+    // Fetch the default certificate template (optional — pdfGenerator uses the HTML file directly)
+    let defaultTemplate = await CertificateTemplate.findOne({ isDefault: true });
+    if (!defaultTemplate) {
+      console.warn('[AutoCert] No default CertificateTemplate found in DB — will still generate using the HTML template file.');
+    }
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    // Process each student in the batch
+    for (const studentUserId of batch.students) {
+      try {
+        const user = await User.findById(studentUserId);
+        if (!user || !user.isActive) continue;
+
+        // Link User → Student (registration) by email or username ↔ registrationNo (optional)
+        const student = await Student.findOne({
+          $or: [
+            { email: new RegExp(`^${user.email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
+            { registrationNo: user.username }
+          ]
+        }).populate('collegeId').populate('branchId');
+
+        // Check if an Active certificate already exists
+        const queryConds = [{ userId: user._id }];
+        if (student) queryConds.push({ studentId: student._id });
+        const existing = await Certificate.findOne({ $or: queryConds, status: 'Active' });
+        if (existing) {
+          console.log(`[AutoCert] Certificate already exists for ${user.username} — skipping.`);
+          continue;
+        }
+
+        const courseDetail = student?.courseDetailId 
+          ? await CourseDetail.findById(student.courseDetailId).populate('technologyId').populate('durationId')
+          : null;
+
+        const studentData = {
+          _id: student ? student._id : null,
+          name: (user.name || student?.name || 'Candidate').trim(),
+          registrationNo: student?.registrationNo || user.username || `REG-${user._id.toString().slice(-6).toUpperCase()}`,
+          collegeId: student?.collegeId || { collegeName: 'SLOG Solutions Private Limited' },
+          branchId: student?.branchId || { branchName: user.branch || 'General' }
+        };
+
+        const courseDetailData = courseDetail || {
+          _id: null,
+          technologyId: { name: batch.name ? batch.name.toUpperCase() : 'TRAINING PROGRAM' },
+          durationId: { value: 'Complete', unit: 'Course' }
+        };
+
+        const certId = generateCertificateId();
+        const verificationUrl = `${clientUrl}/verify/${certId}`;
+        const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
+
+        const filename = `${certId}.pdf`;
+        const pdfPath = path.join(certsDir, filename);
+        const completionDate = new Date();
+
+        await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate);
+
+        const pdfUrl = `/uploads/certificates/${filename}`;
+
+        const newCert = new Certificate({
+          certificateId: certId,
+          studentId: student ? student._id : null,
+          userId: user._id,
+          batchId: batch._id,
+          courseDetailId: courseDetail ? courseDetail._id : null,
+          ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
+          pdfUrl,
+          qrCodeUrl: qrCodeBase64,
+          issueDate: completionDate,
+          status: 'Active'
+        });
+        await newCert.save();
+
+        console.log(`[AutoCert] ✅ Certificate ${certId} issued for ${studentData.name} (${studentData.registrationNo}).`);
+
+        // Send optional FCM push notification to student
+        try {
+          const tokens = extractUserFcmTokens(user);
+          if (tokens.length > 0) {
+            await sendToTokens(
+              tokens,
+              '🎓 Your Certificate is Ready!',
+              `Congratulations ${student.name}! Your course completion certificate has been generated. Open the Candidate Portal to view and download it.`,
+              { type: 'certificate', certId, tab: 'certificate' }
+            );
+          }
+        } catch (fcmErr) {
+          console.error(`[AutoCert][FCM] Failed to notify ${user.email}:`, fcmErr.message);
+        }
+
+      } catch (studentErr) {
+        console.error(`[AutoCert] Error processing student ${studentUserId}:`, studentErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('[AutoCert] Unexpected error during auto-certificate generation:', err.message);
+  }
+};
 
 // Helper to find a batch by MongoDB _id or batchId string and verify user access
 const findAccessibleBatch = async (batchParamId, user) => {
@@ -511,6 +662,11 @@ router.patch('/teacher/:id/curriculum/:topicId/complete', requireAuth, requireRo
 
     await batch.save();
     res.json(topic);
+
+    // ── Auto-certificate trigger (fire-and-forget) ──────────────────────────
+    if (!!isCompleted) {
+      setImmediate(() => triggerAutoCertificates(batch));
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -537,6 +693,11 @@ router.patch('/teacher/:id/curriculum/:topicId/subtopics/:subtopicId/complete', 
 
     await batch.save();
     res.json({ topic, subtopic });
+
+    // ── Auto-certificate trigger (fire-and-forget) ──────────────────────────
+    if (!!isCompleted) {
+      setImmediate(() => triggerAutoCertificates(batch));
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1006,6 +1167,103 @@ router.get('/student/:id', requireAuth, requireRole(['Student']), async (req, re
 
     res.json(batch);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Request / auto-generate a certificate for the calling student in a batch (if progress = 100%)
+router.post('/student/:id/request-certificate', requireAuth, requireRole(['Student']), async (req, res) => {
+  try {
+    const batch = await Batch.findOne({ _id: req.params.id, students: req.user._id });
+    if (!batch) return res.status(403).json({ error: 'Access denied: You are not enrolled in this batch' });
+
+    const pct = calcProgressPct(batch);
+    if (pct < 100) {
+      return res.status(400).json({ error: `Course not yet complete (${pct}%). Complete all topics to earn your certificate.` });
+    }
+
+    const user = req.user;
+
+    // Link User → Student (registration) by email or username ↔ registrationNo (optional)
+    const student = await Student.findOne({
+      $or: [
+        { email: new RegExp(`^${user.email.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}$`, 'i') },
+        { registrationNo: user.username }
+      ]
+    }).populate('collegeId').populate('branchId');
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    // Fetch course detail if available
+    const courseDetail = student?.courseDetailId
+      ? await CourseDetail.findById(student.courseDetailId).populate('technologyId').populate('durationId')
+      : null;
+
+    const studentData = {
+      _id: student ? student._id : null,
+      name: (user.name || student?.name || 'Candidate').trim(),
+      registrationNo: student?.registrationNo || user.username || `REG-${user._id.toString().slice(-6).toUpperCase()}`,
+      collegeId: student?.collegeId || { collegeName: 'SLOG Solutions Private Limited' },
+      branchId: student?.branchId || { branchName: user.branch || 'General' }
+    };
+
+    const courseDetailData = courseDetail || {
+      _id: null,
+      technologyId: { name: batch.name ? batch.name.toUpperCase() : 'TRAINING PROGRAM' },
+      durationId: { value: 'Complete', unit: 'Course' }
+    };
+
+    // Check if cert already exists
+    const queryConds = [{ userId: user._id }];
+    if (student) queryConds.push({ studentId: student._id });
+    let existing = await Certificate.findOne({ $or: queryConds, status: 'Active' });
+
+    if (existing) {
+      // Re-generate PDF with latest candidate full name & details
+      const certId = existing.certificateId;
+      const verificationUrl = `${clientUrl}/verify/${certId}`;
+      const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
+      const filename = `${certId}.pdf`;
+      const pdfPath = path.join(certsDir, filename);
+
+      await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, existing.issueDate || new Date());
+      existing.pdfUrl = `/uploads/certificates/${filename}?v=${Date.now()}`;
+      existing.qrCodeUrl = qrCodeBase64;
+      await existing.save();
+
+      return res.json({ message: 'Certificate updated with full name', certificate: existing, alreadyExists: true });
+    }
+
+    const certId = generateCertificateId();
+    const verificationUrl = `${clientUrl}/verify/${certId}`;
+    const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
+    const filename = `${certId}.pdf`;
+    const pdfPath = path.join(certsDir, filename);
+    const completionDate = new Date();
+
+    await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate);
+
+    const pdfUrl = `/uploads/certificates/${filename}`;
+    const defaultTemplate = await CertificateTemplate.findOne({ isDefault: true });
+
+    const newCert = new Certificate({
+      certificateId: certId,
+      studentId: student ? student._id : null,
+      userId: user._id,
+      batchId: batch._id,
+      courseDetailId: courseDetail ? courseDetail._id : null,
+      ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
+      pdfUrl,
+      qrCodeUrl: qrCodeBase64,
+      issueDate: completionDate,
+      status: 'Active'
+    });
+    await newCert.save();
+
+    console.log(`[CertRequest] ✅ Certificate ${certId} generated for candidate ${studentData.name} (${studentData.registrationNo}).`);
+    res.status(201).json({ message: 'Certificate generated successfully', certificate: newCert });
+  } catch (err) {
+    console.error('[CertRequest] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

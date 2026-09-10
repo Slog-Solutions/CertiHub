@@ -534,7 +534,63 @@ router.post('/bulk-delete', requireAuth, requireRole(['Admin']), async (req, res
 
 
 /* ==========================================
-   3. CERTIFICATES LISTING
+   3. STUDENT — MY CERTIFICATES
+   ========================================== */
+
+// @route   GET /api/certificates/my
+// @desc    Get the logged-in student's own certificate(s)
+// @access  Private (Student)
+router.get('/my', requireAuth, async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+
+    // Match User → Student by email or username ↔ registrationNo
+    const student = await Student.findOne({
+      $or: [
+        { email: req.user.email },
+        { registrationNo: req.user.username }
+      ]
+    });
+
+    const queryConditions = [{ userId: req.user._id }];
+    if (student) {
+      queryConditions.push({ studentId: student._id });
+    }
+
+    const certs = await Certificate.find({
+      $or: queryConditions,
+      status: 'Active'
+    })
+      .populate({
+        path: 'studentId',
+        select: 'name registrationNo email phone fatherName dob gender address state year trainingType',
+        populate: [
+          { path: 'collegeId', select: 'collegeName cityName' },
+          { path: 'branchId', select: 'branchName' }
+        ]
+      })
+      .populate({
+        path: 'courseDetailId',
+        populate: [{ path: 'technologyId' }, { path: 'durationId' }]
+      })
+      .populate({
+        path: 'batchId',
+        select: 'name batchId'
+      })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      certificates: certs,
+      hasStudent: !!student,
+      studentRegistrationNo: student ? student.registrationNo : (req.user.username || 'N/A')
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ==========================================
+   4. CERTIFICATES LISTING
    ========================================== */
 
 // @route   GET /api/certificates
@@ -699,6 +755,10 @@ router.get('/verify/:certificateId', async (req, res) => {
         select: 'name registrationNo candidateInfo'
       })
       .populate({
+        path: 'userId',
+        select: 'name username'
+      })
+      .populate({
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       });
@@ -707,11 +767,14 @@ router.get('/verify/:certificateId', async (req, res) => {
       return res.status(404).json({ verified: false, error: 'Invalid Certificate ID: No matching certificate found' });
     }
 
+    const studentName = cert.userId?.name || cert.studentId?.name || 'N/A';
+    const registrationNo = cert.studentId?.registrationNo || cert.userId?.username || cert.certificateId;
+
     res.json({
       verified: true,
       certificateId: cert.certificateId,
-      studentName: cert.studentId.name,
-      registrationNo: cert.studentId.registrationNo,
+      studentName,
+      registrationNo,
       courseName: cert.courseDetailId.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
       duration: cert.courseDetailId.durationId ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)` : 'N/A',
       issueDate: cert.issueDate,
