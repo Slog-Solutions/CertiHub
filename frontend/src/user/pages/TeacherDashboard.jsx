@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as XLSX from 'xlsx';
@@ -433,14 +433,98 @@ const TeacherDashboard = () => {
   const [deletingStudentId, setDeletingStudentId] = useState(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
   const [deletingSelectedStudents, setDeletingSelectedStudents] = useState(false);
+  const [selectedSubBatchFilter, setSelectedSubBatchFilter] = useState('ALL');
+  const [registrationSessions, setRegistrationSessions] = useState([]);
 
-  const allStudentsSelected = batchDetails?.students?.length > 0 && selectedStudentIds.size === batchDetails.students.length;
+  // Map candidate User ObjectId -> Saved BulkRegistrationSession name (e.g. "Batch 1")
+  const studentSessionMap = useMemo(() => {
+    const map = {};
+    if (Array.isArray(registrationSessions)) {
+      registrationSessions.forEach(sess => {
+        if (Array.isArray(sess.students) && sess.sessionName) {
+          sess.students.forEach(sId => {
+            const idStr = String(sId._id || sId);
+            map[idStr] = sess.sessionName;
+          });
+        }
+      });
+    }
+    return map;
+  }, [registrationSessions]);
+
+  // Helper to resolve student sub-batch tag (BulkRegistrationSession -> explicit subBatch -> empty string)
+  const getStudentSubBatchTag = useCallback((std) => {
+    const stdIdStr = String(std?._id || '');
+
+    // 1. Highest Priority: Match candidate User ObjectId against saved BulkRegistrationSession
+    if (studentSessionMap[stdIdStr]) {
+      return studentSessionMap[stdIdStr];
+    }
+
+    // 2. Second Priority: Explicit custom subBatch property if set
+    if (std?.subBatch && std.subBatch.trim()) {
+      return std.subBatch.trim();
+    }
+
+    return 'Direct Enrolled';
+  }, [studentSessionMap]);
+
+  const allEnrolledStudentsList = useMemo(() => batchDetails?.students || [], [batchDetails?.students]);
+
+  const studentsWithSubBatch = useMemo(() => {
+    const total = allEnrolledStudentsList.length;
+    return allEnrolledStudentsList.map((std, idx) => ({
+      ...std,
+      assignedSubBatch: getStudentSubBatchTag(std, idx, total)
+    }));
+  }, [allEnrolledStudentsList, getStudentSubBatchTag]);
+
+  const subBatchCounts = useMemo(() => {
+    const counts = { ALL: studentsWithSubBatch.length };
+    studentsWithSubBatch.forEach(std => {
+      const tag = std.assignedSubBatch;
+      counts[tag] = (counts[tag] || 0) + 1;
+    });
+    return counts;
+  }, [studentsWithSubBatch]);
+
+  const availableSubBatchKeys = useMemo(() => {
+    const keys = new Set();
+    // 1. Add session names from saved BulkRegistrationSession records first (e.g. Batch 1)
+    if (Array.isArray(registrationSessions) && registrationSessions.length > 0) {
+      registrationSessions.forEach(sess => {
+        if (sess.sessionName) keys.add(sess.sessionName);
+      });
+    }
+    // 2. Include any explicit subBatch tags from candidates
+    studentsWithSubBatch.forEach(std => {
+      if (std.assignedSubBatch && std.assignedSubBatch !== 'Direct Enrolled') {
+        keys.add(std.assignedSubBatch);
+      }
+    });
+    return Array.from(keys);
+  }, [registrationSessions, studentsWithSubBatch]);
+
+  const filteredStudents = useMemo(() => {
+    if (selectedSubBatchFilter === 'ALL') return studentsWithSubBatch;
+    return studentsWithSubBatch.filter(s => s.assignedSubBatch === selectedSubBatchFilter);
+  }, [studentsWithSubBatch, selectedSubBatchFilter]);
+
+  const allStudentsSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedStudentIds.has(s._id));
 
   const toggleSelectAllStudents = () => {
     if (allStudentsSelected) {
-      setSelectedStudentIds(new Set());
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        filteredStudents.forEach(s => next.delete(s._id));
+        return next;
+      });
     } else {
-      setSelectedStudentIds(new Set((batchDetails?.students || []).map(s => s._id)));
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        filteredStudents.forEach(s => next.add(s._id));
+        return next;
+      });
     }
   };
 
@@ -450,6 +534,49 @@ const TeacherDashboard = () => {
       if (next.has(stdId)) next.delete(stdId); else next.add(stdId);
       return next;
     });
+  };
+
+  const handleBulkDeleteSubBatchCandidates = async (batchTag) => {
+    const targetStudents = batchTag === 'ALL'
+      ? studentsWithSubBatch
+      : studentsWithSubBatch.filter(s => s.assignedSubBatch === batchTag);
+
+    if (targetStudents.length === 0) return;
+    const confirmDelete = window.confirm(
+      `⚠️ PERMANENT BATCH DELETE CONFIRMATION:\n\nAre you sure you want to permanently delete all ${targetStudents.length} candidate(s) in "${batchTag}" from the database?\n\nThis will remove their user accounts and candidate records permanently. This action cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
+    setDeletingSelectedStudents(true);
+    try {
+      const studentIds = targetStudents.map(s => s._id);
+      const res = await api.post(`/batches/teacher/${selectedBatchId}/students/bulk-delete`, { studentIds });
+      alert(`✅ ${res.data.message}`);
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        studentIds.forEach(id => next.delete(id));
+        return next;
+      });
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete batch candidates.');
+    } finally {
+      setDeletingSelectedStudents(false);
+    }
+  };
+
+  const handleAssignSelectedToSubBatch = async (newSubBatch) => {
+    if (selectedStudentIds.size === 0) return;
+    try {
+      await api.post(`/batches/teacher/${selectedBatchId}/students/batch-assign`, {
+        studentIds: Array.from(selectedStudentIds),
+        subBatch: newSubBatch
+      });
+      alert(`✅ Assigned ${selectedStudentIds.size} candidate(s) to "${newSubBatch}".`);
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update candidate sub-batch.');
+    }
   };
 
   const handleBulkDeleteStudents = async () => {
@@ -533,6 +660,7 @@ const TeacherDashboard = () => {
         password: u.generatedPassword || '',
         mobile: u.mobile || p.phone || '',
         address: u.address || p.address || '',
+        subBatch: u.subBatch || std.assignedSubBatch || 'Batch 1',
         dob: u.dob ? new Date(u.dob).toISOString().split('T')[0] : (p.dob ? new Date(p.dob).toISOString().split('T')[0] : ''),
         gender: u.gender || p.gender || 'Male',
         branch: u.branch || p.branchDepartment || p.branch || '',
@@ -599,6 +727,18 @@ const TeacherDashboard = () => {
       const r = await api.get('/batches/teacher');
       const f = r.data.find(b => b._id === id);
       setBatchDetails(f || null);
+
+      // Fetch saved bulk registration sessions to sync candidate batch tabs
+      try {
+        const sessRes = await api.get(`/batches/teacher/${id}/registration-sessions`);
+        if (sessRes.data?.sessions) {
+          setRegistrationSessions(sessRes.data.sessions);
+        } else {
+          setRegistrationSessions([]);
+        }
+      } catch (sessErr) {
+        setRegistrationSessions([]);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -1570,6 +1710,93 @@ const TeacherDashboard = () => {
                   </div>
                 }
               />
+              {/* Sub-Batch Filter & Batch Actions Bar */}
+              {studentsWithSubBatch.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    {/* Batch 1, Batch 2, Batch 3 Filter Chips */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setSelectedSubBatchFilter('ALL')}
+                        style={{
+                          padding: '7px 16px', borderRadius: RADIUS.pill, fontSize: 12, fontWeight: 700,
+                          cursor: 'pointer', fontFamily: FONT, border: 'none',
+                          background: selectedSubBatchFilter === 'ALL' ? C.primary : '#F1F5F9',
+                          color: selectedSubBatchFilter === 'ALL' ? '#FFF' : C.body,
+                          boxShadow: selectedSubBatchFilter === 'ALL' ? '0 2px 8px rgba(79,70,229,0.3)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        👥 All Candidates ({subBatchCounts.ALL})
+                      </button>
+                      {availableSubBatchKeys.map(bKey => {
+                        const count = subBatchCounts[bKey] || 0;
+                        const isSelected = selectedSubBatchFilter === bKey;
+                        return (
+                          <button
+                            key={bKey}
+                            onClick={() => setSelectedSubBatchFilter(bKey)}
+                            style={{
+                              padding: '7px 16px', borderRadius: RADIUS.pill, fontSize: 12, fontWeight: 700,
+                              cursor: 'pointer', fontFamily: FONT, border: 'none',
+                              background: isSelected ? C.primary : '#F1F5F9',
+                              color: isSelected ? '#FFF' : C.body,
+                              boxShadow: isSelected ? '0 2px 8px rgba(79,70,229,0.3)' : 'none',
+                              display: 'inline-flex', alignItems: 'center', gap: 6,
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            📁 Session: {bKey}
+                            <span style={{
+                              fontSize: 10.5, padding: '1px 6px', borderRadius: 999,
+                              background: isSelected ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
+                              color: isSelected ? '#FFF' : C.muted, fontWeight: 800
+                            }}>
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Batch Wise Action Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {selectedSubBatchFilter !== 'ALL' && (
+                        <button
+                          onClick={() => handleBulkDeleteSubBatchCandidates(selectedSubBatchFilter)}
+                          disabled={deletingSelectedStudents}
+                          style={{
+                            background: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5',
+                            padding: '6px 14px', borderRadius: RADIUS.pill, fontSize: 11.5, fontWeight: 700,
+                            cursor: 'pointer', fontFamily: FONT, display: 'inline-flex', alignItems: 'center', gap: 6
+                          }}
+                        >
+                          <Trash2 size={13} /> Delete {selectedSubBatchFilter} Candidates ({subBatchCounts[selectedSubBatchFilter] || 0})
+                        </button>
+                      )}
+                      {selectedStudentIds.size > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F8FAFC', padding: '4px 10px', borderRadius: RADIUS.pill, border: `1px solid ${C.borderSoft}` }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>Assign Selected ({selectedStudentIds.size}):</span>
+                          {['Batch 1', 'Batch 2', 'Batch 3'].map(b => (
+                            <button
+                              key={b}
+                              onClick={() => handleAssignSelectedToSubBatch(b)}
+                              style={{
+                                background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE',
+                                padding: '3px 9px', borderRadius: RADIUS.pill, fontSize: 10.5, fontWeight: 700,
+                                cursor: 'pointer', fontFamily: FONT
+                              }}
+                            >
+                              Move to {b}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {!batchDetails?.students?.length ? (
                 <Empty icon={Users} title="No candidates enrolled yet" sub={`Upload an Excel file or share Batch ID: ${batchDetails?.batchId} and passcode: ${batchDetails?.uniqueKey}.`} />
               ) : (
@@ -1587,14 +1814,18 @@ const TeacherDashboard = () => {
                               title={allStudentsSelected ? "Deselect All" : "Select All"}
                             />
                           </th>
-                          {['Candidate', 'Username', 'Password', 'Email', 'Mobile', 'Actions'].map(h => (
+                          {['Candidate', 'Import Session', 'Username', 'Password', 'Email', 'Mobile', 'Actions'].map(h => (
                             <th key={h} style={{ padding: '13px 18px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.muted, background: '#F8FAFC', letterSpacing: '0.2px' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {batchDetails.students.map(std => {
+                        {filteredStudents.map(std => {
                           const checked = selectedStudentIds.has(std._id);
+                          const bTag = std.assignedSubBatch;
+                          const bColor = bTag.toLowerCase().includes('batch 1') || bTag.toLowerCase().includes('session 1') ? { bg: '#DBEAFE', text: '#1E40AF' }
+                                       : bTag.toLowerCase().includes('batch 2') || bTag.toLowerCase().includes('session 2') ? { bg: '#F3E8FF', text: '#6B21A8' }
+                                       : { bg: '#F1F5F9', text: '#475569' };
                           return (
                             <tr
                               key={std._id}
@@ -1623,6 +1854,14 @@ const TeacherDashboard = () => {
                                   </button>
                                 </div>
                               </td>
+                              <td style={{ padding: '13px 18px' }}>
+                                <span style={{
+                                  fontSize: 10.5, fontWeight: 800, padding: '3px 9px', borderRadius: 6,
+                                  background: bColor.bg, color: bColor.text, display: 'inline-block', whiteSpace: 'nowrap'
+                                }}>
+                                  Session: {bTag}
+                                </span>
+                              </td>
                               <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.username || '—'}</td>
                               <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.primaryDark, fontWeight: 600 }}>{std.generatedPassword || 'Pass@1234'}</td>
                               <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.email}</td>
@@ -1649,12 +1888,12 @@ const TeacherDashboard = () => {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10
                   }}>
                     <div>
-                      Total: <strong>{batchDetails.students.length}</strong> candidate(s) &nbsp;·&nbsp; Selected: <strong>{selectedStudentIds.size}</strong> &nbsp;·&nbsp;
+                      Showing: <strong>{filteredStudents.length}</strong> of <strong>{batchDetails.students.length}</strong> candidate(s) &nbsp;·&nbsp; Selected: <strong>{selectedStudentIds.size}</strong> &nbsp;·&nbsp;
                       <span
                         style={{ color: C.primary, cursor: 'pointer', fontWeight: 700, marginLeft: 4 }}
                         onClick={toggleSelectAllStudents}
                       >
-                        {allStudentsSelected ? 'Deselect All' : 'Select All'}
+                        {allStudentsSelected ? 'Deselect Active View' : 'Select Active View'}
                       </span>
                     </div>
                     {selectedStudentIds.size > 0 && (
@@ -2467,6 +2706,20 @@ const TeacherDashboard = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Username</label><input type="text" value={editStudentModal.username} onChange={e => setEditStudentModal({ ...editStudentModal, username: e.target.value })} style={inputStyle} /></div>
                 <div><label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Password</label><input type="text" value={editStudentModal.password} onChange={e => setEditStudentModal({ ...editStudentModal, password: e.target.value })} style={inputStyle} /></div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Assigned Sub-Batch</label>
+                <select
+                  value={editStudentModal.subBatch || 'Batch 1'}
+                  onChange={e => setEditStudentModal({ ...editStudentModal, subBatch: e.target.value })}
+                  style={inputStyle}
+                >
+                  <option value="Batch 1">Batch 1</option>
+                  <option value="Batch 2">Batch 2</option>
+                  <option value="Batch 3">Batch 3</option>
+                  <option value="Batch 4">Batch 4</option>
+                  <option value="Batch 5">Batch 5</option>
+                </select>
               </div>
               <Pill type="submit" disabled={editStudentSubmitting} style={{ marginTop: 8 }}>{editStudentSubmitting ? <Spin /> : 'Save Changes'}</Pill>
             </form>

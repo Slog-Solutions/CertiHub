@@ -233,7 +233,7 @@ router.get('/', requireAuth, requireRole(['Admin']), async (req, res) => {
     const batches = await Batch.find()
       .populate('teacherId', 'name username email')
       .populate('teachers.teacherId', 'name username email')
-      .populate('students', 'name username email mobile generatedPassword')
+      .populate('students', 'name username email mobile generatedPassword subBatch')
       .sort({ createdAt: -1 });
     res.json(batches);
   } catch (err) {
@@ -335,7 +335,7 @@ router.put('/:id', requireAuth, requireRole(['Admin']), async (req, res) => {
     const populated = await Batch.findById(batch._id)
       .populate('teacherId', 'name username email')
       .populate('teachers.teacherId', 'name username email')
-      .populate('students', 'name username email mobile generatedPassword');
+      .populate('students', 'name username email mobile generatedPassword subBatch');
     res.json(populated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -386,7 +386,7 @@ router.get('/teacher', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), 
     const batches = await Batch.find(query)
       .populate('teacherId', 'name username email')
       .populate('teachers.teacherId', 'name username email')
-      .populate('students', 'name username email mobile generatedPassword')
+      .populate('students', 'name username email mobile generatedPassword subBatch')
       .sort({ createdAt: -1 });
     res.json(batches);
   } catch (err) {
@@ -1024,7 +1024,7 @@ router.get('/teacher/:id/registration-sessions', requireAuth, requireRole(['Teac
     if (!batch) return res.status(404).json({ error: 'Batch not found or not assigned to you.' });
     const sessions = await BulkRegistrationSession.find({ batchId: batch._id })
       .sort({ createdAt: -1 })
-      .select('sessionName totalRegistered createdAt updatedAt')
+      .select('sessionName students totalRegistered createdAt updatedAt')
       .lean();
     res.json({ success: true, sessions });
   } catch (err) {
@@ -1223,6 +1223,33 @@ router.post('/teacher/:id/students/bulk-delete', requireAuth, requireRole(['Teac
   }
 });
 
+// Bulk assign candidate sub-batch (Batch 1, Batch 2, Batch 3, etc.)
+router.post('/teacher/:id/students/batch-assign', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), async (req, res) => {
+  try {
+    const batch = await findAccessibleBatch(req.params.id, req.user);
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found or not assigned to you.' });
+    }
+
+    const { studentIds, subBatch } = req.body;
+    if (!Array.isArray(studentIds) || studentIds.length === 0 || !subBatch) {
+      return res.status(400).json({ error: 'studentIds array and subBatch are required.' });
+    }
+
+    await User.updateMany(
+      { _id: { $in: studentIds }, role: 'Student' },
+      { $set: { subBatch: subBatch.trim() } }
+    );
+
+    res.json({
+      success: true,
+      message: `Successfully assigned ${studentIds.length} candidate(s) to "${subBatch.trim()}".`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to update candidate sub-batch.' });
+  }
+});
+
 // Get full details of a specific candidate student for Expert
 router.get('/teacher/:id/students/:studentId', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), async (req, res) => {
   try {
@@ -1252,7 +1279,7 @@ router.get('/teacher/:id/students/:studentId', requireAuth, requireRole(['Teache
 
 // Update/Edit candidate student details by Expert
 router.put('/teacher/:id/students/:studentId', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), async (req, res) => {
-  const { name, email, mobile, username, password, address, dob, gender, branch, state, technology, year } = req.body;
+  const { name, email, mobile, username, password, address, dob, gender, branch, state, technology, year, subBatch } = req.body;
 
   try {
     const batch = await findAccessibleBatch(req.params.id, req.user);
@@ -1275,6 +1302,7 @@ router.put('/teacher/:id/students/:studentId', requireAuth, requireRole(['Teache
     if (branch) user.branch = branch.trim();
     if (year) user.year = year.trim();
     if (technology) user.technology = technology.trim();
+    if (subBatch) user.subBatch = subBatch.trim();
     if (dob) {
       const parsedDob = parseExcelDate(dob);
       if (parsedDob) user.dob = parsedDob;
