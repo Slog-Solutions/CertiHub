@@ -12,6 +12,7 @@ import '@/admin/index.css';
 import UserLogin from './pages/UserLogin';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
+import BulkRegisterDashboard from './pages/BulkRegisterDashboard';
 
 // Configure Axios defaults
 axios.defaults.baseURL = API_BASE_URL;
@@ -99,6 +100,15 @@ export default function UserApp() {
               element={
                 <ProtectedRoute allowedRoles={['Teacher']}>
                   <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/user/teacher/bulk-register"
+              element={
+                <ProtectedRoute allowedRoles={['Teacher', 'Admin', 'Staff']}>
+                  <BulkRegisterDashboard />
                 </ProtectedRoute>
               }
             />

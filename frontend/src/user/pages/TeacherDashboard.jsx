@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import * as XLSX from 'xlsx';
 import {
   BookOpen, LogOut, Users, Plus, Bell, FileText, Link2,
   Download, Trash2, Calendar, User, X,
   AlertCircle, PlusCircle, CheckCircle2, ChevronRight,
-  Layers, Sparkles, Upload,
+  Layers, Sparkles, Upload, FileSpreadsheet,
   ListChecks, Edit2, Check, RotateCcw, ChevronDown, ChevronUp,
   ClipboardList, Trash, Star, MessageSquare, HelpCircle, Tag, Send,
   Eye, BarChart2, TrendingUp, TrendingDown, LayoutDashboard, Globe, Settings, Package, ShoppingBag, Shield
@@ -252,6 +254,7 @@ const SAMPLE_JSON = `[
 ───────────────────────────────────────────────────────── */
 const TeacherDashboard = () => {
   const { user, logout, api } = useAuth();
+  const navigate = useNavigate();
   const [batches, setBatches] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
@@ -330,42 +333,74 @@ const TeacherDashboard = () => {
   const [bulkError, setBulkError] = useState('');
   const [bulkResult, setBulkResult] = useState(null);
 
+  // Download sample Excel template for bulk registration
   const handleDownloadSampleExcel = () => {
-    const headers = "FullName,DateOfBirth,Gender,Email,PhoneNumber,PermanentAddress,WorkingState,Branch/Department,YearOfStudy,TrainingTechnology,PaymentTerm\n";
-    const sampleRow = "John Doe,2001-05-15,Male,johndoe@example.com,9876543210,Main Street Dehradun,Uttarakhand,Computer Science,3rd Year,Python & AI,Full Paid\n";
-    const blob = new Blob([headers + sampleRow], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'Sample_Candidate_Registration_Template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['FullName', 'DateOfBirth', 'Gender', 'Email', 'PhoneNumber', 'PermanentAddress', 'WorkingState', 'Branch/Department', 'YearOfStudy', 'TrainingTechnology', 'PaymentTerm'],
+      ['John Doe', '2001-05-15', 'Male', 'johndoe@example.com', '9876543210', 'Main Street Dehradun', 'Uttarakhand', 'Computer Science', '3rd Year', 'Python & AI', 'Full Paid'],
+      ['Jane Smith', '2000-08-22', 'Female', 'janesmith@example.com', '8765432109', '12 Park Lane, Mumbai', 'Maharashtra', 'Information Technology', '2nd Year', 'React & Node.js', 'Full Paid'],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidates');
+    XLSX.writeFile(wb, 'Sample_Candidate_Registration_Template.xlsx');
   };
 
-  const handleDownloadCredentialsCsv = (candidatesList) => {
+  // Export newly registered candidates' credentials as Excel after bulk upload
+  const handleExportCredentialsExcel = (candidatesList) => {
     if (!candidatesList || candidatesList.length === 0) return;
-    let csv = "FullName,Email,Phone,GeneratedUsername,GeneratedPassword,SMTP_Status,Technology,Branch\n";
+    const wsData = [
+      ['Full Name', 'Email', 'Phone', 'Username (Login ID)', 'Password', 'Email Status', 'Technology', 'Branch/Dept']
+    ];
     candidatesList.forEach(c => {
-      const name = `"${(c.fullName || '').replace(/"/g, '""')}"`;
-      const email = `"${(c.email || '').replace(/"/g, '""')}"`;
-      const phone = `"${(c.phone || '').replace(/"/g, '""')}"`;
-      const uname = `"${(c.username || '').replace(/"/g, '""')}"`;
-      const pass = `"${(c.password || '').replace(/"/g, '""')}"`;
-      const smtp = c.emailSent ? "Sent via SMTP" : "Skipped/Pending";
-      const tech = `"${(c.technology || '').replace(/"/g, '""')}"`;
-      const branch = `"${(c.branch || '').replace(/"/g, '""')}"`;
-      csv += `${name},${email},${phone},${uname},${pass},${smtp},${tech},${branch}\n`;
+      wsData.push([
+        c.fullName || '',
+        c.email || '',
+        c.phone || '',
+        c.username || '',
+        c.password || '',
+        c.emailSent ? 'Sent via Email' : 'Pending',
+        c.technology || '',
+        c.branch || ''
+      ]);
     });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // Auto-width columns
+    ws['!cols'] = [20, 28, 14, 20, 14, 16, 20, 20].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Credentials');
+    const batchName = (batchDetails?.name || 'Batch').replace(/[^a-zA-Z0-9_-]/g, '_');
+    XLSX.writeFile(wb, `${batchName}_Registered_Credentials.xlsx`);
+  };
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${batchDetails?.name || 'Batch'}_Candidates_Credentials.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Export all enrolled students data as Excel from the Students tab
+  const handleExportStudentsExcel = () => {
+    const students = batchDetails?.students;
+    if (!students || students.length === 0) return;
+    const wsData = [
+      ['#', 'Full Name', 'Email', 'Username (Login ID)', 'Password', 'Mobile', 'Gender', 'State/Region', 'Branch/Dept', 'Year', 'Technology', 'Account Status']
+    ];
+    students.forEach((std, idx) => {
+      wsData.push([
+        idx + 1,
+        std.name || '',
+        std.email || '',
+        std.username || '',
+        std.generatedPassword || '',
+        std.mobile || '',
+        std.gender || '',
+        std.state || '',
+        std.branch || '',
+        std.year || '',
+        std.technology || '',
+        std.isActive !== false ? 'Active' : 'Inactive'
+      ]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [4, 22, 28, 20, 14, 14, 10, 16, 20, 10, 20, 12].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    const batchName = (batchDetails?.name || 'Batch').replace(/[^a-zA-Z0-9_-]/g, '_');
+    XLSX.utils.book_append_sheet(wb, ws, 'Students');
+    XLSX.writeFile(wb, `${batchName}_Enrolled_Students.xlsx`);
   };
 
   const handleBulkRegisterSubmit = async (e) => {
@@ -396,11 +431,58 @@ const TeacherDashboard = () => {
   };
 
   const [deletingStudentId, setDeletingStudentId] = useState(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+  const [deletingSelectedStudents, setDeletingSelectedStudents] = useState(false);
+
+  const allStudentsSelected = batchDetails?.students?.length > 0 && selectedStudentIds.size === batchDetails.students.length;
+
+  const toggleSelectAllStudents = () => {
+    if (allStudentsSelected) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set((batchDetails?.students || []).map(s => s._id)));
+    }
+  };
+
+  const toggleSelectStudent = (stdId) => {
+    setSelectedStudentIds(prev => {
+      const next = new Set(prev);
+      if (next.has(stdId)) next.delete(stdId); else next.add(stdId);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteStudents = async () => {
+    if (selectedStudentIds.size === 0) return;
+    const count = selectedStudentIds.size;
+    const confirmDelete = window.confirm(`⚠️ PERMANENT DELETE CONFIRMATION:\n\nAre you sure you want to permanently delete ${count} selected candidate(s) from the database?\n\nThis will permanently remove their user accounts and candidate records. This action cannot be undone.`);
+    if (!confirmDelete) return;
+
+    setDeletingSelectedStudents(true);
+    try {
+      const res = await api.post(`/batches/teacher/${selectedBatchId}/students/bulk-delete`, {
+        studentIds: Array.from(selectedStudentIds)
+      });
+      alert(`✅ ${res.data.message}`);
+      setSelectedStudentIds(new Set());
+      fetchDetails(selectedBatchId);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to bulk delete candidates.');
+    } finally {
+      setDeletingSelectedStudents(false);
+    }
+  };
+
   const handleDeleteStudent = async (studentId, studentName) => {
-    if (!window.confirm(`Are you sure you want to remove candidate "${studentName}" from this batch?`)) return;
+    if (!window.confirm(`Are you sure you want to remove candidate "${studentName}" from this batch and database?`)) return;
     setDeletingStudentId(studentId);
     try {
       await api.delete(`/batches/teacher/${selectedBatchId}/students/${studentId}`);
+      setSelectedStudentIds(prev => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
       fetchDetails(selectedBatchId);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to remove student from batch.');
@@ -1022,6 +1104,31 @@ const TeacherDashboard = () => {
             })}
           </div>
 
+          {/* Bulk Register — Standalone Page */}
+          <div>
+            <div style={{ padding: '0 8px 8px', fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              TOOLS
+            </div>
+            <button
+              onClick={() => navigate('/user/teacher/bulk-register')}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                borderRadius: RADIUS.sm, border: 'none', cursor: 'pointer', marginBottom: 3,
+                background: 'transparent', color: C.body,
+                fontWeight: 500, fontSize: 13, transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.primarySoft; e.currentTarget.style.color = C.primaryDark; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.body; }}
+            >
+              <Upload size={16} color={C.primary} strokeWidth={2} />
+              <span style={{ flex: 1, textAlign: 'left' }}>Bulk Register</span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999,
+                background: C.primarySoft, color: C.primaryDark
+              }}>NEW</span>
+            </button>
+          </div>
+
           {/* Products Group */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 8px' }}>
@@ -1163,7 +1270,7 @@ const TeacherDashboard = () => {
               { label: 'Add Link', color: C.blue, bg: C.blueSoft, icon: Link2, action: () => openModal('link') },
               { label: 'Curriculum', color: C.purple, bg: C.purpleSoft, icon: ListChecks, action: () => openModal('curriculum') },
               { label: 'New Assignment', color: C.teal, bg: C.tealSoft, icon: ClipboardList, action: () => { setAssignmentError(''); setAssignmentSuccess(''); setAssignmentFormData({ title: '', description: '', dueDate: '', totalPoints: 100, fileUrl: '' }); setIsCreateAssignmentOpen(true); } },
-              { label: 'Bulk Register', color: C.primary, bg: C.primarySoft, icon: Upload, action: () => { setIsBulkModalOpen(true); setBulkFile(null); setBulkError(''); setBulkResult(null); } },
+              { label: 'Bulk Register', color: C.primary, bg: C.primarySoft, icon: Upload, action: () => { navigate('/user/teacher/bulk-register'); } },
             ].map(act => (
               <div key={act.label} onClick={act.action} style={{
                 background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.pill,
@@ -1437,10 +1544,28 @@ const TeacherDashboard = () => {
               <SectionHeader
                 title={`Enrolled Candidates (${batchDetails?.students?.length || 0})`}
                 action={
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {selectedStudentIds.size > 0 && (
+                      <Pill
+                        variant="danger"
+                        icon={Trash2}
+                        onClick={handleBulkDeleteStudents}
+                        disabled={deletingSelectedStudents}
+                        style={{ background: '#EF4444', color: '#FFFFFF', fontWeight: 700 }}
+                      >
+                        {deletingSelectedStudents ? 'Deleting...' : `Delete Selected (${selectedStudentIds.size})`}
+                      </Pill>
+                    )}
                     <Pill icon={Upload} onClick={() => { setIsBulkModalOpen(true); setBulkFile(null); setBulkError(''); setBulkResult(null); }}>Bulk Register</Pill>
                     {batchDetails?.students?.length > 0 && (
-                      <Pill variant="outline" icon={Download} onClick={() => handleDownloadCredentialsCsv(batchDetails.students)}>Download Credentials CSV</Pill>
+                      <Pill
+                        variant="outline"
+                        icon={FileSpreadsheet}
+                        onClick={handleExportStudentsExcel}
+                        style={{ background: '#F0FDF4', color: '#15803D', borderColor: '#86EFAC' }}
+                      >
+                        Export Excel
+                      </Pill>
                     )}
                   </div>
                 }
@@ -1453,43 +1578,99 @@ const TeacherDashboard = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+                          <th style={{ padding: '13px 16px', width: 40, background: '#F8FAFC', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={allStudentsSelected}
+                              onChange={toggleSelectAllStudents}
+                              style={{ cursor: 'pointer', accentColor: C.primary, width: 16, height: 16 }}
+                              title={allStudentsSelected ? "Deselect All" : "Select All"}
+                            />
+                          </th>
                           {['Candidate', 'Username', 'Password', 'Email', 'Mobile', 'Actions'].map(h => (
                             <th key={h} style={{ padding: '13px 18px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: C.muted, background: '#F8FAFC', letterSpacing: '0.2px' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {batchDetails.students.map(std => (
-                          <tr key={std._id} style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-                            <td style={{ padding: '13px 18px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <div style={{
-                                  width: 32, height: 32, borderRadius: '50%', background: C.primarySoft, color: C.primaryDark,
-                                  fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                }}>{std.name?.charAt(0).toUpperCase()}</div>
-                                <button onClick={() => openStudentInfoModal(std)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: FONT }}>
-                                  <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{std.name}</div>
-                                </button>
-                              </div>
-                            </td>
-                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.username || '—'}</td>
-                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.primaryDark, fontWeight: 600 }}>{std.generatedPassword || 'Pass@1234'}</td>
-                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.email}</td>
-                            <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.mobile || '—'}</td>
-                            <td style={{ padding: '13px 18px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                <Pill variant="outline" icon={Eye} onClick={() => openStudentInfoModal(std)} style={{ padding: '6px 11px', fontSize: 11 }}>Info</Pill>
-                                <Pill onClick={() => openStudentEditModal(std)} style={{ padding: '6px 11px', fontSize: 11, background: C.orangeSoft, color: C.orangeText }}><Edit2 size={11} /> Edit</Pill>
-                                <Pill onClick={() => { setDirectPushModal({ studentId: std._id, studentName: std.name }); setDirectPushForm({ title: '', message: '' }); setDirectPushResult(null); }}
-                                  style={{ padding: '6px 11px', fontSize: 11, background: C.purpleSoft, color: C.purpleText }}><Bell size={11} /> Push</Pill>
-                                <Pill variant="danger" onClick={() => handleDeleteStudent(std._id, std.name)} disabled={deletingStudentId === std._id}
-                                  style={{ padding: '6px 11px', fontSize: 11 }}><Trash2 size={11} /> {deletingStudentId === std._id ? '...' : 'Remove'}</Pill>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {batchDetails.students.map(std => {
+                          const checked = selectedStudentIds.has(std._id);
+                          return (
+                            <tr
+                              key={std._id}
+                              style={{
+                                borderBottom: `1px solid ${C.borderSoft}`,
+                                background: checked ? `${C.primary}0D` : 'transparent',
+                                transition: 'background 0.15s ease'
+                              }}
+                            >
+                              <td style={{ padding: '13px 16px', textAlign: 'center' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleSelectStudent(std._id)}
+                                  style={{ cursor: 'pointer', accentColor: C.primary, width: 16, height: 16 }}
+                                />
+                              </td>
+                              <td style={{ padding: '13px 18px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <div style={{
+                                    width: 32, height: 32, borderRadius: '50%', background: C.primarySoft, color: C.primaryDark,
+                                    fontWeight: 700, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                  }}>{std.name?.charAt(0).toUpperCase()}</div>
+                                  <button onClick={() => openStudentInfoModal(std)} style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: FONT }}>
+                                    <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{std.name}</div>
+                                  </button>
+                                </div>
+                              </td>
+                              <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.username || '—'}</td>
+                              <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.primaryDark, fontWeight: 600 }}>{std.generatedPassword || 'Pass@1234'}</td>
+                              <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.email}</td>
+                              <td style={{ padding: '13px 18px', fontSize: 12.5, color: C.muted }}>{std.mobile || '—'}</td>
+                              <td style={{ padding: '13px 18px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <Pill variant="outline" icon={Eye} onClick={() => openStudentInfoModal(std)} style={{ padding: '6px 11px', fontSize: 11 }}>Info</Pill>
+                                  <Pill onClick={() => openStudentEditModal(std)} style={{ padding: '6px 11px', fontSize: 11, background: C.orangeSoft, color: C.orangeText }}><Edit2 size={11} /> Edit</Pill>
+                                  <Pill onClick={() => { setDirectPushModal({ studentId: std._id, studentName: std.name }); setDirectPushForm({ title: '', message: '' }); setDirectPushResult(null); }}
+                                    style={{ padding: '6px 11px', fontSize: 11, background: C.purpleSoft, color: C.purpleText }}><Bell size={11} /> Push</Pill>
+                                  <Pill variant="danger" onClick={() => handleDeleteStudent(std._id, std.name)} disabled={deletingStudentId === std._id}
+                                    style={{ padding: '6px 11px', fontSize: 11 }}><Trash2 size={11} /> {deletingStudentId === std._id ? '...' : 'Remove'}</Pill>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
+                  </div>
+                  <div style={{
+                    padding: '12px 18px', fontSize: 12, color: C.muted,
+                    borderTop: `1px solid ${C.borderSoft}`, background: '#FAFAFA',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10
+                  }}>
+                    <div>
+                      Total: <strong>{batchDetails.students.length}</strong> candidate(s) &nbsp;·&nbsp; Selected: <strong>{selectedStudentIds.size}</strong> &nbsp;·&nbsp;
+                      <span
+                        style={{ color: C.primary, cursor: 'pointer', fontWeight: 700, marginLeft: 4 }}
+                        onClick={toggleSelectAllStudents}
+                      >
+                        {allStudentsSelected ? 'Deselect All' : 'Select All'}
+                      </span>
+                    </div>
+                    {selectedStudentIds.size > 0 && (
+                      <button
+                        onClick={handleBulkDeleteStudents}
+                        disabled={deletingSelectedStudents}
+                        style={{
+                          background: C.redSoft, color: C.redText, border: `1px solid ${C.red}40`,
+                          padding: '6px 14px', borderRadius: RADIUS.pill, fontSize: 12, fontWeight: 700,
+                          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                          fontFamily: FONT
+                        }}
+                      >
+                        <Trash2 size={13} /> {deletingSelectedStudents ? 'Deleting...' : `Delete ${selectedStudentIds.size} Selected Candidate(s) from Database`}
+                      </button>
+                    )}
                   </div>
                 </Card>
               )}
@@ -2073,31 +2254,168 @@ const TeacherDashboard = () => {
       {/* Bulk Excel Register Modal */}
       {isBulkModalOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg, width: '100%', maxWidth: 520, boxShadow: C.shadowLg, overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{
+            background: '#fff', border: `1px solid ${C.border}`, borderRadius: RADIUS.lg,
+            width: '100%', maxWidth: bulkResult?.candidates?.length > 0 ? 760 : 520,
+            boxShadow: C.shadowLg, overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+            transition: 'max-width 0.3s ease'
+          }}>
+            {/* Modal Header */}
+            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <IconBadge icon={Upload} color={C.primary} size={36} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Bulk Register Candidates (Excel)</h3>
-              </div>
-              <button onClick={() => setIsBulkModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
-            </div>
-            <form onSubmit={handleBulkRegisterSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {bulkError && <FormAlert msg={bulkError} type="error" />}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.primarySoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
-                <span style={{ fontSize: 12, color: C.primaryDark, fontWeight: 600 }}>Need format guidelines?</span>
-                <Pill type="button" variant="outline" onClick={handleDownloadSampleExcel} style={{ fontSize: 11, padding: '5px 12px' }}>Download CSV Template</Pill>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4 }}>Upload .xlsx / .csv File</label>
-                <input type="file" required accept=".xlsx, .xls, .csv" onChange={e => setBulkFile(e.target.files[0])} style={{ fontSize: 12 }} />
-              </div>
-              {bulkResult && (
-                <div style={{ padding: '12px', background: C.greenSoft, borderRadius: RADIUS.sm, fontSize: 12, color: C.greenText }}>
-                  <strong>Success:</strong> {bulkResult.message || 'Candidates registered!'}
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: C.ink, margin: 0 }}>Bulk Register Candidates</h3>
+                  <p style={{ fontSize: 11, color: C.muted, margin: 0 }}>Upload Excel (.xlsx) or CSV — credentials auto-generated & emailed</p>
                 </div>
-              )}
-              <Pill type="submit" disabled={bulkSubmitting} style={{ marginTop: 6 }}>{bulkSubmitting ? <Spin /> : 'Register Candidates'}</Pill>
-            </form>
+              </div>
+              <button onClick={() => { setIsBulkModalOpen(false); setBulkResult(null); setBulkFile(null); setBulkError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted }}><X size={18} /></button>
+            </div>
+
+            {/* Upload Form (shown when no result yet) */}
+            {!bulkResult && (
+              <form onSubmit={handleBulkRegisterSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto' }}>
+                {bulkError && <FormAlert msg={bulkError} type="error" />}
+
+                {/* Template Download Banner */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: C.primarySoft, padding: '12px 14px', borderRadius: RADIUS.sm }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: C.primaryDark, fontWeight: 700 }}>📋 Need the Excel template?</div>
+                    <div style={{ fontSize: 11, color: C.primary, marginTop: 2 }}>Required columns: FullName, Email, PhoneNumber, DateOfBirth, Gender, etc.</div>
+                  </div>
+                  <Pill type="button" variant="outline" icon={FileSpreadsheet} onClick={handleDownloadSampleExcel} style={{ fontSize: 11, padding: '6px 14px', flexShrink: 0 }}>Download Template</Pill>
+                </div>
+
+                {/* File Upload Zone */}
+                <div
+                  style={{
+                    border: `2px dashed ${bulkFile ? C.greenText : C.border}`,
+                    borderRadius: RADIUS.md, padding: '24px 20px',
+                    background: bulkFile ? C.greenSoft : '#F8FAFC',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                    cursor: 'pointer', transition: 'all 0.2s ease', textAlign: 'center'
+                  }}
+                  onClick={() => document.getElementById('bulk-excel-input').click()}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: bulkFile ? C.greenSoft : C.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileSpreadsheet size={22} color={bulkFile ? C.greenText : C.primary} />
+                  </div>
+                  {bulkFile ? (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.greenText }}>✓ {bulkFile.name}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{(bulkFile.size / 1024).toFixed(1)} KB · Click to change</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Drop your Excel file here</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>Supports .xlsx, .xls, .csv formats</div>
+                    </>
+                  )}
+                  <input
+                    id="bulk-excel-input"
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    style={{ display: 'none' }}
+                    onChange={e => setBulkFile(e.target.files[0] || null)}
+                  />
+                </div>
+
+                <Pill type="submit" disabled={bulkSubmitting || !bulkFile} style={{ marginTop: 4 }}>
+                  {bulkSubmitting ? <><Spin /> Processing candidates...</> : '🚀 Register Candidates'}
+                </Pill>
+              </form>
+            )}
+
+            {/* Results — Credentials Table */}
+            {bulkResult && (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                {/* Result Summary Bar */}
+                <div style={{
+                  padding: '14px 24px', background: '#F0FDF4', borderBottom: `1px solid #BBF7D0`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <CheckCircle2 size={18} color="#16A34A" />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#15803D' }}>
+                        {bulkResult.totalProcessed || bulkResult.candidates?.length || 0} candidate(s) registered successfully!
+                      </div>
+                      <div style={{ fontSize: 11, color: '#4ADE80' }}>Credentials auto-generated. Save this list — passwords won't be shown again.</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleExportCredentialsExcel(bulkResult.candidates)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                        background: '#16A34A', color: '#fff', border: 'none', borderRadius: RADIUS.sm,
+                        fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: FONT,
+                        boxShadow: '0 2px 8px rgba(22,163,74,0.3)', transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => e.target.style.background = '#15803D'}
+                      onMouseLeave={e => e.target.style.background = '#16A34A'}
+                    >
+                      <FileSpreadsheet size={14} /> Export Excel
+                    </button>
+                    <button
+                      onClick={() => { setBulkResult(null); setBulkFile(null); setBulkError(''); }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+                        background: C.primarySoft, color: C.primaryDark, border: `1px solid ${C.primary}40`,
+                        borderRadius: RADIUS.sm, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: FONT
+                      }}
+                    >
+                      <Upload size={14} /> Upload Another
+                    </button>
+                  </div>
+                </div>
+
+                {/* Credentials Table */}
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                      <tr style={{ background: '#F8FAFC', borderBottom: `1px solid ${C.borderSoft}` }}>
+                        {['Name', 'Email', 'Username (ID)', 'Password', 'Email Sent', 'Status'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: C.muted, fontSize: 10.5, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(bulkResult.candidates || []).map((cand, i) => (
+                        <tr key={i} style={{ borderBottom: `1px solid ${C.borderSoft}`, background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: C.ink, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cand.fullName}>{cand.fullName}</td>
+                          <td style={{ padding: '10px 14px', color: C.muted, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={cand.email}>{cand.email}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <code style={{ background: C.primarySoft, color: C.primaryDark, padding: '2px 6px', borderRadius: 5, fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap' }}>{cand.username}</code>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <code style={{ background: '#D1FAE5', color: '#065F46', padding: '2px 6px', borderRadius: 5, fontWeight: 700, fontSize: 11 }}>{cand.password}</code>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
+                              background: cand.emailSent ? '#DCFCE7' : '#FEF9C3',
+                              color: cand.emailSent ? '#15803D' : '#A16207'
+                            }}>
+                              {cand.emailSent ? '✓ Sent' : '⏳ Pending'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999,
+                              background: cand.alreadyExisted ? '#FEF3C7' : '#EFF6FF',
+                              color: cand.alreadyExisted ? '#B45309' : C.blueText
+                            }}>
+                              {cand.alreadyExisted ? 'Updated' : 'New'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
