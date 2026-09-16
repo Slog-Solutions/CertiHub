@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // Next defaults to 4 static-generation worker processes regardless of machine size; that OOMs low-RAM build hosts.
+    cpus: 1,
+  },
   images: {
     unoptimized: true, // required for static HTML export
     remotePatterns: [
