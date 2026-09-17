@@ -12,9 +12,11 @@ const Student = require('../models/Student');
 const CourseDetail = require('../models/CourseDetail');
 const Certificate = require('../models/Certificate');
 const CertificateTemplate = require('../models/CertificateTemplate');
+const Batch = require('../models/Batch');
 const CertificateBatch = require('../models/CertificateBatch');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
+const { resolveTemplateFile } = require('../utils/certificateTemplates');
 const { buildSearchRegex } = require('../utils/regexSafe');
 
 // Ensure upload/certificates directory exists
@@ -688,6 +690,8 @@ router.put('/:id', requireAuth, async (req, res) => {
       const filename = `${cert.certificateId}.pdf`;
       const pdfPath = path.join(certsDir, filename);
 
+      const batch = cert.batchId ? await Batch.findById(cert.batchId).select('certificateTemplate') : null;
+
       // Overwrite the existing PDF file
       await generateCertificatePDF(
         student,
@@ -695,10 +699,12 @@ router.put('/:id', requireAuth, async (req, res) => {
         cert.certificateId,
         qrCodeBase64,
         pdfPath,
-        new Date() // current completion or date issued
+        new Date(), // current completion or date issued
+        batch?.certificateTemplate
       );
 
       cert.qrCodeUrl = qrCodeBase64;
+      cert.templateFile = resolveTemplateFile(batch?.certificateTemplate);
     }
 
     await cert.save();

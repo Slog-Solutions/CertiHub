@@ -75,16 +75,29 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     const Student = require('./models/Student');
     const CourseDetail = require('./models/CourseDetail');
     
-    const student = await Student.findById(cert.studentId)
-      .populate('collegeId')
-      .populate('branchId');
-      
-    const courseDetail = await CourseDetail.findById(cert.courseDetailId)
-      .populate('technologyId')
-      .populate('durationId');
+    const User = require('./models/User');
+    const Batch = require('./models/Batch');
+    const { buildBatchCertificateData } = require('./utils/certificateData');
 
+    const student = cert.studentId
+      ? await Student.findById(cert.studentId).populate('collegeId').populate('branchId')
+      : null;
+
+    const courseDetail = cert.courseDetailId
+      ? await CourseDetail.findById(cert.courseDetailId).populate('technologyId').populate('durationId')
+      : null;
+
+    // Batch certificates can be issued to candidates without a Student/CourseDetail record —
+    // rebuild them from the User account and batch, as when they were first generated
+    let studentData = student;
+    let courseDetailData = courseDetail;
     if (!student || !courseDetail) {
-      return res.status(404).send('Student or course details not found');
+      const user = cert.userId ? await User.findById(cert.userId) : null;
+      if (!user) {
+        return res.status(404).send('Student or course details not found');
+      }
+      const batch = cert.batchId ? await Batch.findById(cert.batchId) : null;
+      ({ studentData, courseDetailData } = buildBatchCertificateData({ user, student, courseDetail, batch }));
     }
 
     const { generateCertificatePDF } = require('./utils/pdfGenerator');
@@ -96,13 +109,15 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     }
 
     console.log(`Lazy generating certificate PDF for: ${certificateId}`);
+    // Keep the layout the certificate was issued with (older certificates predate per-batch templates)
     await generateCertificatePDF(
-      student,
-      courseDetail,
+      studentData,
+      courseDetailData,
       certificateId,
       cert.qrCodeUrl,
       pdfPath,
-      cert.issueDate
+      cert.issueDate,
+      cert.templateFile || 'default.html'
     );
 
     res.sendFile(pdfPath);

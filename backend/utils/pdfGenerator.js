@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const Mustache = require('mustache');
+const { TEMPLATES_DIR, resolveTemplateFile } = require('./certificateTemplates');
 
 /**
  * Finds an installed Chrome or Edge browser on Windows.
@@ -61,13 +62,14 @@ function toDataUri(filePath) {
  * @param {String}  qrCodeBase64   - QR code data URI (kept for API compatibility)
  * @param {String}  outputPath     - Absolute file path to write the PDF
  * @param {Date}    completionDate - Completion / issue date
+ * @param {String}  [templateFile] - Template filename in backend/templates (e.g. batch.certificateTemplate)
  * @returns {Promise<String>}      - Resolves with outputPath
  */
-const generateCertificatePDF = async (student, courseDetail, certificateId, qrCodeBase64, outputPath, completionDate) => {
+const generateCertificatePDF = async (student, courseDetail, certificateId, qrCodeBase64, outputPath, completionDate, templateFile) => {
   const backendDir = path.join(__dirname, '..');
 
-  // ── 1. Load HTML template ──────────────────────────────────────────────
-  const templatePath = path.join(backendDir, 'templates', 'default.html');
+  // ── 1. Load HTML template (assigned per batch; falls back to default.html) ──
+  const templatePath = path.join(TEMPLATES_DIR, resolveTemplateFile(templateFile));
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Certificate template not found at: ${templatePath}`);
   }

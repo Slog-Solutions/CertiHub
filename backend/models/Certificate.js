@@ -31,6 +31,11 @@ const certificateSchema = new mongoose.Schema({
     ref: 'CertificateTemplate',
     default: null
   },
+  // Template file (backend/templates) this certificate's PDF was generated with
+  templateFile: {
+    type: String,
+    default: null
+  },
   issueDate: {
     type: Date,
     default: Date.now

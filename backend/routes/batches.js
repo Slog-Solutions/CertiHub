@@ -11,6 +11,8 @@ const Batch = require('../models/Batch');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const BulkRegistrationSession = require('../models/BulkRegistrationSession');
+const { normalizeMobile, isValidMobile } = require('../utils/phone');
+const { hashPasswords } = require('../utils/hashPool');
 const Certificate = require('../models/Certificate');
 const CertificateTemplate = require('../models/CertificateTemplate');
 const CourseDetail = require('../models/CourseDetail');
@@ -20,6 +22,8 @@ const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
 const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
+const { listCertificateTemplates, resolveTemplateFile } = require('../utils/certificateTemplates');
+const { buildBatchCertificateData } = require('../utils/certificateData');
 
 // ── Certificate constants ───────────────────────────────────────────────────
 const certsDir = path.join(__dirname, '../uploads/certificates');
@@ -90,7 +94,7 @@ const triggerAutoCertificates = async (batch) => {
         // Check if an Active certificate already exists
         const queryConds = [{ userId: user._id }];
         if (student) queryConds.push({ studentId: student._id });
-        const existing = await Certificate.findOne({ $or: queryConds, status: 'Active' });
+        const existing = await Certificate.findOne({ $or: queryConds, batchId: batch._id, status: 'Active' });
         if (existing) {
           console.log(`[AutoCert] Certificate already exists for ${user.username} — skipping.`);
           continue;
@@ -100,19 +104,7 @@ const triggerAutoCertificates = async (batch) => {
           ? await CourseDetail.findById(student.courseDetailId).populate('technologyId').populate('durationId')
           : null;
 
-        const studentData = {
-          _id: student ? student._id : null,
-          name: (user.name || student?.name || 'Candidate').trim(),
-          registrationNo: student?.registrationNo || user.username || `REG-${user._id.toString().slice(-6).toUpperCase()}`,
-          collegeId: student?.collegeId || { collegeName: 'SLOG Solutions Private Limited' },
-          branchId: student?.branchId || { branchName: user.branch || 'General' }
-        };
-
-        const courseDetailData = courseDetail || {
-          _id: null,
-          technologyId: { name: batch.name ? batch.name.toUpperCase() : 'TRAINING PROGRAM' },
-          durationId: { value: 'Complete', unit: 'Course' }
-        };
+        const { studentData, courseDetailData } = buildBatchCertificateData({ user, student, courseDetail, batch });
 
         const certId = generateCertificateId();
         const verificationUrl = `${clientUrl}/verify/${certId}`;
@@ -122,7 +114,7 @@ const triggerAutoCertificates = async (batch) => {
         const pdfPath = path.join(certsDir, filename);
         const completionDate = new Date();
 
-        await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate);
+        await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate, batch.certificateTemplate);
 
         const pdfUrl = `/uploads/certificates/${filename}`;
 
@@ -133,6 +125,7 @@ const triggerAutoCertificates = async (batch) => {
           batchId: batch._id,
           courseDetailId: courseDetail ? courseDetail._id : null,
           ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
+          templateFile: resolveTemplateFile(batch.certificateTemplate),
           pdfUrl,
           qrCodeUrl: qrCodeBase64,
           issueDate: completionDate,
@@ -389,6 +382,36 @@ router.get('/teacher', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), 
       .populate('students', 'name username email mobile generatedPassword subBatch')
       .sort({ createdAt: -1 });
     res.json(batches);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List available certificate templates (HTML files in backend/templates)
+router.get('/teacher/certificate-templates', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), async (req, res) => {
+  try {
+    res.json(listCertificateTemplates());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Assign a certificate template to a batch
+router.patch('/teacher/:id/certificate-template', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), async (req, res) => {
+  try {
+    const { templateFile } = req.body;
+    if (!templateFile || resolveTemplateFile(templateFile) !== templateFile) {
+      return res.status(400).json({ error: 'Invalid certificate template' });
+    }
+
+    const batch = await findAccessibleBatch(req.params.id, req.user);
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found or not assigned to you' });
+    }
+
+    batch.certificateTemplate = templateFile;
+    await batch.save();
+    res.json({ certificateTemplate: batch.certificateTemplate });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -733,8 +756,16 @@ router.delete('/teacher/:id/curriculum', requireAuth, requireRole(['Teacher', 'A
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCTION-READY Bulk candidate registration via Excel upload
-// Handles 3,000+ students: parallel bcrypt hashing, bulk DB writes, no SMTP
+// Bulk candidate registration via Excel upload
+//
+// Scale: a single import may carry 4,500+ rows. Every lookup is one query for
+// the whole sheet (never one per row), password hashing is fanned out across
+// worker threads (see utils/hashPool.js — inline hashing would freeze the API
+// for minutes), and writes go out as two bulk operations.
+//
+// Credentials: candidates sign in with their mobile number as BOTH username
+// and password, normalised to bare 10 digits (see utils/phone.js), so "+91",
+// "0" prefixes and spacing in the sheet all resolve to the same login.
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teacher', 'Admin', 'Staff']), uploadExcel.single('excel'), async (req, res) => {
   if (!req.file) {
@@ -797,15 +828,21 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
       return '';
     };
 
-    // ── Step 1: Extract & validate rows with smart fallbacks for missing fields ──────
+    // ── Step 1: Extract & validate rows ──────────────────────────────────────
+    // The mobile number is the candidate's login, so unlike the other columns
+    // it cannot be defaulted — a row without a usable one is reported back to
+    // the operator rather than silently imported with a broken credential.
     const validRows = [];
-    const seenEmailsInFile = new Set();
+    const skipped = [];
+    const seenMobiles = new Map(); // normalised mobile → first sheet row that used it
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
+      const sheetRow = i + 2; // +1 for zero-index, +1 for the header row
+
       let fullName = getCol(row, ['FullName', 'Full Name', 'Name', 'Student Name', 'StudentName', 'Candidate Name', 'CandidateName', 'Student']);
       let email = getCol(row, ['Email', 'Email Address', 'EmailAddress', 'Email ID', 'EmailId', 'Mail', 'Mail Address']).toLowerCase();
-      const phone = getCol(row, ['Mobile Number', 'MobileNumber', 'Mobile No', 'MobileNo', 'Mobile No.', 'Mobile', 'Contact Number', 'ContactNumber', 'Contact No', 'Contact No.', 'Contact', 'Phone Number', 'PhoneNumber', 'Phone', 'Cell', 'Cell Number']);
+      const rawPhone = getCol(row, ['Mobile Number', 'MobileNumber', 'Mobile No', 'MobileNo', 'Mobile No.', 'Mobile', 'Contact Number', 'ContactNumber', 'Contact No', 'Contact No.', 'Contact', 'Phone Number', 'PhoneNumber', 'Phone', 'Cell', 'Cell Number']);
       const address = getCol(row, ['PermanentAddress', 'Permanent Address', 'Address', 'Hometown', 'City']);
       const state = getCol(row, ['WorkingStatus', 'Working Status', 'WorkingState', 'Working State', 'State']);
       const branch = getCol(row, ['Branch/Department', 'Branch / Department', 'Branch', 'Department', 'Course']);
@@ -813,31 +850,32 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
       const technology = getCol(row, ['TrainingTechnology', 'Training Technology', 'Technology', 'Training']);
 
       // Skip truly empty rows (e.g. trailing blank lines at bottom of Excel sheet)
-      if (!fullName && !email && !phone && !branch && !technology && !state) continue;
+      if (!fullName && !email && !rawPhone && !branch && !technology && !state) continue;
 
-      // Fallback for missing Full Name
-      if (!fullName) {
-        fullName = email ? email.split('@')[0] : (phone ? `Candidate ${phone}` : `Candidate ${i + 1}`);
-      }
+      const mobile = normalizeMobile(rawPhone);
 
-      // Fallback for missing Email Address
-      if (!email) {
-        const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
-        const rand = Math.random().toString(36).substring(2, 6);
-        email = `${cleanPhone || 'candidate'}_row${i + 1}_${rand}@slogstudent.internal`.toLowerCase();
+      if (!mobile) {
+        skipped.push({ row: sheetRow, name: fullName || 'N/A', mobile: rawPhone, reason: 'No mobile number — it is required as the login username' });
+        continue;
       }
+      if (!isValidMobile(mobile)) {
+        skipped.push({ row: sheetRow, name: fullName || 'N/A', mobile: rawPhone, reason: `"${rawPhone}" is not a valid 10-digit mobile number` });
+        continue;
+      }
+      if (seenMobiles.has(mobile)) {
+        skipped.push({ row: sheetRow, name: fullName || 'N/A', mobile, reason: `Duplicate mobile number — already used on row ${seenMobiles.get(mobile)}` });
+        continue;
+      }
+      seenMobiles.set(mobile, sheetRow);
 
-      // Handle duplicate email addresses within the same file to prevent dropping candidates
-      if (seenEmailsInFile.has(email)) {
-        const parts = email.split('@');
-        email = `${parts[0]}_dup${i + 1}@${parts[1] || 'slogstudent.internal'}`;
-      }
-      seenEmailsInFile.add(email);
+      // Name and email are conveniences, not credentials, so they can default.
+      if (!fullName) fullName = email ? email.split('@')[0] : `Candidate ${mobile}`;
+      if (!email) email = `${mobile}@slogstudent.internal`;
 
       validRows.push({
         fullName,
         email,
-        phone,
+        mobile,
         dob: parseExcelDate(row['DateOfBirth'] || row['Date Of Birth'] || row['DOB'] || ''),
         gender: (row['Gender'] || '').toString().trim(),
         address,
@@ -849,66 +887,62 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
     }
 
     if (validRows.length === 0) {
-      return res.status(400).json({ error: 'No valid rows found in the uploaded file.' });
+      return res.status(400).json({
+        error: 'No importable rows found — every row was missing a valid mobile number.',
+        skipped
+      });
     }
 
-    // ── Step 2: Fetch all existing users by email in ONE query ────────────────
-    const allEmails = validRows.map(r => r.email);
-    const existingUsers = await User.find({ email: { $in: allEmails } }).lean();
-    const existingByEmail = {};
-    existingUsers.forEach(u => { existingByEmail[u.email] = u; });
+    // ── Step 2: Fetch existing candidates in ONE query ───────────────────────
+    // Matched on the mobile number, since that is now the identity. Accounts
+    // created under the older STP-xxxx scheme are matched on their stored
+    // mobile field and migrated onto the new credentials.
+    const mobiles = validRows.map(r => r.mobile);
+    const mobileSet = new Set(mobiles);
+    const existingUsers = await User.find({
+      $or: [{ username: { $in: mobiles } }, { mobile: { $in: mobiles } }]
+    }).lean();
 
-    // ── Step 3: Generate unique usernames in memory (no per-row DB calls) ─────
-    const yearStr = new Date().getFullYear();
-    const existingUsernameRecords = await User.find(
-      { username: { $regex: `^STP-${yearStr}-` } },
-      { username: 1, _id: 0 }
-    ).lean();
-    const usedUsernames = new Set(existingUsernameRecords.map(u => u.username));
-
-    const generateUsername = () => {
-      let un;
-      do {
-        const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
-        un = `STP-${yearStr}-${rand}`;
-      } while (usedUsernames.has(un));
-      usedUsernames.add(un);
-      return un;
-    };
-
-    // ── Step 4: Assign usernames & generate passwords in memory ──────────────
-    const prepared = validRows.map(row => {
-      const existing = existingByEmail[row.email];
-      const randNum = Math.floor(1000 + Math.random() * 9000);
-      const plainPassword = `Slog@${randNum}`;
-      const username = existing ? existing.username : generateUsername();
-      return { ...row, existing, username, plainPassword };
-    });
-
-    // ── Step 5: Parallel bcrypt hashing in chunks of 80 ──────────────────────
-    const CHUNK = 80;
-    for (let i = 0; i < prepared.length; i += CHUNK) {
-      const chunk = prepared.slice(i, i + CHUNK);
-      const hashes = await Promise.all(chunk.map(r => bcrypt.hash(r.plainPassword, 10)));
-      chunk.forEach((r, idx) => { r.passwordHash = hashes[idx]; });
+    const existingByMobile = new Map();
+    // A username hit is the stronger signal — it is what the candidate types
+    // to log in — so claim those first and let mobile-field hits fill the gaps.
+    for (const u of existingUsers) {
+      if (mobileSet.has(u.username)) existingByMobile.set(u.username, u);
+    }
+    for (const u of existingUsers) {
+      const m = normalizeMobile(u.mobile);
+      if (mobileSet.has(m) && !existingByMobile.has(m)) existingByMobile.set(m, u);
     }
 
-    // ── Step 6: Separate new vs update, build bulkWrite ops ──────────────────
+    // ── Step 3: Credentials are the mobile number, as username and password ──
+    const prepared = validRows.map(row => ({
+      ...row,
+      existing: existingByMobile.get(row.mobile) || null,
+      username: row.mobile,
+      plainPassword: row.mobile
+    }));
+
+    // ── Step 4: Hash every password across worker threads ────────────────────
+    const hashes = await hashPasswords(prepared.map(r => r.plainPassword));
+    prepared.forEach((r, idx) => { r.passwordHash = hashes[idx]; });
+
+    // ── Step 5: Separate new vs update, build bulk ops ───────────────────────
     const newUserDocs = [];
     const updateOps = [];
 
     for (const r of prepared) {
       if (r.existing) {
-        // Update existing user — refresh credentials & profile fields
+        // Refresh credentials & profile on the existing account
         updateOps.push({
           updateOne: {
             filter: { _id: r.existing._id },
             update: {
               $set: {
+                username: r.username,
                 passwordHash: r.passwordHash,
                 generatedPassword: r.plainPassword,
                 name: r.fullName,
-                ...(r.phone && { mobile: r.phone }),
+                mobile: r.mobile,
                 ...(r.address && { address: r.address }),
                 ...(r.dob && { dob: r.dob }),
                 ...(r.gender && { gender: r.gender }),
@@ -928,7 +962,7 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
           generatedPassword: r.plainPassword,
           name: r.fullName,
           email: r.email,
-          mobile: r.phone || '',
+          mobile: r.mobile,
           address: r.address || '',
           dob: r.dob || null,
           gender: r.gender || '',
@@ -942,58 +976,60 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
       }
     }
 
-    // ── Step 7: Execute bulk DB writes ────────────────────────────────────────
+    // ── Step 6: Execute bulk DB writes ───────────────────────────────────────
+    // ordered:false lets one bad row fail on its own instead of aborting the
+    // rest of the import; anything that did not land is caught by the read-back
+    // in Step 7 and reported, rather than being swallowed here.
     if (newUserDocs.length > 0) {
-      await User.insertMany(newUserDocs, { ordered: false }).catch(e => {
-        if (e.code === 11000) return true;
-        throw e;
-      });
+      try {
+        await User.insertMany(newUserDocs, { ordered: false });
+      } catch (e) {
+        if (!e.writeErrors && e.code !== 11000) throw e;
+      }
     }
     if (updateOps.length > 0) {
       await User.bulkWrite(updateOps, { ordered: false });
     }
 
-    // ── Step 8: Re-fetch ALL saved user records to guarantee 100% match ──────
-    const allPreparedEmails = prepared.map(p => p.email);
+    // ── Step 7: Read back saved records to confirm what actually persisted ───
     const allSavedUsers = await User.find(
-      { email: { $in: allPreparedEmails } },
+      { username: { $in: mobiles } },
       { _id: 1, email: 1, username: 1, generatedPassword: 1 }
     ).lean();
 
-    const savedByEmail = {};
-    allSavedUsers.forEach(u => { savedByEmail[u.email] = u; });
+    const savedByUsername = new Map(allSavedUsers.map(u => [u.username, u]));
 
     const allUserIds = [];
     const results = [];
 
     for (const r of prepared) {
-      const savedUser = savedByEmail[r.email];
-      const userId = savedUser ? savedUser._id : null;
-      const username = savedUser ? savedUser.username : r.username;
-      const password = (savedUser && savedUser.generatedPassword) ? savedUser.generatedPassword : r.plainPassword;
+      const savedUser = savedByUsername.get(r.username);
+      if (!savedUser) {
+        skipped.push({ row: null, name: r.fullName, mobile: r.mobile, reason: 'Could not be saved — the account may conflict with an existing record' });
+        continue;
+      }
 
-      if (userId) allUserIds.push(userId);
-
+      allUserIds.push(savedUser._id);
       results.push({
-        userId: userId ? userId.toString() : null,
+        userId: savedUser._id.toString(),
         fullName: r.fullName,
         email: r.email,
-        phone: r.phone || '',
-        username,
-        password,
+        phone: r.mobile,
+        username: savedUser.username,
+        password: savedUser.generatedPassword || r.plainPassword,
         alreadyExisted: !!r.existing,
         technology: r.technology || '',
         branch: r.branch || ''
       });
     }
 
-    // ── Step 9: Enroll all students in batch (single atomic update) ───────────
+    // ── Step 8: Enroll all candidates in batch (single atomic update) ────────
     await Batch.findByIdAndUpdate(
       batch._id,
       { $addToSet: { students: { $each: allUserIds } } }
     );
 
-    // ── Step 10: Create / save the named BulkRegistrationSession ─────────────
+    // ── Step 9: Create / save the named BulkRegistrationSession ──────────────
     const session = await BulkRegistrationSession.create({
       sessionName,
       batchId: batch._id,
@@ -1002,10 +1038,15 @@ router.post('/teacher/:id/bulk-register-excel', requireAuth, requireRole(['Teach
       totalRegistered: allUserIds.length
     });
 
+    const skippedNote = skipped.length ? ` ${skipped.length} row(s) were skipped — see the skipped list.` : '';
+
     res.json({
       success: true,
-      message: `Successfully registered ${results.length} candidate(s) into "${batch.name}" under session "${sessionName}".`,
+      message: `Successfully registered ${results.length} candidate(s) into "${batch.name}" under session "${sessionName}".${skippedNote}`,
+      totalRows: rows.length,
       totalProcessed: results.length,
+      skippedCount: skipped.length,
+      skipped,
       sessionId: session._id,
       sessionName: session.sessionName,
       candidates: results
@@ -1455,39 +1496,19 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
       ? await CourseDetail.findById(student.courseDetailId).populate('technologyId').populate('durationId')
       : null;
 
-    const studentData = {
-      _id: student ? student._id : null,
-      name: (user.name || student?.name || 'Candidate').trim(),
-      registrationNo: student?.registrationNo || user.username || `REG-${user._id.toString().slice(-6).toUpperCase()}`,
-      collegeId: student?.collegeId || { collegeName: 'SLOG Solutions Private Limited' },
-      branchId: student?.branchId || { branchName: user.branch || 'General' }
-    };
+    const { studentData, courseDetailData } = buildBatchCertificateData({ user, student, courseDetail, batch });
 
-    const courseDetailData = courseDetail || {
-      _id: null,
-      technologyId: { name: batch.name ? batch.name.toUpperCase() : 'TRAINING PROGRAM' },
-      durationId: { value: 'Complete', unit: 'Course' }
-    };
-
-    // Check if cert already exists
+    // One certificate per course: a normal request returns the existing certificate untouched.
+    // A regenerate request issues a new one (new ID, current batch template & candidate name)
+    // and then deletes the candidate's previous certificates for this batch.
+    const regenerate = req.body?.regenerate === true;
     const queryConds = [{ userId: user._id }];
     if (student) queryConds.push({ studentId: student._id });
-    let existing = await Certificate.findOne({ $or: queryConds, status: 'Active' });
-
-    if (existing) {
-      // Re-generate PDF with latest candidate full name & details
-      const certId = existing.certificateId;
-      const verificationUrl = `${clientUrl}/verify/${certId}`;
-      const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
-      const filename = `${certId}.pdf`;
-      const pdfPath = path.join(certsDir, filename);
-
-      await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, existing.issueDate || new Date());
-      existing.pdfUrl = `/uploads/certificates/${filename}?v=${Date.now()}`;
-      existing.qrCodeUrl = qrCodeBase64;
-      await existing.save();
-
-      return res.json({ message: 'Certificate updated with full name', certificate: existing, alreadyExists: true });
+    if (!regenerate) {
+      const existing = await Certificate.findOne({ $or: queryConds, batchId: batch._id, status: 'Active' }).sort({ createdAt: -1 });
+      if (existing) {
+        return res.json({ message: 'Certificate already issued', certificate: existing, alreadyExists: true });
+      }
     }
 
     const certId = generateCertificateId();
@@ -1497,7 +1518,7 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
     const pdfPath = path.join(certsDir, filename);
     const completionDate = new Date();
 
-    await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate);
+    await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate, batch.certificateTemplate);
 
     const pdfUrl = `/uploads/certificates/${filename}`;
     const defaultTemplate = await CertificateTemplate.findOne({ isDefault: true });
@@ -1509,6 +1530,7 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
       batchId: batch._id,
       courseDetailId: courseDetail ? courseDetail._id : null,
       ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
+      templateFile: resolveTemplateFile(batch.certificateTemplate),
       pdfUrl,
       qrCodeUrl: qrCodeBase64,
       issueDate: completionDate,
@@ -1516,8 +1538,30 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
     });
     await newCert.save();
 
-    console.log(`[CertRequest] ✅ Certificate ${certId} generated for candidate ${studentData.name} (${studentData.registrationNo}).`);
-    res.status(201).json({ message: 'Certificate generated successfully', certificate: newCert });
+    // Only remove the old certificates once the new one is safely saved
+    if (regenerate) {
+      const previous = await Certificate.find({
+        $or: queryConds,
+        batchId: batch._id,
+        status: 'Active',
+        _id: { $ne: newCert._id }
+      });
+      for (const old of previous) {
+        const oldPdfPath = path.join(certsDir, `${old.certificateId}.pdf`);
+        try {
+          if (fs.existsSync(oldPdfPath)) fs.unlinkSync(oldPdfPath);
+        } catch (fileErr) {
+          console.warn(`[CertRequest] Could not delete PDF for ${old.certificateId}: ${fileErr.message}`);
+        }
+      }
+      if (previous.length > 0) {
+        await Certificate.deleteMany({ _id: { $in: previous.map(c => c._id) } });
+        console.log(`[CertRequest] Deleted ${previous.length} previous certificate(s): ${previous.map(c => c.certificateId).join(', ')}`);
+      }
+    }
+
+    console.log(`[CertRequest] ✅ Certificate ${certId} ${regenerate ? 'regenerated' : 'generated'} for candidate ${studentData.name} (${studentData.registrationNo}).`);
+    res.status(201).json({ message: regenerate ? 'New certificate generated successfully' : 'Certificate generated successfully', certificate: newCert });
   } catch (err) {
     console.error('[CertRequest] Error:', err.message);
     res.status(500).json({ error: err.message });
