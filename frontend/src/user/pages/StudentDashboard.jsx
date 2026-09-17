@@ -8,7 +8,7 @@ import {
   AlertCircle, ChevronRight, Sparkles, Search,
   ListChecks, CheckCircle, Clock, ChevronDown, ChevronUp, ClipboardList,
   MessageSquare, Star, Send, Edit2, CheckCircle2, HelpCircle, Tag, Check, CornerDownRight,
-  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload, BarChart2, Trash2, ShieldAlert
+  TrendingUp, PieChart, Award, LayoutDashboard, Globe, Upload, BarChart2, Trash2, ShieldAlert, RefreshCw
 } from 'lucide-react';
 
 /* ─────────────────────────────────────────────────────────
@@ -384,6 +384,7 @@ const StudentDashboard = () => {
   const [certLoading, setCertLoading] = useState(false);
   const [certGenerating, setCertGenerating] = useState(false);
   const [certError, setCertError] = useState('');
+  const [certNotice, setCertNotice] = useState('');
 
   // Firebase Push Notifications State
   const [pushPermission, setPushPermission] = useState(typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default');
@@ -582,12 +583,15 @@ const StudentDashboard = () => {
     }
   };
 
-  const requestCertificate = async (batchId) => {
+  // regenerate = true issues a new certificate and deletes the previous one for this course
+  const requestCertificate = async (batchId, regenerate = false) => {
     if (!batchId || certGenerating) return;
     try {
       setCertGenerating(true);
       setCertError('');
-      const r = await api.post(`/batches/student/${batchId}/request-certificate`);
+      setCertNotice('');
+      await api.post(`/batches/student/${batchId}/request-certificate`, { regenerate });
+      if (regenerate) setCertNotice('New certificate generated. Your previous certificate for this course has been replaced.');
       // After generation, fetch the updated cert list
       await fetchMyCertificate();
     } catch (e) {
@@ -630,19 +634,28 @@ const StudentDashboard = () => {
     }
   }, [activeTab]);
 
+  // Certificates issued for the currently selected batch (newest first, as returned by the API)
+  const batchCertificates = myCertificates.filter(c => (c.batchId?._id || c.batchId) === selectedBatchId);
+
+  const handleRegenerateCertificate = () => {
+    if (!selectedBatchId || certGenerating) return;
+    if (!window.confirm('Generate a new certificate for this course? Your current certificate for this course will be deleted and replaced with the new one.')) return;
+    requestCertificate(selectedBatchId, true);
+  };
+
   // Automatically issue certificate immediately when course progress reaches 100% and student has no cert yet
   useEffect(() => {
     if (
       selectedBatchId &&
       progressPct === 100 &&
-      myCertificates.length === 0 &&
+      batchCertificates.length === 0 &&
       !certLoading &&
       !certGenerating &&
       !certError
     ) {
       requestCertificate(selectedBatchId);
     }
-  }, [selectedBatchId, progressPct, myCertificates.length, certLoading, certGenerating, certError]);
+  }, [selectedBatchId, progressPct, batchCertificates.length, certLoading, certGenerating, certError]);
 
   const handleOpenSubmitModal = (assignment) => {
     setSelectedAssignmentForSubmit(assignment);
@@ -1256,15 +1269,15 @@ const StudentDashboard = () => {
                     </div>
                     <div style={{ flex: 1, minWidth: 180 }}>
                       <div style={{ fontSize: 16, fontWeight: 800, color: '#92400E', marginBottom: 3 }}>
-                        🎉 Course Complete — {myCertificates.length > 0 ? 'Certificate Issued!' : 'Certificate Being Generated…'}
+                        🎉 Course Complete — {batchCertificates.length > 0 ? 'Certificate Issued!' : 'Certificate Being Generated…'}
                       </div>
                       <div style={{ fontSize: 12.5, color: '#B45309', lineHeight: 1.5 }}>
-                        {myCertificates.length > 0
-                          ? `Your certificate is ready. ID: ${myCertificates[0].certificateId}`
+                        {batchCertificates.length > 0
+                          ? `Your certificate is ready. ID: ${batchCertificates[0].certificateId}`
                           : 'You have completed 100% of the curriculum. Your certificate is being generated — check the "My Certificate" tab soon!'}
                       </div>
                     </div>
-                    {myCertificates.length > 0 && (
+                    {batchCertificates.length > 0 && (
                       <button
                         onClick={() => setActiveTab('certificate')}
                         style={{
@@ -2086,9 +2099,16 @@ const StudentDashboard = () => {
                 title="My Certificate"
                 sub="Your course completion certificate issued upon finishing the curriculum"
                 action={
-                  <Pill variant="outline" icon={Download} onClick={fetchMyCertificate} style={{ fontSize: 11, padding: '5px 12px' }}>
-                    Refresh
-                  </Pill>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {progressPct === 100 && batchCertificates.length > 0 && (
+                      <Pill icon={RefreshCw} onClick={handleRegenerateCertificate} disabled={certGenerating} style={{ fontSize: 11, padding: '5px 12px' }}>
+                        {certGenerating ? 'Generating…' : 'Regenerate Certificate'}
+                      </Pill>
+                    )}
+                    <Pill variant="outline" icon={Download} onClick={fetchMyCertificate} style={{ fontSize: 11, padding: '5px 12px' }}>
+                      Refresh
+                    </Pill>
+                  </div>
                 }
               />
 
@@ -2097,7 +2117,7 @@ const StudentDashboard = () => {
                   <Spin color={C.primary} size={22} />
                   <span style={{ fontSize: 14, color: C.muted, fontWeight: 500 }}>Loading your certificate…</span>
                 </div>
-              ) : certGenerating ? (
+              ) : certGenerating && myCertificates.length === 0 ? (
                 <div style={{
                   background: 'linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 100%)',
                   border: `2px dashed ${C.primary}40`, borderRadius: RADIUS.lg,
@@ -2175,13 +2195,32 @@ const StudentDashboard = () => {
               ) : (
                 /* ── Certificate Cards ── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {certGenerating && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: C.primarySoft, borderRadius: RADIUS.sm, border: `1px solid ${C.primary}30` }}>
+                      <Spin color={C.primary} size={16} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.primaryDark }}>Generating your new certificate…</span>
+                    </div>
+                  )}
+                  {!certGenerating && certNotice && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: C.greenSoft, borderRadius: RADIUS.sm, border: `1px solid ${C.greenText}20` }}>
+                      <CheckCircle size={16} color={C.greenText} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.greenText }}>{certNotice}</span>
+                    </div>
+                  )}
+                  {!certGenerating && certError && (
+                    <div style={{ padding: '12px 16px', background: `${C.red}10`, border: `1px solid ${C.red}30`, borderRadius: RADIUS.sm, color: C.redText, fontSize: 13 }}>
+                      {certError}
+                    </div>
+                  )}
                   {myCertificates.map((cert) => {
                     const stu = cert.studentId || {};
                     const cd = cert.courseDetailId || {};
-                    const tech = cd.technologyId?.name || 'N/A';
+                    // Candidates without a registration record fall back to batch/account details (same as the PDF)
+                    const tech = cd.technologyId?.name || cert.batchId?.name || 'N/A';
                     const dur = cd.durationId ? `${cd.durationId.value} ${cd.durationId.unit}(s)` : 'N/A';
-                    const college = stu.collegeId?.collegeName || 'N/A';
-                    const branch = stu.branchId?.branchName || stu.branch || 'N/A';
+                    const college = stu.collegeId?.collegeName || 'SLOG Solutions Private Limited';
+                    const branch = stu.branchId?.branchName || stu.branch || user?.branch || 'N/A';
+                    const regNo = stu.registrationNo || user?.username || '—';
                     const issued = cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
                     // Derive backend base URL: strip trailing /api from API_BASE_URL
                     const backendBase = (API_BASE_URL || '').replace(/\/api\/?$/, '');
@@ -2232,7 +2271,7 @@ const StudentDashboard = () => {
                         <div style={{ padding: '24px 32px' }}>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
                             {[
-                              { label: 'Registration No', value: stu.registrationNo || '—', icon: User },
+                              { label: 'Registration No', value: regNo, icon: User },
                               { label: 'Course / Technology', value: tech, icon: BookOpen },
                               { label: 'Duration', value: dur, icon: Clock },
                               { label: 'Issue Date', value: issued, icon: Calendar },

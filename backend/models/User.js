@@ -97,4 +97,9 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Bulk imports look candidates up by mobile and email a whole sheet at a time;
+// without these the $in lookups fall back to a full collection scan.
+userSchema.index({ mobile: 1 });
+userSchema.index({ email: 1 });
+
 module.exports = mongoose.model('User', userSchema);

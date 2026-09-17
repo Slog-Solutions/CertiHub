@@ -259,6 +259,9 @@ const TeacherDashboard = () => {
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [batchDetails, setBatchDetails] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [certTemplates, setCertTemplates] = useState([]);
+  const [certTemplateSaving, setCertTemplateSaving] = useState(false);
+  const [certTemplateMsg, setCertTemplateMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -746,6 +749,31 @@ const TeacherDashboard = () => {
     }
   };
 
+  const fetchCertificateTemplates = async () => {
+    try {
+      const r = await api.get('/batches/teacher/certificate-templates');
+      setCertTemplates(r.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCertificateTemplateChange = async (templateFile) => {
+    if (!selectedBatchId) return;
+    setCertTemplateSaving(true);
+    setCertTemplateMsg('');
+    try {
+      const r = await api.patch(`/batches/teacher/${selectedBatchId}/certificate-template`, { templateFile });
+      setBatchDetails(prev => prev ? { ...prev, certificateTemplate: r.data.certificateTemplate } : prev);
+      setBatches(prev => prev.map(b => b._id === selectedBatchId ? { ...b, certificateTemplate: r.data.certificateTemplate } : b));
+      setCertTemplateMsg('Saved');
+    } catch (e) {
+      setCertTemplateMsg(e.response?.data?.error || 'Failed to save template');
+    } finally {
+      setCertTemplateSaving(false);
+    }
+  };
+
   const fetchFeedback = async (id) => {
     try {
       const r = await api.get(`/batches/teacher/${id}/feedback`);
@@ -783,9 +811,11 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     fetchBatches();
+    fetchCertificateTemplates();
   }, []);
 
   useEffect(() => {
+    setCertTemplateMsg('');
     if (selectedBatchId) {
       fetchDetails(selectedBatchId);
       fetchFeedback(selectedBatchId);
@@ -1432,7 +1462,38 @@ const TeacherDashboard = () => {
           {/* OVERVIEW MAIN TAB */}
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }} className="animate-in">
-              
+
+              {/* Certificate Template assigned to this batch */}
+              {batchDetails && (
+                <Card style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <IconBadge icon={FileText} color={C.teal} bg={C.tealSoft} size={38} />
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>Certificate Template</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Used for certificates candidates of this batch receive</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {certTemplateSaving ? <Spin color={C.primary} /> : certTemplateMsg && (
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: certTemplateMsg === 'Saved' ? C.greenText : C.redText }}>{certTemplateMsg}</span>
+                    )}
+                    <select
+                      value={batchDetails.certificateTemplate || 'default.html'}
+                      onChange={(e) => handleCertificateTemplateChange(e.target.value)}
+                      disabled={certTemplateSaving || certTemplates.length === 0}
+                      style={{
+                        padding: '8px 12px', borderRadius: RADIUS.sm, border: `1px solid ${C.border}`,
+                        fontSize: 13, color: C.ink, background: '#fff', minWidth: 260, maxWidth: '100%', cursor: 'pointer'
+                      }}
+                    >
+                      {certTemplates.map(t => (
+                        <option key={t.file} value={t.file}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </Card>
+              )}
+
               {/* Analytics Section: Responsive 3-Columns Grid */}
               <div className="dashboard-grid-3" style={{ alignItems: 'stretch' }}>
                 

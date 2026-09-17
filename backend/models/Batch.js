@@ -165,6 +165,12 @@ const batchSchema = new mongoose.Schema({
   isDefaultPublicBootcamp: {
     type: Boolean,
     default: false
+  },
+  // Filename of the certificate template in backend/templates used for this batch
+  certificateTemplate: {
+    type: String,
+    default: 'default.html',
+    trim: true
   }
 }, {
   timestamps: true

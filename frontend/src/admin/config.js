@@ -9,14 +9,15 @@ export const getApiBaseUrl = () => {
   const envUrl = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined;
   if (envUrl && envUrl.trim() !== '') {
     const trimmed = envUrl.trim().replace(/\/$/, '');
-    if (!isLocal || !trimmed.includes('localhost')) {
+    // Ignore a localhost API URL only when the app itself is not served locally
+    if (isLocal || !trimmed.includes('localhost')) {
       return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
     }
   }
 
   // 2. Local development fallback
   if (isLocal) {
-    return 'http://localhost:5001/api';
+    return 'http://localhost:1111/api';
   }
 
   // 3. Production browser fallback: relative /api
@@ -27,7 +28,7 @@ export const API_BASE_URL = getApiBaseUrl();
 
 // Axios request interceptor: dynamically resolves baseURL and prevents duplicate '/api/api' paths
 axios.interceptors.request.use((config) => {
-  const baseUrl = getApiBaseUrl(); // e.g. 'http://localhost:5001/api' or '/api'
+  const baseUrl = getApiBaseUrl(); // e.g. 'http://localhost:1111/api' or '/api'
 
   if (config.url) {
     // If config.url starts with http:// or https://, do not modify baseURL

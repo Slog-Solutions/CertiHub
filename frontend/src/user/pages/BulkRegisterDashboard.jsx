@@ -117,6 +117,11 @@ const StepBadge = ({ n, label, active, done }) => (
   </div>
 );
 
+const rangeInputStyle = {
+  width: 84, padding: '8px 10px', borderRadius: R.sm, fontSize: 13, fontWeight: 600,
+  color: C.ink, border: `1px solid ${C.border}`, background: '#fff', outline: 'none',
+};
+
 /* ─── Main Component ────────────────────────────────────────────────────── */
 export default function BulkRegisterDashboard() {
   const { api } = useAuth();
@@ -150,6 +155,20 @@ export default function BulkRegisterDashboard() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sendingCredentials, setSendingCredentials] = useState(false);
   const [sendResult, setSendResult] = useState(null);
+
+  // Ranged export — a 4,500-row import is handed out in printable blocks
+  // (1–100, 101–200, …) rather than as one unusable sheet.
+  const EXPORT_BLOCK = 100;
+  const [exportFrom, setExportFrom] = useState(1);
+  const [exportTo, setExportTo] = useState(EXPORT_BLOCK);
+  const [exportError, setExportError] = useState('');
+
+  // Reset the window whenever a different set of candidates is loaded.
+  useEffect(() => {
+    setExportFrom(candidates.length ? 1 : 0);
+    setExportTo(Math.min(EXPORT_BLOCK, candidates.length));
+    setExportError('');
+  }, [candidates]);
 
   /* ── Fetch assigned batches ─────────────────────────────────────────── */
   useEffect(() => {
@@ -247,25 +266,66 @@ export default function BulkRegisterDashboard() {
   };
 
   /* ── Export credentials Excel ───────────────────────────────────────── */
-  const handleExportExcel = () => {
-    if (!candidates.length) return;
+  /**
+   * Write a credentials sheet for one slice of the candidate list.
+   * `offset` is the slice's zero-based position in the full list, so Sr. No
+   * keeps counting from where the previous block left off — block 101–200
+   * is numbered 101–200, not restarted at 1.
+   */
+  const writeCredentialsSheet = (list, offset, fileSuffix) => {
     const wsData = [
-      ['Sr. No', 'Full Name', 'Mobile Number', 'Username (Login ID)', 'Password']
+      ['Sr. No', 'Full Name', 'Mobile Number', 'Email', 'Username (Login ID)', 'Password']
     ];
-    candidates.forEach((c, i) => {
-      wsData.push([i + 1, c.fullName || '', c.phone || '', c.username || '', c.password || '']);
+    list.forEach((c, i) => {
+      wsData.push([offset + i + 1, c.fullName || '', c.phone || '', c.email || '', c.username || '', c.password || '']);
     });
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [6, 24, 16, 22, 14].map(w => ({ wch: w }));
+    ws['!cols'] = [6, 24, 16, 30, 22, 14].map(w => ({ wch: w }));
     // Bold header row styling
-    const headerRow = ['A1', 'B1', 'C1', 'D1', 'E1'];
+    const headerRow = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1'];
     headerRow.forEach(cell => {
       if (ws[cell]) ws[cell].s = { font: { bold: true }, fill: { fgColor: { rgb: 'EEF2FF' } } };
     });
     const wb = XLSX.utils.book_new();
     const batchName = (selectedBatch?.name || 'Batch').replace(/[^a-zA-Z0-9_-]/g, '_');
     XLSX.utils.book_append_sheet(wb, ws, 'Credentials');
-    XLSX.writeFile(wb, `${batchName}_Credentials.xlsx`);
+    XLSX.writeFile(wb, `${batchName}_Credentials${fileSuffix}.xlsx`);
+  };
+
+  const handleExportExcel = () => {
+    if (!candidates.length) return;
+    writeCredentialsSheet(candidates, 0, '');
+  };
+
+  /* ── Export one numbered range, then advance to the next block ───────── */
+  const handleExportRange = () => {
+    setExportError('');
+    const from = parseInt(exportFrom, 10);
+    const to = parseInt(exportTo, 10);
+
+    if (!Number.isFinite(from) || !Number.isFinite(to)) {
+      setExportError('Enter a start and end number.');
+      return;
+    }
+    if (from < 1 || to > candidates.length) {
+      setExportError(`Range must be between 1 and ${candidates.length}.`);
+      return;
+    }
+    if (from > to) {
+      setExportError('The start number cannot be greater than the end number.');
+      return;
+    }
+
+    // Both ends inclusive: 1–100 exports 100 candidates.
+    writeCredentialsSheet(candidates.slice(from - 1, to), from - 1, `_${from}-${to}`);
+
+    // Queue up the next block of the same size so repeated exports are
+    // 1–100, 101–200, 201–300 … without retyping.
+    const size = to - from + 1;
+    if (to < candidates.length) {
+      setExportFrom(to + 1);
+      setExportTo(Math.min(to + size, candidates.length));
+    }
   };
 
   /* ── Submit bulk import ─────────────────────────────────────────────── */
@@ -291,7 +351,7 @@ export default function BulkRegisterDashboard() {
     try {
       const r = await api.post(`/batches/teacher/${selectedBatchId}/bulk-register-excel`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000 // 2-minute timeout for large files
+        timeout: 600000 // 10 min — a 4,500-row import takes ~1 min of hashing alone
       });
       const data = r.data;
       setCandidates(data.candidates || []);
@@ -309,6 +369,15 @@ export default function BulkRegisterDashboard() {
   };
 
   /* ── Selection helpers ──────────────────────────────────────────────── */
+  // How many candidates the current export range covers (0 when it is invalid).
+  const rangeCount = (() => {
+    const from = parseInt(exportFrom, 10);
+    const to = parseInt(exportTo, 10);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return 0;
+    if (from < 1 || to > candidates.length || from > to) return 0;
+    return to - from + 1;
+  })();
+
   const allSelected = candidates.length > 0 && selectedIds.size === candidates.length;
   const toggleAll = () => {
     if (allSelected) {
@@ -747,7 +816,7 @@ export default function BulkRegisterDashboard() {
                     onClick={handleExportExcel}
                     disabled={!candidates.length}
                   >
-                    Export Excel
+                    Export All ({candidates.length})
                   </Btn>
                   <Btn
                     variant="teal"
@@ -760,6 +829,53 @@ export default function BulkRegisterDashboard() {
                   </Btn>
                 </div>
               </div>
+
+              {/* Ranged export — hand out credentials in blocks of 100 */}
+              {candidates.length > 0 && (
+                <Card style={{ marginBottom: 16, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>Export range</span>
+                    <span style={{ fontSize: 13, color: C.muted }}>from</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={candidates.length}
+                      value={exportFrom}
+                      onChange={e => setExportFrom(e.target.value)}
+                      style={rangeInputStyle}
+                    />
+                    <span style={{ fontSize: 13, color: C.muted }}>to</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={candidates.length}
+                      value={exportTo}
+                      onChange={e => setExportTo(e.target.value)}
+                      style={rangeInputStyle}
+                    />
+                    <Btn
+                      variant="primary"
+                      icon={Download}
+                      onClick={handleExportRange}
+                      disabled={!candidates.length}
+                    >
+                      Download
+                    </Btn>
+                    <span style={{ fontSize: 12.5, color: C.muted }}>
+                      {rangeCount > 0
+                        ? `${rangeCount} candidate${rangeCount === 1 ? '' : 's'} · of ${candidates.length} total`
+                        : `of ${candidates.length} total`}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+                    Both numbers are included, so 1–100 gives 100 candidates. After each download the
+                    range jumps to the next block automatically.
+                  </div>
+                  {exportError && (
+                    <div style={{ marginTop: 10 }}><Alert msg={exportError} type="error" /></div>
+                  )}
+                </Card>
+              )}
 
               {importSuccess && (
                 <div style={{ marginBottom: 16 }}><Alert msg={importSuccess} type="success" /></div>
