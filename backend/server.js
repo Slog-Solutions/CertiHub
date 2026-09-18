@@ -137,6 +137,9 @@ connectDB().then(() => {
   // Seed initial mentors if empty
   seedMentors();
   
+  // Seed app versions
+  seedAppVersions();
+  
   // Start backup cron scheduler
   initBackupScheduler();
 });
@@ -226,6 +229,23 @@ const seedMentors = async () => {
   }
 };
 
+// Seed app versions logic
+const seedAppVersions = async () => {
+  const AppVersion = require('./models/AppVersion');
+  try {
+    const count = await AppVersion.countDocuments();
+    if (count === 0) {
+      await AppVersion.insertMany([
+        { platform: 'android', latestVersion: '1.0.0', minimumVersion: '1.0.0', forceUpdate: false, message: 'Please update to the latest version for new features and improvements.' },
+        { platform: 'ios', latestVersion: '1.0.0', minimumVersion: '1.0.0', forceUpdate: false, message: 'Please update to the latest version for new features and improvements.' }
+      ]);
+      console.log('SEED: Initial App Versions Seeded Successfully!');
+    }
+  } catch (err) {
+    console.error('Failed to seed app versions:', err.message);
+  }
+};
+
 // Route Mounts
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
@@ -247,6 +267,7 @@ app.use('/api/delete-requests', require('./routes/deleteRequests'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/devices', require('./routes/devices'));
 app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/app', require('./routes/app'));
 
 // Dummy endpoints for frontend CMS components to prevent 404 console errors
 app.use('/api/hero-slides', (req, res) => res.json([]));
