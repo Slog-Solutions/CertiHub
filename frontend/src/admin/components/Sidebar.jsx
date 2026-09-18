@@ -23,7 +23,8 @@ import {
   BookOpen,
   FolderGit2,
   BookMarked,
-  Trash2
+  Trash2,
+  Megaphone
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -60,6 +61,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
+    { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
     { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',
@@ -83,6 +85,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
+    { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
     { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',

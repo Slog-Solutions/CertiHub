@@ -22,6 +22,7 @@ import Certificates from './views/Certificates';
 import Reports from './views/Reports';
 import Backup from './views/Backup';
 import Notifications from './views/Notifications';
+import MarketingNotifications from './views/MarketingNotifications';
 import PublicRegistration from './views/PublicRegistration';
 import PublicBootcampRegistration from './views/PublicBootcampRegistration';
 import Projects from './views/Projects';
@@ -127,6 +128,7 @@ const DashboardLayout = () => {
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/marketing" element={<MarketingNotifications />} />
             <Route path="/courses" element={<ManageCourses />} />
             <Route path="/reports/fee-collection" element={<Reports type="fee-collection" />} />
             <Route path="/reports/date-wise-fee" element={<Reports type="date-wise" />} />

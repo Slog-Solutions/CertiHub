@@ -60,7 +60,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     if (token) {
       try {
-        await api.delete('/push/fcm-token');
+        const installationId = localStorage.getItem('installationId');
+        if (installationId) {
+          await api.post('/devices/detach-user', { installationId });
+        }
       } catch (err) {
         // silent catch on network error or expired token during logout
       }

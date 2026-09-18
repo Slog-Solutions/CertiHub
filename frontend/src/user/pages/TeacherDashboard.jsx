@@ -321,7 +321,7 @@ const TeacherDashboard = () => {
           setDirectPushModal(null);
           setDirectPushForm({ title: '', message: '' });
           setDirectPushResult(null);
-        }, 1200);
+        }, 2000);
       }
     } catch (err) {
       setDirectPushResult({ success: false, message: err.response?.data?.error || 'Failed to send push notification.' });
@@ -974,10 +974,12 @@ const TeacherDashboard = () => {
       return;
     }
     try {
-      await api.post(`/batches/teacher/${selectedBatchId}/notifications`, notifData);
-      setFormSuccess('Announcement posted!');
+      const res = await api.post(`/batches/teacher/${selectedBatchId}/notifications`, notifData);
+      const succ = res.data.successCount ?? 0;
+      const total = res.data.studentsCount ?? batchDetails?.students?.length ?? 0;
+      setFormSuccess(`Announcement posted! Delivered via push to ${succ} of ${total} candidates.`);
       fetchDetails(selectedBatchId);
-      setTimeout(() => setIsModalOpen(false), 800);
+      setTimeout(() => setIsModalOpen(false), 1800);
     } catch (err) {
       setFormError(err.response?.data?.error || 'Failed to post');
     } finally {
@@ -1988,11 +1990,32 @@ const TeacherDashboard = () => {
               ) : batchDetails.notifications.map((n, i) => (
                 <Card key={n._id || i} accent={C.orange} style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                       <h4 style={{ fontSize: 14, fontWeight: 700, color: C.ink, margin: 0 }}>{n.title}</h4>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.muted }}><Calendar size={11} /> {fmt(n.date)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999,
+                          fontSize: 11.5, fontWeight: 700,
+                          background: (n.successCount > 0 || (n.totalStudents > 0 && n.sentCount === 0)) ? C.greenSoft : C.blueSoft,
+                          color: (n.successCount > 0 || (n.totalStudents > 0 && n.sentCount === 0)) ? C.greenText : C.blueText,
+                          border: `1px solid ${ (n.successCount > 0 || (n.totalStudents > 0 && n.sentCount === 0)) ? 'rgba(34,197,94,0.2)' : 'rgba(59,130,246,0.2)' }`
+                        }} title={`Pushes delivered: ${n.successCount ?? 0} | Tokens targeted: ${n.sentCount ?? 0} | Total candidates: ${n.totalStudents || batchDetails?.students?.length || 0}`}>
+                          <CheckCircle2 size={12} />
+                          {typeof n.successCount === 'number'
+                            ? `${n.successCount} / ${n.totalStudents || batchDetails?.students?.length || 0} Delivered`
+                            : `${batchDetails?.students?.length || 0} Enrolled Candidates`}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.muted }}><Calendar size={11} /> {fmt(n.date)}</span>
+                      </div>
                     </div>
                     <p style={{ fontSize: 13, color: C.body, lineHeight: 1.6, whiteSpace: 'pre-line', margin: 0 }}>{n.message}</p>
+                    {n.sentCount !== undefined && (
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 8, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <span>Targeted Push Devices: <strong>{n.sentCount}</strong></span>
+                        <span>Successful Deliveries: <strong style={{ color: C.greenText }}>{n.successCount}</strong></span>
+                        {n.failureCount > 0 && <span>Failed Pushes: <strong style={{ color: C.redText }}>{n.failureCount}</strong></span>}
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => handleDelete('notifications', n._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: C.muted }}><Trash2 size={14} /></button>
                 </Card>

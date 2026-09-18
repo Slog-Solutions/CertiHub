@@ -18,6 +18,7 @@ const Batch = require('../models/Batch');
 const DirectNotification = require('../models/DirectNotification');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToToken, sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
+const DeviceToken = require('../models/DeviceToken');
 
 const registerFcmTokenHandler = async (req, res) => {
   const token = (
@@ -181,6 +182,21 @@ const handleLogoutFcmTokens = async (req, res) => {
     }
 
     await User.findByIdAndUpdate(req.user._id, updateOps);
+    
+    // Also detach the user from the DeviceToken to stop user-specific marketing campaigns,
+    // but keep the device registered for anonymous campaigns.
+    if (token) {
+      await DeviceToken.updateMany(
+        { fcmToken: token, userId: req.user._id },
+        { $set: { userId: null } }
+      );
+    } else {
+      await DeviceToken.updateMany(
+        { userId: req.user._id },
+        { $set: { userId: null } }
+      );
+    }
+
     console.log(`[FCM] All tokens successfully revoked/cleared on logout for user: ${req.user.name} (${req.user._id})`);
     res.json({ success: true, message: 'FCM tokens revoked successfully on logout.' });
   } catch (err) {
@@ -271,23 +287,33 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
 
     // Collect ALL registered tokens (Web, Android, iOS) for all students
     const allTokens = students.flatMap(s => extractUserFcmTokens(s));
+    let successCount = 0;
+    let failureCount = 0;
 
     if (allTokens.length > 0) {
-      sendToTokens(allTokens, title.trim(), message.trim(), {
-        type: 'announcement',
-        audience: 'student',
-        batchId: batch._id.toString(),
-        tab: 'resources',
-        title: title.trim(),
-        message: message.trim()
-      }).catch(err => console.error('[FCM] Batch push error:', err.message));
+      try {
+        const fcmResult = await sendToTokens(allTokens, title.trim(), message.trim(), {
+          type: 'announcement',
+          audience: 'student',
+          batchId: batch._id.toString(),
+          tab: 'resources',
+          title: title.trim(),
+          message: message.trim()
+        });
+        successCount = fcmResult.successCount || 0;
+        failureCount = fcmResult.failureCount || 0;
+      } catch (fcmErr) {
+        console.error('[FCM] Batch push error:', fcmErr.message);
+      }
     }
 
     res.json({
       success: true,
-      message: `Push notification broadcasted to ${batch.students.length} candidate(s) in batch ${batch.name}.`,
+      message: `Push notification broadcasted to ${batch.students.length} candidate(s) in batch ${batch.name}. (${successCount} push delivered)`,
       totalCandidates: batch.students.length,
-      notifiedCount: allTokens.length
+      tokensTargeted: allTokens.length,
+      successCount,
+      failureCount
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -349,24 +375,38 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
     // Extract ALL device tokens (Web, Android, iOS) registered for this student
     const userTokens = extractUserFcmTokens(student);
     let fcmSent = false;
+    let successCount = 0;
 
     if (userTokens.length > 0) {
-      const fcmResult = await sendToTokens(userTokens, title.trim(), message.trim(), {
-        type: 'generic',
-        audience: 'student',
-        batchId: sharedBatch._id.toString(),
-        title: title.trim(),
-        message: message.trim()
-      });
-      fcmSent = fcmResult.successCount > 0;
+      try {
+        const fcmResult = await sendToTokens(userTokens, title.trim(), message.trim(), {
+          type: 'generic',
+          audience: 'student',
+          batchId: sharedBatch._id.toString(),
+          title: title.trim(),
+          message: message.trim()
+        });
+        successCount = fcmResult.successCount || 0;
+        fcmSent = successCount > 0;
+      } catch (err) {
+        console.error('[FCM] Direct push error:', err.message);
+      }
     }
+
+    const deliveryDetail = fcmSent
+      ? `Push delivered successfully to ${successCount} device(s).`
+      : userTokens.length > 0
+        ? `Saved to portal bell (push attempt pending/failed).`
+        : `Saved to candidate notification bell (no active push token).`;
 
     res.json({
       success: true,
-      message: `Notification sent to ${student.name} successfully.`,
+      message: `Notification sent to ${student.name}. ${deliveryDetail}`,
       studentName: student.name,
       studentEmail: student.email,
-      fcmSent
+      fcmSent,
+      successCount,
+      userTokensCount: userTokens.length
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

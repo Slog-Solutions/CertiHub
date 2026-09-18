@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  marketingEnabled: {
+    type: Boolean,
+    default: true
+  },
   fcmToken: {
     type: String,
     default: null
