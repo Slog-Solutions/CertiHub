@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slog Solutions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=Inter:wght@400;500;600&family=Poppins:wght@700;800&display=swap');
+
+  :root{
+    --navy:#152A47;
+    --blue:#3E6FD9;
+    --blue-soft:#E7EEFB;
+    --line:#DCE4F0;
+    --ink:#25324A;
+    --ink-soft:#5C6C87;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:#fff;
+    overflow-x:hidden;
+  }
+
+  /* ---------- SITE (revealed behind the intro) ---------- */
+  #site{position:relative;}
+  nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:24px 40px;max-width:1280px;margin:0 auto;
+  }
+  #nav-logo{
+    font-family:'Poppins',sans-serif;font-weight:800;font-size:1.5rem;
+    color:var(--blue);letter-spacing:0.01em;
+    display:inline-block;
+    transition:transform 0.4s cubic-bezier(.34,1.56,.64,1);
+  }
+  #nav-logo.pop{ transform:scale(1.18); }
+  .nav-links{display:flex;gap:30px;list-style:none;}
+  .nav-links a{color:var(--navy);text-decoration:none;font-size:0.92rem;font-weight:500;}
+  .nav-right{display:flex;gap:12px;align-items:center;}
+  .nav-right button{
+    padding:9px 20px;border-radius:20px;border:none;font-size:0.88rem;font-weight:500;
+    font-family:'Inter',sans-serif;cursor:pointer;
+  }
+  .join{background:var(--blue-soft);color:var(--navy);}
+  .enquiry{background:var(--blue);color:#fff;}
+
+  .hero{
+    max-width:1280px;margin:0 auto;padding:80px 40px 120px;
+    text-align:left;
+  }
+  .hero h1{
+    font-family:'Newsreader',serif;font-weight:600;font-size:3.4rem;
+    color:var(--navy);margin-bottom:20px;max-width:14ch;
+  }
+  .hero p{color:var(--ink-soft);max-width:52ch;font-size:1.05rem;margin-bottom:28px;}
+  .hero button{
+    background:var(--blue);color:#fff;border:none;padding:14px 28px;
+    border-radius:8px;font-size:0.98rem;font-weight:500;cursor:pointer;
+  }
+
+  /* ---------- INTRO OVERLAY ---------- */
+  #intro-bg{
+    position:fixed;inset:0;z-index:998;
+    background:radial-gradient(120% 120% at 50% 40%, #ffffff 0%, #eef3fc 55%, #dfe9f9 100%);
+    transition:opacity 0.9s ease;
+  }
+  #particle-canvas{
+    position:fixed;inset:0;z-index:999;
+    pointer-events:none;
+    transition:opacity 0.5s ease;
+  }
+
+  @media (max-width:700px){
+    .nav-links{display:none;}
+    .hero h1{font-size:2.3rem;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== SITE ===== -->
+<div id="site">
+  <nav>
+    <div id="nav-logo">SLOG</div>
+    <ul class="nav-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Services</a></li>
+      <li><a href="#">Resources</a></li>
+      <li><a href="#">Candidate Portal</a></li>
+      <li><a href="#">Slog Ascend</a></li>
+      <li><a href="#">Blog</a></li>
+      <li><a href="#">Contact</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="join">Join Us</button>
+      <button class="enquiry">Enquiry</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <h1>Development, done right.</h1>
+    <p>We provide complete technology solutions, including custom software, advanced lab setups, and innovative product development — reliable, scalable, and tailored to your needs.</p>
+    <button>Know More</button>
+  </section>
+</div>
+
+<!-- ===== INTRO ===== -->
+<div id="intro-bg"></div>
+<canvas id="particle-canvas"></canvas>
+
+<script>
+(function(){
+  var introBg = document.getElementById('intro-bg');
+  var canvas = document.getElementById('particle-canvas');
+  var ctx = canvas.getContext('2d');
+  var navLogo = document.getElementById('nav-logo');
+
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var vw, vh;
+
+  var blueShades = ['#1B3B7A','#2A54A8','#3E6FD9','#6C97E8','#9EC0F2','#FFFFFF'];
+  var WORD = 'SLOG';
+  var FONT_FAMILY = "'Poppins', sans-serif";
+  var FONT_WEIGHT = 800;
+  var introGen = 0;   // bumped whenever the intro (re)starts, so stale
+                       // animation frames from a previous run can detect
+                       // they're outdated and stop drawing
+  var introActive = false;
+
+  function resize(){
+    vw = window.innerWidth;
+    vh = window.innerHeight;
+    canvas.width = vw*dpr;
+    canvas.height = vh*dpr;
+    canvas.style.width = vw+'px';
+    canvas.style.height = vh+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize();
+  window.addEventListener('resize', function(){
+    resize();
+    if(introActive){
+      clearTimeout(window.__slogResizeTimer);
+      window.__slogResizeTimer = setTimeout(function(){
+        playIntro();
+      }, 150);
+    }
+  });
+
+  function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
+  function easeInCubic(t){ return t*t*t; }
+
+  // Single source of truth for size/position: measured directly on the
+  // REAL canvas that will paint the word, so measurement and final paint
+  // can never disagree (that mismatch was why it drifted off-center /
+  // overflowed the right edge before). Includes a hard safety clamp so
+  // the word can never exceed the viewport no matter what the font
+  // metrics report.
+  function computeLayout(){
+    var fontPx = Math.min(vw*0.16, vh*0.34, 220);
+    ctx.font = FONT_WEIGHT+' '+fontPx+'px '+FONT_FAMILY;
+    var m = ctx.measureText(WORD);
+    var targetWidth = vw*0.7;
+    if(m.width > 0){
+      fontPx = fontPx*(targetWidth/m.width);
+    }
+
+    // iterative safety clamp: shrink until it truly fits, however the
+    // browser actually renders this font
+    for(var guard=0; guard<6; guard++){
+      ctx.font = FONT_WEIGHT+' '+fontPx+'px '+FONT_FAMILY;
+      m = ctx.measureText(WORD);
+      if(m.width <= vw*0.84) break;
+      fontPx = fontPx*((vw*0.78)/m.width);
+    }
+    fontPx = Math.min(fontPx, vh*0.34);
+    ctx.font = FONT_WEIGHT+' '+fontPx+'px '+FONT_FAMILY;
+    m = ctx.measureText(WORD);
+
+    var ascent = m.actualBoundingBoxAscent || fontPx*0.72;
+    var descent = m.actualBoundingBoxDescent || fontPx*0.14;
+    var textW = m.width;
+    var textH = ascent+descent;
+
+    var x = vw/2 - textW/2;
+    var y = vh/2 + (textH/2 - descent);
+
+    return {x:x, y:y, fontPx:fontPx, width:textW, ascent:ascent, descent:descent};
+  }
+
+  // Samples particle target points from the actual rendered glyph shapes,
+  // using the exact same font size/position computeLayout() will paint —
+  // so the assembled dots line up perfectly with the solid word.
+  function samplePointsForLayout(layout){
+    var off = document.createElement('canvas');
+    off.width = vw;
+    off.height = vh;
+    var octx = off.getContext('2d');
+    octx.font = FONT_WEIGHT+' '+layout.fontPx+'px '+FONT_FAMILY;
+    octx.textAlign = 'left';
+    octx.textBaseline = 'alphabetic';
+    octx.fillStyle = '#000';
+    octx.fillText(WORD, layout.x, layout.y);
+
+    var step = Math.max(2, Math.round(layout.fontPx/34));
+    var img = octx.getImageData(0,0,vw,vh).data;
+    var pts = [];
+    var top = Math.max(0, Math.floor(layout.y - layout.ascent - 4));
+    var bottom = Math.min(vh, Math.ceil(layout.y + layout.descent + 4));
+    var left = Math.max(0, Math.floor(layout.x - 4));
+    var right = Math.min(vw, Math.ceil(layout.x + layout.width + 4));
+
+    for(var py=top; py<bottom; py+=step){
+      for(var px=left; px<right; px+=step){
+        var idx = (py*vw+px)*4+3;
+        if(img[idx] > 120){
+          pts.push({
+            x: px + (Math.random()-0.5)*step,
+            y: py + (Math.random()-0.5)*step
+          });
+        }
+      }
+    }
+    return pts;
+  }
+
+  function buildParticles(targets){
+    return targets.map(function(t){
+      var angle = Math.random()*Math.PI*2;
+      var dist = Math.max(vw,vh)*(0.55+Math.random()*0.5);
+      return {
+        sx: vw/2 + Math.cos(angle)*dist,
+        sy: vh/2 + Math.sin(angle)*dist,
+        tx: t.x, ty: t.y,
+        x:0, y:0,
+        delay: Math.random()*380,
+        dur: 780 + Math.random()*420,
+        size: 1.4 + Math.random()*1.8,
+        color: blueShades[Math.floor(Math.random()*blueShades.length)]
+      };
+    });
+  }
+
+  function runIntro(layout, points, myGen){
+    var textData = layout;
+    var particles = buildParticles(points);
+    var startTime = null;
+
+    function stale(){ return myGen !== introGen; }
+
+    function drawSolidWord(alpha, glow){
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = FONT_WEIGHT+' '+textData.fontPx+'px '+FONT_FAMILY;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      ctx.shadowColor = 'rgba(110,150,235,0.9)';
+      ctx.shadowBlur = glow || 0;
+      ctx.fillStyle = '#2A54A8';
+      ctx.fillText(WORD, textData.x, textData.y);
+      ctx.restore();
+    }
+
+    function assembleFrame(now){
+      if(stale()) return;
+      if(!startTime) startTime = now;
+      var elapsed = now - startTime;
+      ctx.clearRect(0,0,vw,vh);
+      var allDone = true;
+
+      for(var i=0;i<particles.length;i++){
+        var p = particles[i];
+        var t = elapsed - p.delay;
+        if(t < 0){ allDone = false; continue; }
+        var tt = Math.min(t/p.dur, 1);
+        if(tt < 1) allDone = false;
+        var eased = easeOutCubic(tt);
+        p.x = p.sx + (p.tx-p.sx)*eased;
+        p.y = p.sy + (p.ty-p.sy)*eased;
+        var alpha = Math.min(1, tt*1.6);
+        var r = p.size*(0.35+0.65*eased);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,r,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      if(!allDone){
+        requestAnimationFrame(assembleFrame);
+      } else {
+        requestAnimationFrame(solidifyWord);
+      }
+    }
+
+    function solidifyWord(){
+      if(stale()) return;
+      // crossfade the loose particle dots into one solid, filled Poppins "SLOG"
+      var morphStart = null;
+      var morphDur = 300;
+
+      function morphFrame(now){
+        if(stale()) return;
+        if(!morphStart) morphStart = now;
+        var t = Math.min((now-morphStart)/morphDur, 1);
+        var eased = easeOutCubic(t);
+        ctx.clearRect(0,0,vw,vh);
+
+        ctx.globalAlpha = 1-eased;
+        for(var i=0;i<particles.length;i++){
+          var p = particles[i];
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        drawSolidWord(eased, 10);
+
+        if(t < 1){
+          requestAnimationFrame(morphFrame);
+        } else {
+          setTimeout(glowPulse, 120);
+        }
+      }
+      requestAnimationFrame(morphFrame);
+    }
+
+    function glowPulse(){
+      if(stale()) return;
+      // soft brightness pulses while the solid word holds in the middle of the screen
+      var pulses = 0;
+      function pulseFrame(){
+        if(stale()) return;
+        pulses++;
+        ctx.clearRect(0,0,vw,vh);
+        var glow = pulses % 2 === 0 ? 24 : 10;
+        drawSolidWord(1, glow);
+        if(pulses < 3){
+          setTimeout(pulseFrame, 380);
+        } else {
+          setTimeout(flyToNav, 420);
+        }
+      }
+      pulseFrame();
+    }
+
+    function flyToNav(){
+      if(stale()) return;
+      var navRect = navLogo.getBoundingClientRect();
+      var navFontPx = parseFloat(window.getComputedStyle(navLogo).fontSize) || 24;
+      var scaleEnd = navFontPx / textData.fontPx;
+
+      var cx0 = textData.x + textData.width/2;
+      var cy0 = textData.y - (textData.ascent - textData.descent)/2;
+      var tx = navRect.left + navRect.width/2;
+      var ty = navRect.top + navRect.height/2;
+
+      var flyStart = null;
+      var flyDur = 650;
+
+      function flyFrame(now){
+        if(stale()) return;
+        if(!flyStart) flyStart = now;
+        var t = Math.min((now-flyStart)/flyDur, 1);
+        var eased = easeInCubic(t);
+        var cx = cx0 + (tx-cx0)*eased;
+        var cy = cy0 + (ty-cy0)*eased;
+        var scale = 1 + (scaleEnd-1)*eased;
+
+        ctx.clearRect(0,0,vw,vh);
+        ctx.save();
+        // quick fade only in the last stretch, right as it lands on the real logo
+        ctx.globalAlpha = t > 0.85 ? Math.max(0, 1-(t-0.85)/0.15) : 1;
+        ctx.translate(cx,cy);
+        ctx.scale(scale,scale);
+        ctx.translate(-cx0,-cy0);
+        ctx.font = FONT_WEIGHT+' '+textData.fontPx+'px '+FONT_FAMILY;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.shadowColor = 'rgba(110,150,235,0.85)';
+        ctx.shadowBlur = 8*(1-eased);
+        ctx.fillStyle = '#2A54A8';
+        ctx.fillText(WORD, textData.x, textData.y);
+        ctx.restore();
+
+        if(t < 1){
+          requestAnimationFrame(flyFrame);
+        } else {
+          navLogo.classList.add('pop');
+          setTimeout(function(){ navLogo.classList.remove('pop'); }, 400);
+          introBg.style.opacity = '0';
+          canvas.style.opacity = '0';
+          introActive = false;
+          setTimeout(function(){
+            if(stale()) return;
+            introBg.style.display = 'none';
+            canvas.style.display = 'none';
+          }, 550);
+        }
+      }
+      requestAnimationFrame(flyFrame);
+    }
+
+    requestAnimationFrame(assembleFrame);
+  }
+
+  // (Re)starts the whole intro sequence fresh, measured against the
+  // CURRENT window size. Called on first load and again if the panel
+  // resizes meaningfully while the overlay is still showing, so the word
+  // can never end up stranded at a stale, pre-resize position.
+  function playIntro(){
+    introGen++;
+    var myGen = introGen;
+    introActive = true;
+    introBg.style.display = '';
+    introBg.style.opacity = '1';
+    canvas.style.display = '';
+    canvas.style.opacity = '1';
+
+    var fontSpec = FONT_WEIGHT+' 100px Poppins';
+    var go = function(){
+      if(myGen !== introGen) return;
+      var layout = computeLayout();
+      var points = samplePointsForLayout(layout);
+      runIntro(layout, points, myGen);
+    };
+    if(document.fonts && document.fonts.load){
+      document.fonts.load(fontSpec).then(function(){
+        return document.fonts.ready;
+      }).then(go).catch(go);
+    } else {
+      go();
+    }
+  }
+
+  function start(){
+    // Wait for the panel's own size to settle (it can expand shortly
+    // after load) before measuring, so the very first run doesn't get
+    // caught mid-transition and stuck centered against a stale width.
+    var lastW = window.innerWidth, lastH = window.innerHeight;
+    var stableChecks = 0;
+    var maxWait = 1500;
+    var waitStart = Date.now();
+
+    function waitForStableSize(){
+      var w = window.innerWidth, h = window.innerHeight;
+      if(w === lastW && h === lastH){
+        stableChecks++;
+      } else {
+        stableChecks = 0;
+        lastW = w; lastH = h;
+      }
+      if(stableChecks >= 2 || Date.now()-waitStart > maxWait){
+        resize();
+        playIntro();
+      } else {
+        setTimeout(waitForStableSize, 120);
+      }
+    }
+    setTimeout(waitForStableSize, 150);
+  }
+
+  window.addEventListener('load', start);
+})();
+</script>
+
+</body>
+</html>
+

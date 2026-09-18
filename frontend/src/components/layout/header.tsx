@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import WaveLabel from "@/components/ui/WaveLabel";
 import Image from "next/image";
 import logo from "../../assets/logo.png";
 import ct1 from "../../assets/corporateTraining1.png";
@@ -179,7 +180,7 @@ export default function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex-shrink-0">
+          <Link href="/" className="flex-shrink-0" data-slog-logo>
             <Image
               src={logo}
               alt="Slog Logo"
@@ -200,14 +201,18 @@ export default function Header() {
                   onMouseEnter={() => setIsDropdownOpen(true)}
                   onMouseLeave={() => setIsDropdownOpen(false)}
                 >
-                  <button className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2">
-                    {item.label}
+                  <button
+                    className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2"
+                    aria-label={item.label}
+                  >
+                    <WaveLabel text={item.label} />
                     <svg
-                      className="ml-1 h-4 w-4"
+                      className="ml-1 h-4 w-4 flex-shrink-0"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 25 25"
                       stroke="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -305,14 +310,18 @@ export default function Header() {
                   onMouseEnter={() => setIsResourcesDropdownOpen(true)}
                   onMouseLeave={() => setIsResourcesDropdownOpen(false)}
                 >
-                  <button className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2">
-                    {item.label}
+                  <button
+                    className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2"
+                    aria-label={item.label}
+                  >
+                    <WaveLabel text={item.label} />
                     <svg
-                      className="ml-1 h-4 w-4"
+                      className="ml-1 h-4 w-4 flex-shrink-0"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -359,20 +368,28 @@ export default function Header() {
                 <Link
                   key={item.label}
                   href={item.href}
+                  aria-label="Blog (New)"
                   className="text-sm font-bold text-white hover:text-cyan-600 py-2 flex items-center gap-1"
                 >
-                  <span className="relative">
-                    {item.label}
-                    <span className="absolute -top-2 -right-5 bg-cyan-500 text-[9px] font-bold text-white px-1 py-0.5 rounded-full leading-none">NEW</span>
+                  {/* Badge sits outside the clipped wave container so it stays fixed */}
+                  <span className="relative inline-flex items-center">
+                    <WaveLabel text="Blog" />
+                    <span
+                      className="absolute -top-2 -right-5 bg-cyan-500 text-[9px] font-bold text-white px-1 py-0.5 rounded-full leading-none pointer-events-none"
+                      aria-hidden="true"
+                    >
+                      NEW
+                    </span>
                   </span>
                 </Link>
               ) : (
                 <Link
                   key={item.label}
                   href={item.href}
+                  aria-label={item.label}
                   className="text-sm font-bold text-white hover:text-cyan-600 py-2"
                 >
-                  {item.label}
+                  <WaveLabel text={item.label} />
                 </Link>
               )
             )}

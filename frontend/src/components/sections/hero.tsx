@@ -4,18 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Typewriter } from "react-simple-typewriter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
-// Local Assets (fallbacks)
+// Local Assets
 import updateslide2 from "../../assets/updateslide2.1.png";
-import slide1 from "../../assets/slide1.jpeg";
+import slide1 from "../../assets/slide1.png";
 import slide3 from "../../assets/slide3.png";
 import updateslide3 from "../../assets/updateslide3.png";
 import student_slide from "../../assets/slide10.png";
 
+/** Auto-play interval in milliseconds — change this one value to tune the cadence */
+const AUTO_PLAY_INTERVAL = 2500;
+
 interface HeroSlide {
   id?: number;
-  position: number; // ✅ position will decide which slide it belongs to
+  position: number;
   image: string;
   superTitle?: string;
   title?: string;
@@ -24,7 +27,18 @@ interface HeroSlide {
   buttonText?: string;
 }
 
-// ✅ Default static slides (with fixed positions)
+/** Typewriter word lists keyed by slide position */
+const TYPEWRITER_WORDS: Record<number, string[]> = {
+  1: ["AI & ML Solutions", "Software Development", "Lab Setup", "Product Development"],
+  2: [
+    "Advanced IT & Digital Transformation",
+    "Get 250+ Online/Offline Courses",
+    "Industry-Oriented Training Curriculum",
+    "Cutting-Edge Technology Training",
+    "Cybersecurity & Data Protection Programs",
+  ],
+};
+
 const defaultSlides: HeroSlide[] = [
   {
     position: 1,
@@ -50,7 +64,7 @@ const defaultSlides: HeroSlide[] = [
     superTitle: "Outbound Trainings",
     title: "Enhancing Skills Beyond the Workplace",
     description:
-      "Our outbound training programs are designed to build leadership, teamwork, problem-solving, and decision-making skills through experiential learning",
+      "Our outbound training programs are designed to build leadership, teamwork, problem-solving, and decision-making skills through experiential learning.",
     route: "/outbound",
     buttonText: "Know More",
   },
@@ -70,7 +84,7 @@ const defaultSlides: HeroSlide[] = [
     superTitle: "Student Training",
     title: "Empowering the Next Generation",
     description:
-      "Our student training programs are designed to bridge the gap between academics and industry. Through hands-on workshops, real-world projects, and mentorship, we equip students with practical skills, technical expertise, and professional confidence to excel in their future careers.",
+      "Our student training programs bridge the gap between academics and industry. Through hands-on workshops, real-world projects, and mentorship, we equip students with practical skills, technical expertise, and professional confidence.",
     route: "/courses",
     buttonText: "Explore",
   },
@@ -78,115 +92,201 @@ const defaultSlides: HeroSlide[] = [
 
 export default function Hero() {
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(defaultSlides);
+  const [current, setCurrent] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [autoPlayEnded, setAutoPlayEnded] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Touch/swipe
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
-
+  /* ── Fetch CMS slides (merge by position, same as original) ── */
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
     async function fetchSlides() {
       try {
         const res = await fetch(`${API_URL}/api/hero-slides/`);
-        if (!res.ok) return; // Silently fallback to static slides
+        if (!res.ok) return;
         const data: HeroSlide[] = await res.json();
-
         if (Array.isArray(data)) {
-          // ✅ Create a map from backend by position
-          const backendMap = new Map(
-            data.map((slide) => [slide.position, slide])
+          const backendMap = new Map(data.map((s) => [s.position, s]));
+          const merged = defaultSlides.map((s) =>
+            backendMap.has(s.position) ? { ...s, ...backendMap.get(s.position) } : s
           );
-
-          // ✅ Merge: static first, backend overrides only same position
-          const mergedSlides = defaultSlides.map((slide) =>
-            backendMap.has(slide.position)
-              ? { ...slide, ...backendMap.get(slide.position) }
-              : slide
-          );
-
-          setHeroSlides(mergedSlides);
+          setHeroSlides(merged);
         }
-      } catch (error) {
-        console.warn("Using static hero slides.");
+      } catch {
+        /* silently fallback to static */
       }
     }
-
     fetchSlides();
   }, []);
 
+  /* ── Slide navigation ── */
+  const goTo = useCallback(
+    (index: number, animated = true) => {
+      if (isTransitioning) return;
+      if (animated) {
+        setIsTransitioning(true);
+        setTimeout(() => setIsTransitioning(false), 700);
+      }
+      setCurrent((index + heroSlides.length) % heroSlides.length);
+    },
+    [heroSlides.length, isTransitioning]
+  );
+
+  const next = useCallback(() => {
+    if (autoPlayEnded) return;
+
+    if (current >= heroSlides.length - 1) {
+      // Reached the end (last slide) -> move 1 more slide back to Slide 1 and stop
+      goTo(0);
+      setAutoPlayEnded(true);
+    } else {
+      goTo(current + 1);
+    }
+  }, [current, heroSlides.length, goTo, autoPlayEnded]);
+
+  const prev = useCallback(() => goTo(current - 1), [current, goTo]);
+
+  /* ── Auto-play ── */
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!isPaused && !autoPlayEnded) {
+      timerRef.current = setTimeout(next, AUTO_PLAY_INTERVAL);
+    }
+  }, [isPaused, autoPlayEnded, next]);
+
+  useEffect(() => {
+    resetTimer();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [current, isPaused, resetTimer]);
+
+  /* ── Touch / Swipe ── */
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      dx < 0 ? next() : prev();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
+
+  const total = heroSlides.length;
 
   return (
-    <section id="home" className="relative w-full">
-      {heroSlides.map((slide, index) => (
-        <div key={slide.position} className="relative w-full h-screen">
-          {/* Background Image */}
-          <div className="relative w-full h-screen">
+    <section
+      id="home"
+      aria-label="Hero carousel"
+      className="relative w-full overflow-hidden"
+      style={{ height: "100svh" }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* ── Slide stack (all slides rendered; only active one is visible) ── */}
+      {heroSlides.map((slide, index) => {
+        const isActive = index === current;
+        const isOdd = index % 2 !== 0;
+
+        return (
+          <div
+            key={slide.position}
+            aria-hidden={!isActive}
+            className="absolute inset-0 w-full h-full"
+            style={{
+              opacity: isActive ? 1 : 0,
+              transition: "opacity 0.7s cubic-bezier(0.4,0,0.2,1)",
+              zIndex: isActive ? 2 : 1,
+              pointerEvents: isActive ? "auto" : "none",
+            }}
+          >
+            {/* Background image */}
             <Image
               src={slide.image}
-              alt={slide.title || slide.superTitle || `Slide ${index + 1}`}
+              alt={slide.superTitle || `Slide ${index + 1}`}
               fill
               className="object-cover"
               priority={index === 0}
             />
-          </div>
 
-          {/* Overlay */}
-          <div className="absolute inset-0 z-10" />
+            {/* Dark gradient overlay — stronger at bottom for dot legibility */}
+            <div
+              className="absolute inset-0 z-10"
+              style={{
+                background:
+                  "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.75) 100%)",
+              }}
+            />
 
-          {/* Slide Content */}
-          <div className="absolute inset-0 flex items-center justify-center z-20">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
-              <div
-                className={`flex flex-col md:flex-row ${index % 2 !== 0 ? "md:flex-row-reverse" : ""
-                  } items-center justify-between gap-4 md:gap-8`}
-              >
+            {/* Slide content */}
+            <div className="absolute inset-0 flex items-center z-20">
+              <div className="container mx-auto px-6 sm:px-10 lg:px-16 w-full">
                 <div
-                  className={`max-w-3xl text-white text-center md:text-left ${index % 2 !== 0 ? "md:text-right" : "md:text-left"
-                    } px-4 md:px-0 pt-20 md:pt-0`}
+                  className={`flex flex-col ${
+                    isOdd ? "md:items-end md:text-right" : "md:items-start md:text-left"
+                  } items-center text-center max-w-3xl ${isOdd ? "md:ml-auto" : ""}`}
+                  style={{
+                    transform: isActive
+                      ? "translateY(0)"
+                      : isOdd
+                      ? "translateY(28px)"
+                      : "translateY(-28px)",
+                    opacity: isActive ? 1 : 0,
+                    transition:
+                      "transform 0.75s cubic-bezier(0.4,0,0.2,1) 0.1s, opacity 0.75s ease 0.1s",
+                  }}
                 >
-                  {/* Supertitle: xs → md → lg */}
-                  <div className="[font-family:'Poiret_One',Helvetica] text-2xl sm:text-4xl md:text-5xl lg:text-7xl md:leading-[80px] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-500 bg-clip-text text-transparent mb-2 md:mb-4 pb-2">
+                  {/* Super-title */}
+                  <div className="[font-family:'Poiret_One',Helvetica] text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent mb-2 md:mb-4 pb-2 leading-tight">
                     {slide.superTitle}
                   </div>
 
-                  {/* Typewriter heading */}
-                  <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-5xl font-bold mb-3 md:mb-6">
-                    <Typewriter
-                      words={
-                        index === 0
-                          ? [
-                            "AI & ML Solutions",
-                            "Software Development",
-                            "Lab Setup",
-                            "Product Development",
+                  {/* Typewriter heading — only rendered when active to keep sync */}
+                  <h2 className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-5 min-h-[2.4em]">
+                    {isActive && (
+                      <Typewriter
+                        words={
+                          TYPEWRITER_WORDS[slide.position] || [
+                            slide.title || "Empowering Your Future",
                           ]
-                          : index === 1
-                            ? [
-                              "Advanced IT & Digital Transformation",
-                              "Get 250+ Online/Offline Courses",
-                              "Industry-Oriented Training Curriculum",
-                              "Cutting-Edge Technology Training",
-                              "Cybersecurity & Data Protection Programs",
-                            ]
-                            : [slide.title || "Empowering Your Future"]
-                      }
-                      loop={0}
-                      cursor
-                      cursorStyle={index === 0 ? "|" : "."}
-                      typeSpeed={50}
-                      deleteSpeed={30}
-                      delaySpeed={1500}
-                    />
+                        }
+                        loop={0}
+                        cursor
+                        cursorStyle={slide.position === 1 ? "|" : "."}
+                        typeSpeed={50}
+                        deleteSpeed={30}
+                        delaySpeed={1800}
+                      />
+                    )}
+                    {!isActive && (
+                      <span>
+                        {(TYPEWRITER_WORDS[slide.position] || [slide.title || "Empowering Your Future"])[0]}
+                      </span>
+                    )}
                   </h2>
 
                   {/* Description */}
-                  <p className="text-sm sm:text-base md:text-lg lg:text-xl mt-2 leading-5 sm:leading-6 md:leading-8 text-justify line-clamp-4 md:line-clamp-none">
+                  <p className="text-white/85 text-sm sm:text-base md:text-lg leading-relaxed line-clamp-4 md:line-clamp-none mb-4 md:mb-0">
                     {slide.description}
                   </p>
 
+                  {/* CTA */}
                   {slide.route && (
-                    <Link href={slide.route}>
+                    <Link href={slide.route} className="mt-4 md:mt-8 inline-block">
                       <Button
                         size="lg"
-                        className="mt-4 md:mt-8 px-5 md:px-8 py-3 md:py-6 text-sm md:text-lg rounded-lg"
+                        className="px-7 md:px-10 py-3 md:py-5 text-sm md:text-base rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/30 transition-all duration-200 hover:scale-105 hover:shadow-cyan-400/50"
                       >
                         {slide.buttonText}
                       </Button>
@@ -196,8 +296,72 @@ export default function Hero() {
               </div>
             </div>
           </div>
+        );
+      })}
+
+
+
+      {/* ── Progress bar (active during initial cycle) ── */}
+      {!autoPlayEnded && (
+        <div className="absolute bottom-16 md:bottom-20 left-0 right-0 z-30 flex justify-center px-6">
+          <div className="w-full max-w-xs h-[2px] bg-white/20 rounded-full overflow-hidden">
+            <div
+              key={current} // reset animation on slide change
+              className="h-full bg-cyan-400 rounded-full"
+              style={{
+                animation: isPaused
+                  ? "none"
+                  : `heroProgress ${AUTO_PLAY_INTERVAL}ms linear forwards`,
+              }}
+            />
+          </div>
         </div>
-      ))}
+      )}
+
+      {/* ── Navigation dots ── */}
+      <div
+        className="absolute bottom-5 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5"
+        role="tablist"
+        aria-label="Slide navigation"
+      >
+        {heroSlides.map((slide, index) => {
+          const isActive = index === current;
+          return (
+            <button
+              key={slide.position}
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`Go to slide ${index + 1}: ${slide.superTitle}`}
+              onClick={() => {
+                if (timerRef.current) clearTimeout(timerRef.current);
+                goTo(index);
+              }}
+              className="rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+              style={{
+                width: isActive ? "28px" : "8px",
+                height: "8px",
+                background: isActive
+                  ? "rgba(6,182,212,1)"   // cyan-500
+                  : "rgba(255,255,255,0.45)",
+                transform: isActive ? "scaleY(1.15)" : "scale(1)",
+              }}
+            />
+          );
+        })}
+      </div>
+
+      {/* ── Slide counter (top-right) ── */}
+      {/* <div className="absolute top-24 md:top-28 right-5 md:right-8 z-30 text-white/60 text-xs md:text-sm font-mono select-none">
+        {String(current + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+      </div> */}
+
+      {/* Progress bar keyframe animation injected inline */}
+      <style>{`
+        @keyframes heroProgress {
+          from { width: 0%; }
+          to   { width: 100%; }
+        }
+      `}</style>
     </section>
   );
 }

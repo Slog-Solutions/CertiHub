@@ -4,7 +4,17 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import NextTopLoader from 'nextjs-toploader';
-// In your layout.jsx or _app.jsx
+import { Poppins } from 'next/font/google';
+import SlogIntro from '@/components/SlogIntro';
+
+// next/font guarantees Poppins is loaded before first paint — no font-loading
+// race for the SlogIntro canvas animation.
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['700', '800'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: {
@@ -76,7 +86,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="!scroll-smooth">
+    <html lang="en" className={`!scroll-smooth ${poppins.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -96,8 +106,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
+        {/* One-time canvas particle intro — plays once per session, SSR-safe */}
+        <SlogIntro />
         <NextTopLoader
-          color="#2563EB" 
+          color="#2563EB"
           initialPosition={0.08}
           crawlSpeed={200}
           height={3}
