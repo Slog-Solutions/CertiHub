@@ -52,10 +52,12 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
+    const jwtOptions = user.role === 'Student' ? {} : { expiresIn: '12h' };
+
     const token = jwt.sign(
       { id: user._id, role: user.role, name: user.name },
       JWT_SECRET,
-      { expiresIn: '12h' }
+      jwtOptions
     );
 
     res.json({

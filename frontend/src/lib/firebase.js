@@ -28,14 +28,24 @@ if (isConfigured) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 }
 
+export const getInstallationId = () => {
+  if (typeof window === 'undefined') return null;
+  let installId = localStorage.getItem('installationId');
+  if (!installId) {
+    installId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'device-' + Date.now();
+    localStorage.setItem('installationId', installId);
+  }
+  return installId;
+};
+
 /**
  * Request browser notification permission, obtain FCM registration token,
  * and save it to the backend so the server can push to this device.
  *
- * @param {function} apiPost - Axios-compatible POST function, e.g. api.patch
+ * @param {object} api - Axios instance
  * @returns {Promise<string|null>} FCM token string or null
  */
-export const requestNotificationPermission = async (apiPatch = null) => {
+export const requestNotificationPermission = async (api = null) => {
   if (typeof window === 'undefined') return null;
   if (!isConfigured) {
     console.warn('[Firebase] Not configured. Add NEXT_PUBLIC_FIREBASE_* keys to .env.local');
@@ -64,12 +74,13 @@ export const requestNotificationPermission = async (apiPatch = null) => {
       console.log('[Firebase] FCM token obtained:', token.substring(0, 20) + '...');
 
       // Save token to backend so server can push to this device
-      if (apiPatch && typeof apiPatch === 'function') {
+      if (api && typeof api.post === 'function') {
         try {
-          await apiPatch('/push/fcm-token', { token });
-          console.log('[Firebase] FCM token saved to backend.');
+          const installationId = getInstallationId();
+          await api.post('/devices/register', { installationId, fcmToken: token, platform: 'web' });
+          console.log('[Firebase] FCM token and device registered to backend.');
         } catch (err) {
-          console.warn('[Firebase] Failed to save FCM token to backend:', err?.response?.data?.error || err.message);
+          console.warn('[Firebase] Failed to register device to backend:', err?.response?.data?.error || err.message);
         }
       }
 

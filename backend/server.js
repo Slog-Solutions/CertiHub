@@ -1,4 +1,4 @@
-// Slog Solutions server bootstrapper (restarted - trigger)
+// Slog Solutions server bootstrapper (running on PORT 1111)
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -245,6 +245,8 @@ app.use('/api/queries', require('./routes/queries'));
 app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/delete-requests', require('./routes/deleteRequests'));
 app.use('/api/push', require('./routes/push'));
+app.use('/api/devices', require('./routes/devices'));
+app.use('/api/marketing', require('./routes/marketing'));
 
 // Dummy endpoints for frontend CMS components to prevent 404 console errors
 app.use('/api/hero-slides', (req, res) => res.json([]));

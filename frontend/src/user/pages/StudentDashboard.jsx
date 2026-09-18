@@ -395,7 +395,7 @@ const StudentDashboard = () => {
     let isMounted = true;
     (async () => {
       try {
-        const token = await requestNotificationPermission(api.patch);
+        const token = await requestNotificationPermission(api);
         if (isMounted) {
           if (token) {
             setFcmToken(token);

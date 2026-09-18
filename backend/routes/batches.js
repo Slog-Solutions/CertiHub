@@ -493,10 +493,49 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
       return res.status(404).json({ error: 'Batch not found or not assigned to you' });
     }
 
+    // Fetch active students in batch to send push notification & calculate delivery metrics
+    const totalStudents = batch.students?.length || 0;
+    const students = await User.find({
+      _id: { $in: batch.students },
+      isActive: true
+    }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
+
+    const tokens = students.flatMap(s => extractUserFcmTokens(s));
+    let successCount = 0;
+    let failureCount = 0;
+    let deliveryStatus = 'no_tokens';
+
+    if (tokens.length > 0) {
+      try {
+        const fcmResult = await sendToTokens(tokens, title.trim(), message.trim(), {
+          type: 'announcement',
+          audience: 'student',
+          batchId: batch._id.toString(),
+          tab: 'resources',
+          title: title.trim(),
+          message: message.trim()
+        });
+        successCount = fcmResult.successCount || 0;
+        failureCount = fcmResult.failureCount || 0;
+        deliveryStatus = successCount > 0 ? 'delivered' : 'failed';
+        console.log(`[FCM] Announcement push sent: ${successCount}/${tokens.length} delivered for batch "${batch.name}"`);
+      } catch (fcmErr) {
+        console.error('[FCM] Error sending announcement push:', fcmErr.message);
+        deliveryStatus = 'failed';
+      }
+    } else {
+      console.log(`[FCM] No FCM tokens registered for batch "${batch.name}" (total candidates in batch: ${totalStudents}) — skipping push.`);
+    }
+
     const newNotification = {
       title: title.trim(),
       message: message.trim(),
-      date: new Date()
+      date: new Date(),
+      totalStudents,
+      sentCount: tokens.length,
+      successCount,
+      failureCount,
+      deliveryStatus
     };
 
     batch.notifications.push(newNotification);
@@ -504,39 +543,14 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
 
     const created = batch.notifications[batch.notifications.length - 1];
 
-    // Fire Firebase FCM push to all students who have registered their FCM token
-    // Do this asynchronously so the response is not delayed
-    (async () => {
-      try {
-        const students = await User.find({
-          _id: { $in: batch.students },
-          isActive: true
-        }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
-
-        const tokens = students.flatMap(s => extractUserFcmTokens(s));
-
-        if (tokens.length > 0) {
-          const fcmResult = await sendToTokens(tokens, title.trim(), message.trim(), {
-            type: 'announcement',
-            audience: 'student',
-            batchId: batch._id.toString(),
-            tab: 'resources',
-            title: title.trim(),
-            message: message.trim()
-          });
-          console.log(`[FCM] Announcement push sent: ${fcmResult.successCount}/${tokens.length} delivered for batch "${batch.name}"`);
-        } else {
-          console.log(`[FCM] No FCM tokens registered for batch "${batch.name}" (total candidates in batch: ${batch.students?.length || 0}) — skipping push.`);
-        }
-      } catch (fcmErr) {
-        console.error('[FCM] Error sending announcement push:', fcmErr.message);
-      }
-    })();
-
     res.status(201).json({
       ...created.toObject(),
       broadcastSuccess: true,
-      studentsCount: batch.students?.length || 0
+      studentsCount: totalStudents,
+      sentCount: tokens.length,
+      successCount,
+      failureCount,
+      deliveryStatus
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

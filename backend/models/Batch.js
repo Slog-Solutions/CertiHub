@@ -86,6 +86,26 @@ const batchSchema = new mongoose.Schema({
     date: {
       type: Date,
       default: Date.now
+    },
+    totalStudents: {
+      type: Number,
+      default: 0
+    },
+    sentCount: {
+      type: Number,
+      default: 0
+    },
+    successCount: {
+      type: Number,
+      default: 0
+    },
+    failureCount: {
+      type: Number,
+      default: 0
+    },
+    deliveryStatus: {
+      type: String,
+      default: 'sent'
     }
   }],
   curriculum: [{
