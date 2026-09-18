@@ -28,6 +28,7 @@ import PublicBootcampRegistration from './views/PublicBootcampRegistration';
 import Projects from './views/Projects';
 import ManageCourses from './views/ManageCourses';
 import DeleteRequests from './views/DeleteRequests';
+import AppVersions from './views/AppVersions';
 
 // Import Components
 import Sidebar from './components/Sidebar';
@@ -127,6 +128,7 @@ const DashboardLayout = () => {
             <Route path="/discounts" element={<Discounts />} />
             <Route path="/enquiries" element={<Enquiries />} />
             <Route path="/certificates" element={<Certificates />} />
+            <Route path="/app-versions" element={<AdminRoute><AppVersions /></AdminRoute>} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/marketing" element={<MarketingNotifications />} />
             <Route path="/courses" element={<ManageCourses />} />
