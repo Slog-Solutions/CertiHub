@@ -96,6 +96,8 @@ export default function Hero() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [autoPlayEnded, setAutoPlayEnded] = useState(false);
+  // Ref mirror so setTimeout callbacks always read the latest value (fixes stale closure)
+  const autoPlayEndedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Touch/swipe
   const touchStartX = useRef<number | null>(null);
@@ -137,26 +139,27 @@ export default function Hero() {
   );
 
   const next = useCallback(() => {
-    if (autoPlayEnded) return;
+    // Read the ref — not the state — so the stale-closure in setTimeout is never an issue
+    if (autoPlayEndedRef.current) return;
 
     if (current >= heroSlides.length - 1) {
-      // Reached the end (last slide) -> move 1 more slide back to Slide 1 and stop
-      goTo(0);
+      // Completed one full round — stop on the last slide
+      autoPlayEndedRef.current = true;
       setAutoPlayEnded(true);
     } else {
       goTo(current + 1);
     }
-  }, [current, heroSlides.length, goTo, autoPlayEnded]);
+  }, [current, heroSlides.length, goTo]);
 
   const prev = useCallback(() => goTo(current - 1), [current, goTo]);
 
   /* ── Auto-play ── */
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!isPaused && !autoPlayEnded) {
+    if (!isPaused && !autoPlayEndedRef.current) {
       timerRef.current = setTimeout(next, AUTO_PLAY_INTERVAL);
     }
-  }, [isPaused, autoPlayEnded, next]);
+  }, [isPaused, next]);
 
   useEffect(() => {
     resetTimer();
