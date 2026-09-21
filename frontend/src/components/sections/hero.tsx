@@ -143,7 +143,8 @@ export default function Hero() {
     if (autoPlayEndedRef.current) return;
 
     if (current >= heroSlides.length - 1) {
-      // Completed one full round — stop on the last slide
+      // Completed one full round — go back to slide 1 and stop
+      goTo(0);
       autoPlayEndedRef.current = true;
       setAutoPlayEnded(true);
     } else {
