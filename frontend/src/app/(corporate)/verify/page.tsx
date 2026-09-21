@@ -54,7 +54,8 @@ export default function VerifyCertificatePage() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/certificates/verify/${certificateId}`);
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${API_URL}/api/certificates/verify/${encodeURIComponent(certificateId)}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error || "Certificate ID not found or invalid");
