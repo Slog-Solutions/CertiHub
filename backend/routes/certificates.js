@@ -750,42 +750,68 @@ router.delete('/:id', requireAuth, async (req, res) => {
    4. PUBLIC CERTIFICATE VERIFICATION
    ========================================== */
 
-// @route   GET /api/certificates/verify/:certificateId
-// @desc    Public verification of a certificate
+// @route   GET /api/certificates/verify/:id
+// @desc    Public verification of a certificate by Certificate ID OR Registration No
 // @access  Public
-router.get('/verify/:certificateId', async (req, res) => {
+router.get('/verify/:id', async (req, res) => {
   try {
-    const cert = await Certificate.findOne({ certificateId: req.params.certificateId })
-      .populate({
-        path: 'studentId',
-        select: 'name registrationNo candidateInfo'
-      })
-      .populate({
-        path: 'userId',
-        select: 'name username'
-      })
-      .populate({
-        path: 'courseDetailId',
-        populate: [{ path: 'technologyId' }, { path: 'durationId' }]
-      });
+    const input = req.params.id.trim();
+    const Student = require('../models/Student');
+
+    // ── Step 1: try matching as a Certificate ID directly ──
+    let cert = await Certificate.findOne({ certificateId: input })
+      .populate({ path: 'studentId', select: 'name registrationNo candidateInfo' })
+      .populate({ path: 'userId', select: 'name username' })
+      .populate({ path: 'courseDetailId', populate: [{ path: 'technologyId' }, { path: 'durationId' }] });
+
+    // ── Step 2: if not found, try matching as a Registration No via Student model ──
+    if (!cert) {
+      const student = await Student.findOne({ registrationNo: input }).select('_id');
+      if (student) {
+        cert = await Certificate.findOne({ studentId: student._id })
+          .populate({ path: 'studentId', select: 'name registrationNo candidateInfo' })
+          .populate({ path: 'userId', select: 'name username' })
+          .populate({ path: 'courseDetailId', populate: [{ path: 'technologyId' }, { path: 'durationId' }] });
+      }
+    }
 
     if (!cert) {
-      return res.status(404).json({ verified: false, error: 'Invalid Certificate ID: No matching certificate found' });
+      return res.status(404).json({
+        verified: false,
+        error: 'No matching certificate found for the provided Certificate ID or Registration Number'
+      });
     }
 
     const studentName = cert.userId?.name || cert.studentId?.name || 'N/A';
     const registrationNo = cert.studentId?.registrationNo || cert.userId?.username || cert.certificateId;
+
+    // ── Build absolute PDF URL so the browser opens the correct host ──
+    // In production behind nginx: https://www.slogsolutions.com/uploads/...
+    // Locally: http://localhost:5001/uploads/...
+    let absolutePdfUrl = '';
+    if (cert.status === 'Active' && cert.pdfUrl) {
+      if (cert.pdfUrl.startsWith('http')) {
+        // Already absolute (e.g. Cloudinary CDN URLs)
+        absolutePdfUrl = cert.pdfUrl;
+      } else {
+        const relativePath = cert.pdfUrl.startsWith('/') ? cert.pdfUrl : `/${cert.pdfUrl}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        absolutePdfUrl = `${baseUrl}${relativePath}`;
+      }
+    }
 
     res.json({
       verified: true,
       certificateId: cert.certificateId,
       studentName,
       registrationNo,
-      courseName: cert.courseDetailId.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
-      duration: cert.courseDetailId.durationId ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)` : 'N/A',
+      courseName: cert.courseDetailId?.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
+      duration: cert.courseDetailId?.durationId
+        ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)`
+        : 'N/A',
       issueDate: cert.issueDate,
       status: cert.status,
-      pdfUrl: cert.status === 'Active' ? cert.pdfUrl : ''
+      pdfUrl: absolutePdfUrl
     });
   } catch (err) {
     res.status(500).json({ verified: false, error: err.message });

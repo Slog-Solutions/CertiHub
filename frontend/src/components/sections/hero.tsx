@@ -165,6 +165,25 @@ export default function Hero() {
     };
   }, [current, isPaused, resetTimer]);
 
+  /* ── Keyboard arrow navigation ── */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // Don't hijack keys while the user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+
+      if (e.key === "ArrowLeft") {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        goTo(current - 1);
+      } else if (e.key === "ArrowRight") {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        goTo(current + 1);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [current, goTo]);
+
   /* ── Touch / Swipe ── */
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -231,12 +250,21 @@ export default function Hero() {
 
             {/* Slide content */}
             <div className="absolute inset-0 flex items-center z-20">
-              <div className="container mx-auto px-6 sm:px-10 lg:px-16 w-full">
+              {/* Max-width cap: content stops scaling past 1440px; extra space goes to background */}
+              <div
+                className="w-full mx-auto"
+                style={{
+                  maxWidth: "1440px",
+                  paddingLeft: "clamp(1.5rem, 5vw, 6rem)",
+                  paddingRight: "clamp(1.5rem, 5vw, 6rem)",
+                }}
+              >
                 <div
                   className={`flex flex-col ${
                     isOdd ? "md:items-end md:text-right" : "md:items-start md:text-left"
-                  } items-center text-center max-w-3xl ${isOdd ? "md:ml-auto" : ""}`}
+                  } items-center text-center ${isOdd ? "md:ml-auto" : ""}`}
                   style={{
+                    maxWidth: "min(48rem, 100%)",
                     transform: isActive
                       ? "translateY(0)"
                       : isOdd
@@ -247,13 +275,25 @@ export default function Hero() {
                       "transform 0.75s cubic-bezier(0.4,0,0.2,1) 0.1s, opacity 0.75s ease 0.1s",
                   }}
                 >
-                  {/* Super-title */}
-                  <div className="[font-family:'Poiret_One',Helvetica] text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent mb-2 md:mb-4 pb-2 leading-tight">
+                  {/* Super-title — clamp() keeps it large on 1920px+ screens */}
+                  <div
+                    className="[font-family:'Poiret_One',Helvetica] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent pb-2 leading-tight"
+                    style={{
+                      fontSize: "clamp(2.25rem, 4.5vw, 4.5rem)",
+                      marginBottom: "clamp(0.5rem, 1vw, 1rem)",
+                    }}
+                  >
                     {slide.superTitle}
                   </div>
 
                   {/* Typewriter heading — only rendered when active to keep sync */}
-                  <h2 className="text-white text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-5 min-h-[2.4em]">
+                  <h2
+                    className="text-white font-bold min-h-[2.4em]"
+                    style={{
+                      fontSize: "clamp(1.25rem, 2.5vw, 2.5rem)",
+                      marginBottom: "clamp(0.75rem, 1.5vw, 1.25rem)",
+                    }}
+                  >
                     {isActive && (
                       <Typewriter
                         words={
@@ -276,17 +316,34 @@ export default function Hero() {
                     )}
                   </h2>
 
-                  {/* Description */}
-                  <p className="text-white/85 text-sm sm:text-base md:text-lg leading-relaxed line-clamp-4 md:line-clamp-none mb-4 md:mb-0">
+                  {/* Description — clamp() prevents it shrinking to tiny on large screens */}
+                  <p
+                    className="text-white/85 leading-relaxed line-clamp-4 md:line-clamp-none"
+                    style={{
+                      fontSize: "clamp(0.9rem, 1.15vw, 1.2rem)",
+                      marginBottom: "clamp(1rem, 1.5vw, 0px)",
+                    }}
+                  >
                     {slide.description}
                   </p>
 
                   {/* CTA */}
                   {slide.route && (
-                    <Link href={slide.route} className="mt-4 md:mt-8 inline-block">
+                    <Link
+                      href={slide.route}
+                      className="inline-block"
+                      style={{ marginTop: "clamp(1rem, 2vw, 2rem)" }}
+                    >
                       <Button
                         size="lg"
-                        className="px-7 md:px-10 py-3 md:py-5 text-sm md:text-base rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/30 transition-all duration-200 hover:scale-105 hover:shadow-cyan-400/50"
+                        className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/30 transition-all duration-200 hover:scale-105 hover:shadow-cyan-400/50"
+                        style={{
+                          paddingLeft: "clamp(1.75rem, 2.5vw, 2.5rem)",
+                          paddingRight: "clamp(1.75rem, 2.5vw, 2.5rem)",
+                          paddingTop: "clamp(0.75rem, 1.2vw, 1.25rem)",
+                          paddingBottom: "clamp(0.75rem, 1.2vw, 1.25rem)",
+                          fontSize: "clamp(0.875rem, 1vw, 1.125rem)",
+                        }}
                       >
                         {slide.buttonText}
                       </Button>
@@ -299,24 +356,6 @@ export default function Hero() {
         );
       })}
 
-
-
-      {/* ── Progress bar (active during initial cycle) ── */}
-      {!autoPlayEnded && (
-        <div className="absolute bottom-16 md:bottom-20 left-0 right-0 z-30 flex justify-center px-6">
-          <div className="w-full max-w-xs h-[2px] bg-white/20 rounded-full overflow-hidden">
-            <div
-              key={current} // reset animation on slide change
-              className="h-full bg-cyan-400 rounded-full"
-              style={{
-                animation: isPaused
-                  ? "none"
-                  : `heroProgress ${AUTO_PLAY_INTERVAL}ms linear forwards`,
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── Navigation dots ── */}
       <div
@@ -355,13 +394,6 @@ export default function Hero() {
         {String(current + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
       </div> */}
 
-      {/* Progress bar keyframe animation injected inline */}
-      <style>{`
-        @keyframes heroProgress {
-          from { width: 0%; }
-          to   { width: 100%; }
-        }
-      `}</style>
     </section>
   );
 }
