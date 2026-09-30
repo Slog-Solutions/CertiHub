@@ -254,14 +254,9 @@ export default function Hero() {
 
             {/* Slide content */}
             <div className="absolute inset-0 flex items-center z-20">
-              {/* Max-width cap: content stops scaling past 1440px; extra space goes to background */}
+              {/* Matches header.tsx container for perfect left-alignment on all screens */}
               <div
-                className="w-full mx-auto"
-                style={{
-                  maxWidth: "1440px",
-                  paddingLeft: "clamp(1.5rem, 5vw, 6rem)",
-                  paddingRight: "clamp(1.5rem, 5vw, 6rem)",
-                }}
+                className="container mx-auto px-4 sm:px-6 lg:px-8 w-full"
               >
                 <div
                   className={`flex flex-col ${
