@@ -210,8 +210,8 @@ export default function Hero() {
     <section
       id="home"
       aria-label="Hero carousel"
-      className="relative w-full overflow-hidden"
-      style={{ height: "100svh" }}
+      className="relative w-full overflow-hidden min-h-[100svh] flex items-center"
+      style={{ minHeight: "100svh" }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={onTouchStart}
@@ -220,13 +220,12 @@ export default function Hero() {
       {/* ── Slide stack (all slides rendered; only active one is visible) ── */}
       {heroSlides.map((slide, index) => {
         const isActive = index === current;
-        const isOdd = index % 2 !== 0;
 
         return (
           <div
             key={slide.position}
             aria-hidden={!isActive}
-            className="absolute inset-0 w-full h-full"
+            className="absolute inset-0 w-full h-full flex items-center"
             style={{
               opacity: isActive ? 1 : 0,
               transition: "opacity 0.7s cubic-bezier(0.4,0,0.2,1)",
@@ -239,7 +238,7 @@ export default function Hero() {
               src={slide.image}
               alt={slide.superTitle || `Slide ${index + 1}`}
               fill
-              className="object-cover"
+              className="object-cover object-center"
               priority={index === 0}
             />
 
@@ -252,51 +251,28 @@ export default function Hero() {
               }}
             />
 
-            {/* Slide content */}
-            <div className="absolute inset-0 flex items-center z-20">
-              {/* Max-width cap: content stops scaling past 1440px; extra space goes to background */}
-              <div
-                className="w-full mx-auto"
-                style={{
-                  maxWidth: "1440px",
-                  paddingLeft: "clamp(1.5rem, 5vw, 6rem)",
-                  paddingRight: "clamp(1.5rem, 5vw, 6rem)",
-                }}
-              >
+            {/* Slide content - vertically centered and left-aligned using shared site-wrapper */}
+            <div className="absolute inset-0 flex items-center z-20 pointer-events-none">
+              <div className="site-wrapper pointer-events-auto">
                 <div
-                  className={`flex flex-col ${
-                    isOdd ? "md:items-end md:text-right" : "md:items-start md:text-left"
-                  } items-center text-center ${isOdd ? "md:ml-auto" : ""}`}
+                  className="flex flex-col items-start text-left max-w-[38rem]"
                   style={{
-                    maxWidth: "min(48rem, 100%)",
-                    transform: isActive
-                      ? "translateY(0)"
-                      : isOdd
-                      ? "translateY(28px)"
-                      : "translateY(-28px)",
+                    transform: isActive ? "translateY(0)" : "translateY(1.75rem)",
                     opacity: isActive ? 1 : 0,
                     transition:
                       "transform 0.75s cubic-bezier(0.4,0,0.2,1) 0.1s, opacity 0.75s ease 0.1s",
                   }}
                 >
-                  {/* Super-title — clamp() keeps it large on 1920px+ screens */}
+                  {/* Super-title */}
                   <div
-                    className="[font-family:'Poiret_One',Helvetica] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent pb-2 leading-tight"
-                    style={{
-                      fontSize: "clamp(2.25rem, 4.5vw, 4.5rem)",
-                      marginBottom: "clamp(0.5rem, 1vw, 1rem)",
-                    }}
+                    className="[font-family:'Poiret_One',Helvetica] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent pb-[0.5rem] leading-tight text-[3.25rem] md:text-[3.5rem] mb-[0.75rem]"
                   >
                     {slide.superTitle}
                   </div>
 
-                  {/* Typewriter heading — only rendered when active to keep sync */}
+                  {/* Typewriter heading */}
                   <h2
-                    className="text-white font-bold min-h-[2.4em]"
-                    style={{
-                      fontSize: "clamp(1.25rem, 2.5vw, 2.5rem)",
-                      marginBottom: "clamp(0.75rem, 1.5vw, 1.25rem)",
-                    }}
+                    className="text-white font-bold min-h-[2.4em] text-[1.75rem] md:text-[2rem] leading-snug mb-[1.25rem]"
                   >
                     {isActive && (
                       <Typewriter
@@ -320,13 +296,9 @@ export default function Hero() {
                     )}
                   </h2>
 
-                  {/* Description — clamp() prevents it shrinking to tiny on large screens */}
+                  {/* Description */}
                   <p
-                    className="text-white/85 leading-relaxed line-clamp-4 md:line-clamp-none"
-                    style={{
-                      fontSize: "clamp(0.9rem, 1.15vw, 1.2rem)",
-                      marginBottom: "clamp(1rem, 1.5vw, 0px)",
-                    }}
+                    className="text-white/85 leading-relaxed text-[1rem] mb-[1.75rem] line-clamp-4 md:line-clamp-none"
                   >
                     {slide.description}
                   </p>
@@ -336,18 +308,10 @@ export default function Hero() {
                     <Link
                       href={slide.route}
                       className="inline-block"
-                      style={{ marginTop: "clamp(1rem, 2vw, 2rem)" }}
                     >
                       <Button
                         size="lg"
-                        className="rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/30 transition-all duration-200 hover:scale-105 hover:shadow-cyan-400/50"
-                        style={{
-                          paddingLeft: "clamp(1.75rem, 2.5vw, 2.5rem)",
-                          paddingRight: "clamp(1.75rem, 2.5vw, 2.5rem)",
-                          paddingTop: "clamp(0.75rem, 1.2vw, 1.25rem)",
-                          paddingBottom: "clamp(0.75rem, 1.2vw, 1.25rem)",
-                          fontSize: "clamp(0.875rem, 1vw, 1.125rem)",
-                        }}
+                        className="rounded-[0.5rem] bg-cyan-500 hover:bg-cyan-400 text-white font-semibold shadow-lg shadow-cyan-500/30 transition-all duration-200 hover:scale-105 hover:shadow-cyan-400/50 px-[2rem] py-[0.75rem] text-[1rem] h-auto"
                       >
                         {slide.buttonText}
                       </Button>
@@ -360,10 +324,9 @@ export default function Hero() {
         );
       })}
 
-
       {/* ── Navigation dots ── */}
       <div
-        className="absolute bottom-5 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5"
+        className="absolute bottom-[2rem] left-1/2 -translate-x-1/2 z-30 flex items-center gap-[0.625rem]"
         role="tablist"
         aria-label="Slide navigation"
       >
@@ -381,8 +344,8 @@ export default function Hero() {
               }}
               className="rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               style={{
-                width: isActive ? "28px" : "8px",
-                height: "8px",
+                width: isActive ? "1.75rem" : "0.5rem",
+                height: "0.5rem",
                 background: isActive
                   ? "rgba(6,182,212,1)"   // cyan-500
                   : "rgba(255,255,255,0.45)",

@@ -80,3 +80,33 @@
     @apply font-headline;
   }
 }
+
+/* ── Proportional Fluid Scaling (1280px Reference Width) ── */
+@media (min-width: 1025px) {
+  html {
+    font-size: clamp(12px, calc(100vw / 80), 28px);
+  }
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* ── Shared Layout Wrapper for Navbar & Hero ── */
+.site-wrapper {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 3.5rem;
+  padding-right: 3.5rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 1024px) {
+  .site-wrapper {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}

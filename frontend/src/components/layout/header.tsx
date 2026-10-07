@@ -177,22 +177,24 @@ export default function Header() {
         (isScrolled || isLightBgPage) ? "bg-slate-900 shadow-md" : "bg-transparent"
       )}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
+      <div className="site-wrapper">
+        <div className="flex items-center justify-between h-[4.5rem] md:h-[5rem]">
           {/* Logo */}
-          <Link href="/" className="flex-shrink-0" data-slog-logo>
-            <Image
-              src={logo}
-              alt="Slog Logo"
-              width={80}
-              height={45}
-              className="md:w-100 md:h-57"
-              priority
-            />
-          </Link>
+          <div className="flex-1 flex justify-start items-center">
+            <Link href="/" className="flex-shrink-0" data-slog-logo>
+              <Image
+                src={logo}
+                alt="Slog Logo"
+                width={120}
+                height={55}
+                className="h-[2.5rem] md:h-[2.75rem] w-auto object-contain"
+                priority
+              />
+            </Link>
+          </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex md:items-center md:space-x-8">
+          <nav className="hidden md:flex items-center justify-center space-x-[2rem]">
             {navItems.map((item) =>
               item.label === "Services" ? (
                 <div
@@ -225,7 +227,7 @@ export default function Header() {
 
                   {/* Dropdown */}
                   <div
-                    className={`absolute left-0 pt-2 w-[850px] transition-all duration-200 ${isDropdownOpen ? "opacity-100 visible" : "opacity-0 invisible"
+                    className={`absolute left-0 pt-2 w-[53.125rem] max-w-[90vw] transition-all duration-200 ${isDropdownOpen ? "opacity-100 visible" : "opacity-0 invisible"
                       }`}
                   >
                     <div
@@ -396,17 +398,17 @@ export default function Header() {
           </nav>
 
           {/* Buttons */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex flex-1 items-center justify-end space-x-[1rem]">
             <JoinUsForm
               triggerButton={
-                <Button variant="outline" className="rounded-full w-full">
+                <Button variant="outline" className="rounded-full px-[1.25rem] py-[0.5rem] text-[0.875rem] font-semibold h-auto">
                   Join Us
                 </Button>
               }
             />
             <EnquiryForm
               triggerButton={
-                <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white">
+                <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white px-[1.5rem] py-[0.5rem] text-[0.875rem] font-semibold h-auto shadow-md">
                   Enquiry
                 </Button>
               }
