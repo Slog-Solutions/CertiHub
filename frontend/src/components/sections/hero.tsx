@@ -258,7 +258,7 @@ export default function Hero() {
               <div
                 className="w-full mx-auto"
                 style={{
-                  maxWidth: "1440px",
+                  maxWidth: "2000px",// [changes]
                   paddingLeft: "clamp(1.5rem, 5vw, 6rem)",
                   paddingRight: "clamp(1.5rem, 5vw, 6rem)",
                 }}
@@ -283,8 +283,8 @@ export default function Hero() {
                   <div
                     className="[font-family:'Poiret_One',Helvetica] font-semibold tracking-wide bg-gradient-to-r from-blue-300 via-cyan-300 to-teal-400 bg-clip-text text-transparent pb-2 leading-tight"
                     style={{
-                      fontSize: "clamp(2.25rem, 4.5vw, 4.5rem)",
-                      marginBottom: "clamp(0.5rem, 1vw, 1rem)",
+                      fontSize: "clamp(2.25rem, 4.5vw, 8rem)",
+                      marginBottom: "clamp(0.5rem, 1vw, 2rem)",
                     }}
                   >
                     {slide.superTitle}
@@ -294,8 +294,8 @@ export default function Hero() {
                   <h2
                     className="text-white font-bold min-h-[2.4em]"
                     style={{
-                      fontSize: "clamp(1.25rem, 2.5vw, 2.5rem)",
-                      marginBottom: "clamp(0.75rem, 1.5vw, 1.25rem)",
+                      fontSize: "clamp(1.25rem, 2.5vw, 6rem)",
+                      marginBottom: "clamp(0.75rem, 1.5vw, 1.5rem)",
                     }}
                   >
                     {isActive && (

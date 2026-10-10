@@ -178,7 +178,7 @@ export default function Header() {
       )}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
+        <div className="flex items-center justify-between h-16 md:h-20 w-full lg:h-24 xl:gap-1 xl:w-full"> {/* Changes*/}
           {/* Logo */}
           <Link href="/" className="flex-shrink-0" data-slog-logo>
             <Image
@@ -186,7 +186,7 @@ export default function Header() {
               alt="Slog Logo"
               width={80}
               height={45}
-              className="md:w-100 md:h-57"
+              className="md:w-100 md:h-57 xl:h-70 xl:w-130"
               priority
             />
           </Link>
@@ -202,7 +202,7 @@ export default function Header() {
                   onMouseLeave={() => setIsDropdownOpen(false)}
                 >
                   <button
-                    className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2"
+                    className="text-sm xl:text-xl font-bold text-white hover:text-cyan-600 flex items-center py-2"
                     aria-label={item.label}
                   >
                     <WaveLabel text={item.label} />
@@ -311,7 +311,7 @@ export default function Header() {
                   onMouseLeave={() => setIsResourcesDropdownOpen(false)}
                 >
                   <button
-                    className="text-sm font-bold text-white hover:text-cyan-600 flex items-center py-2"
+                    className="text-sm xl:text-xl font-bold text-white hover:text-cyan-600 flex items-center py-2"
                     aria-label={item.label}
                   >
                     <WaveLabel text={item.label} />
@@ -372,7 +372,7 @@ export default function Header() {
                   className="text-sm font-bold text-white hover:text-cyan-600 py-2 flex items-center gap-1"
                 >
                   {/* Badge sits outside the clipped wave container so it stays fixed */}
-                  <span className="relative inline-flex items-center">
+                  <span className="relative inline-flex items-center text-sm xl:text-xl">
                     <WaveLabel text="Blog" />
                     <span
                       className="absolute -top-2 -right-5 bg-cyan-500 text-[9px] font-bold text-white px-1 py-0.5 rounded-full leading-none pointer-events-none"
@@ -387,7 +387,7 @@ export default function Header() {
                   key={item.label}
                   href={item.href}
                   aria-label={item.label}
-                  className="text-sm font-bold text-white hover:text-cyan-600 py-2"
+                  className="text-sm xl:text-xl  font-bold text-white hover:text-cyan-600 py-2"
                 >
                   <WaveLabel text={item.label} />
                 </Link>
@@ -399,14 +399,14 @@ export default function Header() {
           <div className="hidden md:flex items-center space-x-4">
             <JoinUsForm
               triggerButton={
-                <Button variant="outline" className="rounded-full w-full">
+                <Button variant="outline" className="rounded-full w-full xl:text-xl xl:px-8 xl:py-6 xl:font-semibold">
                   Join Us
                 </Button>
               }
             />
             <EnquiryForm
               triggerButton={
-                <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white">
+                <Button className="rounded-full bg-cyan-500 hover:bg-cyan-600 text-white xl:text-xl xl:px-8 xl:py-6 xl:text-semibold">
                   Enquiry
                 </Button>
               }
