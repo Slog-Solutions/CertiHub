@@ -66,7 +66,7 @@ export const requestNotificationPermission = async (api = null) => {
     }
 
     const messaging = getMessaging(app);
-    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+    const vapidKey = (process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || '').trim();
 
     const token = await getToken(messaging, { vapidKey: vapidKey || undefined });
 
@@ -78,6 +78,9 @@ export const requestNotificationPermission = async (api = null) => {
         try {
           const installationId = getInstallationId();
           await api.post('/devices/register', { installationId, fcmToken: token, platform: 'web' });
+          if (typeof api.patch === 'function') {
+            await api.patch('/push/fcm-token', { token, platform: 'web' }).catch(() => {});
+          }
           console.log('[Firebase] FCM token and device registered to backend.');
         } catch (err) {
           console.warn('[Firebase] Failed to register device to backend:', err?.response?.data?.error || err.message);

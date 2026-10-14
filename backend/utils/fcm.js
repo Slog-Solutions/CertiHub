@@ -165,7 +165,9 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
 
   let successCount = 0;
   let failureCount = 0;
+  let authError = null;
   const errors = [];
+  const deadTokens = [];
 
   for (const chunk of chunks) {
     try {
@@ -217,19 +219,61 @@ const sendToTokens = async (tokens, title, body, data = {}) => {
 
       response.responses.forEach((r, i) => {
         if (!r.success) {
-          console.error(`[FCM] Token[${i}] failed:`, r.error?.message || 'unknown error');
-          errors.push(`Token[${i}]: ${r.error?.message || 'unknown error'}`);
+          const errCode = r.error?.code || '';
+          const errMsg = r.error?.message || 'unknown error';
+          errors.push(`Token[${i}]: ${errMsg}`);
+          if (
+            errMsg.includes('invalid_grant') ||
+            errMsg.includes('Invalid JWT Signature') ||
+            errMsg.includes('certificate key file has been revoked')
+          ) {
+            authError = 'Firebase Admin Service Account key is invalid or revoked. Please update backend/config/firebase-service-account.json from Firebase Console.';
+          }
+          if (
+            errCode === 'messaging/registration-token-not-registered' ||
+            errCode === 'messaging/invalid-registration-token' ||
+            errMsg.includes('not-registered') ||
+            errMsg.includes('invalid-registration-token')
+          ) {
+            deadTokens.push(chunk[i]);
+          }
         }
       });
     } catch (err) {
       console.error('[FCM] sendToTokens batch error:', err.message);
       failureCount += chunk.length;
       errors.push(err.message);
+
+      if (
+        err.message?.includes('invalid_grant') ||
+        err.message?.includes('Invalid JWT Signature') ||
+        err.message?.includes('certificate key file has been revoked')
+      ) {
+        authError = 'Firebase Admin Service Account key is invalid or revoked. Please update backend/config/firebase-service-account.json from Firebase Console.';
+        console.error(`[FCM CRITICAL] ${authError}`);
+      }
     }
   }
 
-  console.log(`[FCM] Batch finished for ${validTokens.length} tokens — Success: ${successCount}, Failed: ${failureCount}`);
-  return { successCount, failureCount, errors };
+  // Cleanup dead/unregistered tokens in the background to keep token collections lean
+  if (deadTokens.length > 0) {
+    (async () => {
+      try {
+        const User = require('../models/User');
+        const DeviceToken = require('../models/DeviceToken');
+        await Promise.all([
+          DeviceToken.updateMany({ fcmToken: { $in: deadTokens } }, { isActive: false }),
+          User.updateMany({ fcmTokens: { $in: deadTokens } }, { $pull: { fcmTokens: { $in: deadTokens } } })
+        ]);
+        console.log(`[FCM] Cleaned up ${deadTokens.length} dead/unregistered device token(s).`);
+      } catch (cleanErr) {
+        // silent clean error
+      }
+    })();
+  }
+
+  console.log(`[FCM] Batch finished for ${validTokens.length} tokens — Success: ${successCount}, Failed: ${failureCount}${authError ? ' [AUTH ERROR]' : ''}`);
+  return { successCount, failureCount, errors, authError };
 };
 
 /**
@@ -264,4 +308,40 @@ const extractUserFcmTokens = (user) => {
   return Array.from(tokenSet);
 };
 
-module.exports = { sendToToken, sendToTokens, getMessaging, extractUserFcmTokens };
+/**
+ * Helper to fetch all valid device tokens for a given array of User ObjectIds
+ * querying BOTH the User collection and DeviceToken collection.
+ * @param {string[]|ObjectId[]} userIds - Array of student/user ObjectIds
+ * @returns {Promise<string[]>} Array of unique FCM registration tokens
+ */
+const getAllTokensForUsers = async (userIds) => {
+  if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) return [];
+  const ids = Array.isArray(userIds) ? userIds : [userIds];
+
+  try {
+    const User = require('../models/User');
+    const DeviceToken = require('../models/DeviceToken');
+
+    const [users, deviceTokens] = await Promise.all([
+      User.find({ _id: { $in: ids }, isActive: true }).select('fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens'),
+      DeviceToken.find({ userId: { $in: ids }, isActive: { $ne: false } }).select('fcmToken')
+    ]);
+
+    const tokenSet = new Set();
+    users.forEach(u => {
+      extractUserFcmTokens(u).forEach(t => tokenSet.add(t));
+    });
+    deviceTokens.forEach(d => {
+      if (d.fcmToken && typeof d.fcmToken === 'string' && d.fcmToken.trim().length > 10) {
+        tokenSet.add(d.fcmToken.trim());
+      }
+    });
+
+    return Array.from(tokenSet);
+  } catch (err) {
+    console.error('[FCM] Error in getAllTokensForUsers:', err.message);
+    return [];
+  }
+};
+
+module.exports = { sendToToken, sendToTokens, getMessaging, extractUserFcmTokens, getAllTokensForUsers };

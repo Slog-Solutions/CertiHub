@@ -3,8 +3,9 @@ const router = express.Router();
 const Query = require('../models/Query');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
+const DirectNotification = require('../models/DirectNotification');
 const { requireAuth } = require('../middleware/auth');
-const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
+const { sendToTokens, extractUserFcmTokens, getAllTokensForUsers } = require('../utils/fcm');
 
 // @route   POST /api/queries
 // @desc    Submit a new student query / doubt
@@ -153,13 +154,23 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
       .populate('teacherId', 'name email')
       .populate('studentId', 'name email');
 
-    // Fire FCM push if teacher replied to student
+    // Fire FCM push and create in-app notification if teacher replied to student
     if (isTeacher && queryDoc.studentId) {
       (async () => {
         try {
-          const student = await User.findById(queryDoc.studentId)
-            .select('fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
-          const tokens = extractUserFcmTokens(student);
+          // 1. Create in-app DirectNotification so candidate gets alert in notification bell
+          await DirectNotification.create({
+            studentId: queryDoc.studentId,
+            teacherId: req.user._id,
+            teacherName: req.user.name,
+            batchName: 'Doubt & Query',
+            title: `Expert Replied: ${queryDoc.title || 'Your Doubt'}`,
+            message: message.trim().substring(0, 300),
+            read: false
+          });
+
+          // 2. Collect all device tokens across User and DeviceToken models
+          const tokens = await getAllTokensForUsers([queryDoc.studentId]);
           if (tokens.length > 0) {
             const bodyMsg = `Your doubt on ${queryDoc.title || 'course'} has been answered.`;
             await sendToTokens(tokens, 'Instructor Replied', bodyMsg, {
@@ -171,7 +182,7 @@ router.post('/:id/reply', requireAuth, async (req, res) => {
             });
           }
         } catch (fcmErr) {
-          console.error('[FCM] Query reply push error:', fcmErr.message);
+          console.error('[FCM] Query reply notification error:', fcmErr.message);
         }
       })();
     }
