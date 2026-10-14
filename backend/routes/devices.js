@@ -43,10 +43,25 @@ router.post('/register', optionalAuth, async (req, res) => {
         fcmToken,
         platform: platform || 'unknown',
         userId,
+        isActive: true,
         lastSeenAt: Date.now()
       },
       { new: true, upsert: true }
     );
+
+    // If a user is authenticated, synchronize the token onto the User model
+    if (userId) {
+      const plat = (platform || '').toLowerCase().trim();
+      const updateOps = {
+        fcmToken,
+        $addToSet: { fcmTokens: fcmToken }
+      };
+      if (plat === 'web') updateOps.fcmTokenWeb = fcmToken;
+      else if (plat === 'ios') updateOps.fcmTokenIos = fcmToken;
+      else updateOps.fcmTokenAndroid = fcmToken;
+
+      await User.findByIdAndUpdate(userId, updateOps);
+    }
 
     res.json({ success: true, device });
   } catch (err) {
