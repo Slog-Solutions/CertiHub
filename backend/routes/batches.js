@@ -19,6 +19,7 @@ const Certificate = require('../models/Certificate');
 const CertificateTemplate = require('../models/CertificateTemplate');
 const CourseDetail = require('../models/CourseDetail');
 const SystemSetting = require('../models/SystemSetting');
+const rateLimit = require('express-rate-limit');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { sendToTokens, extractUserFcmTokens, getAllTokensForUsers } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
@@ -26,6 +27,15 @@ const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
 const { listCertificateTemplates, resolveTemplateFile } = require('../utils/certificateTemplates');
 const { buildBatchCertificateData } = require('../utils/certificateData');
+
+const certRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Too many certificate requests. Please try again later.' }
+});
 
 // ── Certificate constants ───────────────────────────────────────────────────
 const certsDir = path.join(__dirname, '../uploads/certificates');
@@ -1535,7 +1545,7 @@ router.get('/student/:id', requireAuth, requireRole(['Student']), async (req, re
 });
 
 // Request / auto-generate a certificate for the calling student in a batch (if progress = 100%)
-router.post('/student/:id/request-certificate', requireAuth, requireRole(['Student']), async (req, res) => {
+router.post('/student/:id/request-certificate', certRequestLimiter, requireAuth, requireRole(['Student']), async (req, res) => {
   try {
     const batch = await Batch.findOne({ _id: req.params.id, students: req.user._id });
     if (!batch) return res.status(403).json({ error: 'Access denied: You are not enrolled in this batch' });

@@ -243,7 +243,7 @@ const seedDirectors = async () => {
           isActive: true
         });
         await newDirector.save();
-        console.log(`[SEED] Created Director account: ${dir.username} (Default Password: ${dir.defaultPassword})`);
+        console.log(`[SEED] Created Director account: ${dir.username}`);
       } else if (existing.role !== 'Director') {
         existing.role = 'Director';
         await existing.save();

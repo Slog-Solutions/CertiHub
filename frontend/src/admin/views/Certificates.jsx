@@ -59,6 +59,21 @@ const Certificates = () => {
     return `${API_BASE_URL.replace(/\/api$/, '')}${cleanPath}`;
   };
 
+  const sanitizeImageSrc = (src) => {
+    if (!src || typeof src !== 'string') return '';
+    const trimmed = src.trim();
+    if (
+      trimmed.startsWith('data:image/') ||
+      trimmed.startsWith('blob:') ||
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('/')
+    ) {
+      return trimmed;
+    }
+    return '';
+  };
+
   const fetchCertificates = async () => {
     try {
       setLoading(true);
@@ -1294,8 +1309,8 @@ const Certificates = () => {
                         Signature Image Preview
                       </label>
                       <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
-                        {leftSigPreview ? (
-                          <img src={leftSigPreview} alt="Left Signature Preview" className="max-h-full max-w-full object-contain" />
+                        {sanitizeImageSrc(leftSigPreview) ? (
+                          <img src={sanitizeImageSrc(leftSigPreview)} alt="Left Signature Preview" className="max-h-full max-w-full object-contain" />
                         ) : (
                           <div className="text-center text-[10px] text-zinc-400">
                             No signature image found
@@ -1353,8 +1368,8 @@ const Certificates = () => {
                         Signature Image Preview
                       </label>
                       <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
-                        {rightSigPreview ? (
-                          <img src={rightSigPreview} alt="Right Signature Preview" className="max-h-full max-w-full object-contain" />
+                        {sanitizeImageSrc(rightSigPreview) ? (
+                          <img src={sanitizeImageSrc(rightSigPreview)} alt="Right Signature Preview" className="max-h-full max-w-full object-contain" />
                         ) : (
                           <div className="text-center text-[10px] text-zinc-400">
                             No signature image found

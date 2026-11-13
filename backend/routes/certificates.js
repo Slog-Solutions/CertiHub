@@ -18,6 +18,35 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
 const { resolveTemplateFile } = require('../utils/certificateTemplates');
 const { buildSearchRegex } = require('../utils/regexSafe');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiters for certificate endpoints
+const certRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Too many requests. Please try again later.' }
+});
+
+const certDownloadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Too many download requests. Please try again later.' }
+});
+
+const certVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Too many verification attempts. Please try again later.' }
+});
 
 // Ensure upload/certificates directory exists
 const certsDir = path.join(__dirname, '../uploads/certificates');
@@ -110,7 +139,7 @@ const sendCertificateEmail = async (student, certId, pdfPath) => {
    ========================================== */
 
 // @route   GET /api/certificates/templates
-router.get('/templates', requireAuth, async (req, res) => {
+router.get('/templates', certRateLimiter, requireAuth, async (req, res) => {
   try {
     const templates = await CertificateTemplate.find().sort({ createdAt: -1 });
     res.json(templates);
@@ -120,7 +149,7 @@ router.get('/templates', requireAuth, async (req, res) => {
 });
 
 // @route   POST /api/certificates/templates
-router.post('/templates', requireAuth, async (req, res) => {
+router.post('/templates', certRateLimiter, requireAuth, async (req, res) => {
   const { name, htmlContent, isDefault } = req.body;
   if (!name || !htmlContent) {
     return res.status(400).json({ error: 'Name and HTML content are required' });
@@ -141,7 +170,7 @@ router.post('/templates', requireAuth, async (req, res) => {
 });
 
 // @route   PUT /api/certificates/templates/:id
-router.put('/templates/:id', requireAuth, async (req, res) => {
+router.put('/templates/:id', certRateLimiter, requireAuth, async (req, res) => {
   const { name, htmlContent, isDefault } = req.body;
   try {
     const template = await CertificateTemplate.findById(req.params.id);
@@ -165,7 +194,7 @@ router.put('/templates/:id', requireAuth, async (req, res) => {
 });
 
 // @route   DELETE /api/certificates/templates/:id
-router.delete('/templates/:id', requireAuth, async (req, res) => {
+router.delete('/templates/:id', certRateLimiter, requireAuth, async (req, res) => {
   try {
     const template = await CertificateTemplate.findById(req.params.id);
     if (!template) return res.status(404).json({ error: 'Template not found' });
@@ -188,7 +217,7 @@ router.delete('/templates/:id', requireAuth, async (req, res) => {
 // @route   GET /api/certificates/template-excel
 // @desc    Download the Excel sample template
 // @access  Private (Admin & Staff)
-router.get('/template-excel', requireAuth, (req, res) => {
+router.get('/template-excel', certDownloadLimiter, requireAuth, (req, res) => {
   try {
     // Generate simple excel with xlsx
     const data = [
@@ -211,7 +240,7 @@ router.get('/template-excel', requireAuth, (req, res) => {
 // @route   POST /api/certificates/upload
 // @desc    Upload Excel sheet & issue bulk certificates
 // @access  Private (Admin & Staff)
-router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res) => {
+router.post('/upload', certRateLimiter, requireAuth, upload.single('excelFile'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Please upload an Excel file' });
   }
@@ -431,7 +460,7 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
 // @route   GET /api/certificates/batch/:batchId/download-zip
 // @desc    Download all PDFs generated in a batch zipped together
 // @access  Private (Admin & Staff & Director)
-router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
+router.get('/batch/:batchId/download-zip', certDownloadLimiter, requireAuth, async (req, res) => {
   try {
     const batch = await CertificateBatch.findById(req.params.batchId);
     if (!batch) {
@@ -482,7 +511,7 @@ router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
 // @route   GET /api/certificates/download-all-zip
 // @desc    Download all active certificates packaged as a ZIP
 // @access  Private (Admin & Staff & Director)
-router.get('/download-all-zip', requireAuth, async (req, res) => {
+router.get('/download-all-zip', certDownloadLimiter, requireAuth, async (req, res) => {
   try {
     const certs = await Certificate.find({ status: 'Active' });
 
@@ -531,7 +560,7 @@ router.get('/download-all-zip', requireAuth, async (req, res) => {
 // @route   GET /api/certificates/signatures
 // @desc    Get currently configured signatures and director details
 // @access  Private
-router.get('/signatures', requireAuth, async (req, res) => {
+router.get('/signatures', certRateLimiter, requireAuth, async (req, res) => {
   try {
     const signaturesDir = path.join(__dirname, '../uploads/signatures');
     const leftPath = path.join(signaturesDir, 'left_signature.png');
@@ -569,6 +598,7 @@ router.get('/signatures', requireAuth, async (req, res) => {
 // @access  Private (Admin & Director)
 router.post(
   '/signatures',
+  certRateLimiter,
   requireAuth,
   requireRole(['Admin', 'Director']),
   imgUpload.fields([
@@ -617,7 +647,7 @@ router.post(
 // @route   POST /api/certificates/bulk-toggle
 // @desc    Bulk toggle status (Active/Revoked) for certificates
 // @access  Private (Admin & Staff)
-router.post('/bulk-toggle', requireAuth, requireRole(['Admin']), async (req, res) => {
+router.post('/bulk-toggle', certRateLimiter, requireAuth, requireRole(['Admin']), async (req, res) => {
   const { ids, status, search } = req.body;
   if (!status || !['Active', 'Revoked'].includes(status)) {
     return res.status(400).json({ error: 'Invalid or missing target status' });
@@ -657,7 +687,7 @@ router.post('/bulk-toggle', requireAuth, requireRole(['Admin']), async (req, res
 // @route   POST /api/certificates/bulk-delete
 // @desc    Delete multiple certificates and clean up PDF files from disk
 // @access  Private (Admin & Staff)
-router.post('/bulk-delete', requireAuth, requireRole(['Admin']), async (req, res) => {
+router.post('/bulk-delete', certRateLimiter, requireAuth, requireRole(['Admin']), async (req, res) => {
   const { ids } = req.body;
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'No certificate records selected for deletion' });
@@ -689,7 +719,7 @@ router.post('/bulk-delete', requireAuth, requireRole(['Admin']), async (req, res
 // @route   GET /api/certificates/my
 // @desc    Get the logged-in student's own certificate(s)
 // @access  Private (Student)
-router.get('/my', requireAuth, async (req, res) => {
+router.get('/my', certRateLimiter, requireAuth, async (req, res) => {
   try {
     const Student = require('../models/Student');
 
@@ -745,7 +775,7 @@ router.get('/my', requireAuth, async (req, res) => {
 // @route   GET /api/certificates
 // @desc    Get all certificates (with search, pagination)
 // @access  Private (Admin & Staff)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', certRateLimiter, requireAuth, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
@@ -778,6 +808,10 @@ router.get('/', requireAuth, async (req, res) => {
   }
 
   if (req.query.signatureApprovalStatus) {
+    const allowedSignatureStatuses = ['NotRequired', 'Pending', 'PartiallyApproved', 'Approved', 'Rejected'];
+    if (typeof req.query.signatureApprovalStatus !== 'string' || !allowedSignatureStatuses.includes(req.query.signatureApprovalStatus)) {
+      return res.status(400).json({ error: 'Invalid signature approval status filter' });
+    }
     filter.signatureApprovalStatus = req.query.signatureApprovalStatus;
   }
 
@@ -813,7 +847,7 @@ router.get('/', requireAuth, async (req, res) => {
 // @route   PUT /api/certificates/:id
 // @desc    Toggle active status (Revoke/Activate) or regenerate certificate PDF
 // @access  Private (Admin & Staff)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', certRateLimiter, requireAuth, async (req, res) => {
   const { status, regenerate } = req.body;
   try {
     const cert = await Certificate.findById(req.params.id)
@@ -881,7 +915,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 // @route   DELETE /api/certificates/:id
 // @desc    Delete certificate record and clean up file from disk
 // @access  Private (Admin & Staff)
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', certRateLimiter, requireAuth, async (req, res) => {
   try {
     const cert = await Certificate.findById(req.params.id);
     if (!cert) return res.status(404).json({ error: 'Certificate not found' });
@@ -906,7 +940,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 // @route   GET /api/certificates/pending-approvals
 // @desc    Get certificates with pending signature approvals
 // @access  Private (Director & Admin)
-router.get('/pending-approvals', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+router.get('/pending-approvals', certRateLimiter, requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
   try {
     const filter = { signatureApprovalStatus: 'Pending', status: 'Active' };
 
@@ -945,7 +979,7 @@ router.get('/pending-approvals', requireAuth, requireRole(['Director', 'Admin'])
 // @route   POST /api/certificates/:id/approve-signature
 // @desc    Approve or reject signature for a certificate
 // @access  Private (Director & Admin)
-router.post('/:id/approve-signature', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+router.post('/:id/approve-signature', certRateLimiter, requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
   const { action = 'approve', side } = req.body; // action: 'approve' | 'reject', side: 'left' | 'right' | 'both'
   try {
     const cert = await Certificate.findById(req.params.id)
@@ -1059,7 +1093,7 @@ router.post('/:id/approve-signature', requireAuth, requireRole(['Director', 'Adm
 // @route   POST /api/certificates/bulk-approve-signatures
 // @desc    Bulk approve or reject signatures
 // @access  Private (Director & Admin)
-router.post('/bulk-approve-signatures', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+router.post('/bulk-approve-signatures', certRateLimiter, requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
   const { ids, action = 'approve' } = req.body;
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: 'Please provide certificate IDs' });
@@ -1171,7 +1205,7 @@ router.post('/bulk-approve-signatures', requireAuth, requireRole(['Director', 'A
 // @route   GET /api/certificates/verify/:identifier
 // @desc    Public verification of a certificate by Certificate ID or student Registration No
 // @access  Public
-router.get('/verify/:identifier', async (req, res) => {
+router.get('/verify/:identifier', certVerifyLimiter, async (req, res) => {
   try {
     const identifier = String(req.params.identifier || '').trim();
     // IDs are stored uppercase; also try the uppercased input so lowercase entry still matches.
