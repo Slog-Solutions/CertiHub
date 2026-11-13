@@ -22,12 +22,16 @@ const Login = () => {
     setError('');
     try {
       const res = await login(username, password);
-      if (res && res.user && !['Admin', 'Staff'].includes(res.user.role)) {
+      if (res && res.user && !['Admin', 'Staff', 'Director'].includes(res.user.role)) {
         logout();
         setError('Access denied: You do not have permissions to access the Admin portal.');
         return;
       }
-      navigate('/dashboard');
+      if (res?.user?.role === 'Director') {
+        navigate('/dashboard/certificates');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {

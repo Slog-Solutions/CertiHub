@@ -68,8 +68,8 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Restrict access to Admin and Staff roles only
-  if (!['Admin', 'Staff'].includes(user.role)) {
+  // Restrict access to Admin, Staff, and Director roles only
+  if (!['Admin', 'Staff', 'Director'].includes(user.role)) {
     return <Navigate to="/login" replace />;
   }
 

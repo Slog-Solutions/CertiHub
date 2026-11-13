@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Archive, FileSpreadsheet, Loader, ShieldCheck, RefreshCw, Eye, ToggleRight, ToggleLeft, Trash2 } from 'lucide-react';
+import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Archive, FileSpreadsheet, Loader, ShieldCheck, RefreshCw, Eye, ToggleRight, ToggleLeft, Trash2, Clock, Check, XCircle, FileCheck, PenTool } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 import ExportButtons from '../components/ExportButtons';
 import { API_BASE_URL } from '../config';
 
 const Certificates = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const isDirector = user?.role === 'Director';
+  const isAdmin = user?.role === 'Admin';
+  const directorUsername = user?.username?.toLowerCase();
+
+  // Tabs: 'all' or 'approvals'
+  const [activeTab, setActiveTab] = useState(isDirector ? 'approvals' : 'all');
   
   // Lists
   const [certs, setCerts] = useState([]);
@@ -17,15 +23,34 @@ const Certificates = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // Pending Approvals State
+  const [pendingCerts, setPendingCerts] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [selectedPendingIds, setSelectedPendingIds] = useState([]);
+
   // Upload modal & results state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
   const [forceReissue, setForceReissue] = useState(false);
+  const [signatureChoice, setSignatureChoice] = useState('without'); // 'without' | 'with'
+  const [signatureType, setSignatureType] = useState('both'); // 'both' | 'left' | 'right'
   const [uploadResults, setUploadResults] = useState(null); // processing summary
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  // Signatures Management Modal State
+  const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [sigLoading, setSigLoading] = useState(false);
+  const [sigSaving, setSigSaving] = useState(false);
+  const [sigError, setSigError] = useState('');
+  const [leftSignName, setLeftSignName] = useState('Suraj Prasad Singh');
+  const [rightSignName, setRightSignName] = useState('Kiran Bisht');
+  const [leftSigPreview, setLeftSigPreview] = useState('');
+  const [rightSigPreview, setRightSigPreview] = useState('');
+  const [leftSigFile, setLeftSigFile] = useState(null);
+  const [rightSigFile, setRightSigFile] = useState(null);
 
   const getPdfUrl = (url) => {
     if (!url) return '#';
@@ -50,10 +75,73 @@ const Certificates = () => {
     }
   };
 
+  const fetchPendingApprovals = async () => {
+    try {
+      setPendingLoading(true);
+      const res = await api.get('/certificates/pending-approvals');
+      setPendingCerts(res.data || []);
+    } catch (err) {
+      console.error('Failed to load pending approvals:', err);
+    } finally {
+      setPendingLoading(false);
+    }
+  };
+
   useEffect(() => {
     setSelectedIds([]);
     fetchCertificates();
+    fetchPendingApprovals();
   }, [page]);
+
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      setSelectedPendingIds([]);
+      fetchPendingApprovals();
+    }
+  }, [activeTab]);
+
+  const handleApproveSignature = async (certId, action = 'approve', side) => {
+    try {
+      setError('');
+      setMessage('');
+      const res = await api.post(`/certificates/${certId}/approve-signature`, { action, side });
+      setMessage(res.data?.message || `Signature ${action}d successfully`);
+      fetchPendingApprovals();
+      fetchCertificates();
+    } catch (err) {
+      setError(err.response?.data?.error || `Failed to ${action} signature`);
+    }
+  };
+
+  const handleBulkApprove = async (action = 'approve') => {
+    if (selectedPendingIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to ${action} signatures for ${selectedPendingIds.length} selected certificate(s)?`)) return;
+    try {
+      setError('');
+      setMessage('');
+      const res = await api.post('/certificates/bulk-approve-signatures', { ids: selectedPendingIds, action });
+      setMessage(res.data?.message || `Processed approvals successfully`);
+      setSelectedPendingIds([]);
+      fetchPendingApprovals();
+      fetchCertificates();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Bulk approval failed');
+    }
+  };
+
+  const handleSelectPendingAll = (e) => {
+    if (e.target.checked) {
+      setSelectedPendingIds(pendingCerts.map(c => c._id));
+    } else {
+      setSelectedPendingIds([]);
+    }
+  };
+
+  const handleSelectPendingRow = (id) => {
+    setSelectedPendingIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -91,9 +179,12 @@ const Certificates = () => {
     setUploadResults(null);
     setMessage('');
 
+    const sigOption = signatureChoice === 'without' ? 'none' : signatureType;
+
     const formData = new FormData();
     formData.append('excelFile', excelFile);
     formData.append('forceReissue', forceReissue);
+    formData.append('signatureOption', sigOption);
 
     try {
       const res = await api.post('/certificates/upload', formData, {
@@ -102,6 +193,7 @@ const Certificates = () => {
       setUploadResults(res.data);
       setMessage(`Excel parsed successfully: ${res.data.successCount} generated, ${res.data.failureCount} failed.`);
       fetchCertificates();
+      fetchPendingApprovals();
     } catch (err) {
       setError(err.response?.data?.error || 'Import pipeline failed. Please check Excel column layout.');
     } finally {
@@ -147,10 +239,75 @@ const Certificates = () => {
     }
   };
 
+  const fetchSignatures = async () => {
+    try {
+      setSigLoading(true);
+      setSigError('');
+      const res = await api.get('/certificates/signatures');
+      if (res.data) {
+        setLeftSignName(res.data.leftSignName || 'Suraj Prasad Singh');
+        setRightSignName(res.data.rightSignName || 'Kiran Bisht');
+        setLeftSigPreview(res.data.leftSignatureUrl || '');
+        setRightSigPreview(res.data.rightSignatureUrl || '');
+        setLeftSigFile(null);
+        setRightSigFile(null);
+      }
+    } catch (err) {
+      setSigError(err.response?.data?.error || 'Failed to fetch signature settings');
+    } finally {
+      setSigLoading(false);
+    }
+  };
+
+  const handleOpenSignatureModal = () => {
+    setSigError('');
+    setIsSignatureModalOpen(true);
+    fetchSignatures();
+  };
+
+  const handleLeftSigChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLeftSigFile(file);
+      setLeftSigPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRightSigChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setRightSigFile(file);
+      setRightSigPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveSignatures = async (e) => {
+    e.preventDefault();
+    try {
+      setSigSaving(true);
+      setSigError('');
+      const formData = new FormData();
+      if (leftSigFile) formData.append('leftSignature', leftSigFile);
+      if (rightSigFile) formData.append('rightSignature', rightSigFile);
+      formData.append('leftSignName', leftSignName);
+      formData.append('rightSignName', rightSignName);
+
+      await api.post('/certificates/signatures', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMessage('Director signatures and names updated successfully!');
+      setIsSignatureModalOpen(false);
+    } catch (err) {
+      setSigError(err.response?.data?.error || 'Failed to save signature changes');
+    } finally {
+      setSigSaving(false);
+    }
+  };
+
   const handleDownloadZip = (batchId) => {
     if (!batchId) return;
     setError('');
-    const downloadUrl = `/api/certificates/batch/${batchId}/download-zip`;
+    const downloadUrl = `/certificates/batch/${batchId}/download-zip`;
     
     // Download zip blob
     api.get(downloadUrl, { responseType: 'blob' })
@@ -162,6 +319,10 @@ const Certificates = () => {
         document.body.appendChild(link);
         link.click();
         link.remove();
+        // Automatically close modal after download starts
+        setIsUploadOpen(false);
+        setUploadResults(null);
+        setMessage('Batch certificates ZIP downloaded successfully.');
       })
       .catch((err) => {
         setError('ZIP extraction failed. Please try again.');
@@ -273,6 +434,7 @@ const Certificates = () => {
     { header: 'Candidate Name', accessor: c => c.studentId?.name },
     { header: 'Course Stream', accessor: c => c.courseDetailId?.technologyId?.name },
     { header: 'Issue Date', accessor: c => c.issueDate ? new Date(c.issueDate).toLocaleDateString() : '' },
+    { header: 'Signature Status', accessor: c => c.signatureApprovalStatus || 'NotRequired' },
     { header: 'Status', accessor: c => c.status }
   ];
 
@@ -301,6 +463,17 @@ const Certificates = () => {
             <Archive className="h-4 w-4 text-emerald-400" />
             Download ZIP
           </button>
+          
+          {(isAdmin || isDirector) && (
+            <button
+              onClick={handleOpenSignatureModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] text-[var(--text-dark)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-cream)] hover:text-[var(--text-dark)] transition"
+              title="Upload new signature images and update director names"
+            >
+              <PenTool className="h-4 w-4 text-emerald-400" />
+              Update Signatures
+            </button>
+          )}
           
           <button
             onClick={() => {
@@ -342,158 +515,454 @@ const Certificates = () => {
         </div>
       )}
 
-      {/* Toolbar actions */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
-          <input
-            type="text"
-            placeholder="Search by student name, cert id..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-colors duration-300 py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
-          />
-          <button type="submit" className="absolute left-3 top-2 text-[var(--text-muted)] hover:text-[var(--text-dark)]">
-            <Search className="h-3.5 w-3.5" />
-          </button>
-        </form>
+      {/* View Mode Navigation Tabs */}
+      <div className="flex border-b border-[var(--border-color)] gap-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab('all')}
+          className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
+            activeTab === 'all'
+              ? 'border-emerald-500 text-emerald-500'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-dark)]'
+          }`}
+        >
+          <Award className="h-4 w-4" />
+          All Certificates ({total})
+        </button>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleBulkToggle(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-500/10 cursor-pointer"
-            title="Bulk toggle status on for selected certificates or all matching records"
-          >
-            <ToggleRight className="h-3.5 w-3.5 text-white" />
-            {selectedIds.length > 0
-              ? `Bulk Toggle On (${selectedIds.length})`
-              : `Bulk Toggle On (All ${total})`}
-          </button>
-          <button
-            onClick={() => handleBulkToggle(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-rose-500 hover:bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10 cursor-pointer"
-            title="Bulk toggle status off for selected certificates or all matching records"
-          >
-            <ToggleLeft className="h-3.5 w-3.5 text-white" />
-            {selectedIds.length > 0
-              ? `Bulk Toggle Off (${selectedIds.length})`
-              : `Bulk Toggle Off (All ${total})`}
-          </button>
-          <ExportButtons data={certs.filter(c => c.status === 'Active')} columns={exportColumns} filename="issued_certificates_list" />
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('approvals')}
+          className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
+            activeTab === 'approvals'
+              ? 'border-emerald-500 text-emerald-500'
+              : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-dark)]'
+          }`}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Director Signature Approvals
+          {pendingCerts.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
+              {pendingCerts.length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Table view */}
-      <div className="bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden animate-fade-in">
-        {loading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
-            <Loader className="h-8 w-8 animate-spin text-emerald-500" />
-            <span className="text-xs text-[var(--text-muted)]">Querying credentials list...</span>
-          </div>
-        ) : certs.length === 0 ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center space-y-4">
-            <div className="h-12 w-12 rounded-full bg-[var(--bg-cream)] flex items-center justify-center text-[var(--text-muted)]">
-              <Award className="h-6 w-6" />
+      {activeTab === 'approvals' ? (
+        /* ================= PENDING APPROVALS TAB ================= */
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-dark)] flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-500" />
+                Pending Director Signature Approvals ({pendingCerts.length})
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                {isDirector
+                  ? `Logged in as Director (${user?.name || user?.username}). Review and approve/reject your signature below.`
+                  : 'Certificates awaiting signature approval from Directors (Suraj Prasad Singh / Kiran Bisht).'}
+              </p>
             </div>
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-[var(--text-dark)]">No certificates generated</h4>
-              <p className="text-[10px] text-[var(--text-muted)]">Import student sheets to generate verified PDF credentials.</p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleBulkApprove('approve')}
+                disabled={selectedPendingIds.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Approve Selected {selectedPendingIds.length > 0 ? `(${selectedPendingIds.length})` : ''}
+              </button>
+
+              <button
+                onClick={() => handleBulkApprove('reject')}
+                disabled={selectedPendingIds.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                <X className="h-3.5 w-3.5" />
+                Reject Selected {selectedPendingIds.length > 0 ? `(${selectedPendingIds.length})` : ''}
+              </button>
+
+              <button
+                onClick={fetchPendingApprovals}
+                className="p-1.5 bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-dark)] rounded-lg transition"
+                title="Refresh Approvals"
+              >
+                <RefreshCw className={`h-4 w-4 ${pendingLoading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)] transition-colors duration-300/40">
-                  <th className="py-4 px-6 w-12">
-                    <input
-                      type="checkbox"
-                      checked={certs.length > 0 && selectedIds.length === certs.length}
-                      onChange={handleSelectAll}
-                      className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 bg-[var(--bg-card)] cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-4 px-6">Certificate ID</th>
-                  <th className="py-4 px-6">Candidate Name</th>
-                  <th className="py-4 px-6">Reg No</th>
-                  <th className="py-4 px-6">Course stream</th>
-                  <th className="py-4 px-6">Issue Date</th>
-                  <th className="py-4 px-6">Status (Revoke toggle)</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-color)]/60">
-                {certs.map((item) => (
-                  <tr key={item._id} className="hover:bg-[var(--bg-cream)]/20 transition-colors duration-150">
-                    <td className="py-4 px-6 w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item._id)}
-                        onChange={() => handleSelectRow(item._id)}
-                        className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 bg-[var(--bg-card)] cursor-pointer"
-                      />
-                    </td>
-                    <td className="py-4 px-6 font-mono text-emerald-400 font-bold whitespace-nowrap">{item.certificateId}</td>
-                    <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.studentId?.name}</td>
-                    <td className="py-4 px-6 font-mono text-[var(--text-dark)]">{item.studentId?.registrationNo}</td>
-                    <td className="py-4 px-6 text-[var(--text-dark)]">
-                      <h4>{item.courseDetailId?.technologyId?.name}</h4>
-                      <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                        {item.courseDetailId?.durationId?.value} {item.courseDetailId?.durationId?.unit}(s)
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-[var(--text-muted)] font-mono">
-                      {item.issueDate ? new Date(item.issueDate).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="py-4 px-6">
-                      <StatusToggle isActive={item.status === 'Active'} onToggle={() => handleStatusToggle(item)} />
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex justify-end gap-2 items-center">
-                        {item.status === 'Active' && item.pdfUrl && (
-                          <a
-                            href={getPdfUrl(item.pdfUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1.5 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] transition"
-                            title="Open PDF"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                        <ActionsDropdown
-                          onEdit={() => handleRegenerateCertificate(item)} // Edit maps to "regenerate PDF" here
-                          onDelete={() => handleDeleteCertificate(item._id)} // Delete removes/revokes record
+
+          <div className="bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+            {pendingLoading ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
+                <Loader className="h-8 w-8 animate-spin text-emerald-500" />
+                <span className="text-xs text-[var(--text-muted)]">Loading pending signature requests...</span>
+              </div>
+            ) : pendingCerts.length === 0 ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-semibold text-[var(--text-dark)]">No pending signature approvals</h4>
+                  <p className="text-[10px] text-[var(--text-muted)]">All certificates with requested signatures have been approved or none are pending.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)]/40">
+                      <th className="py-4 px-6 w-12">
+                        <input
+                          type="checkbox"
+                          checked={pendingCerts.length > 0 && selectedPendingIds.length === pendingCerts.length}
+                          onChange={handleSelectPendingAll}
+                          className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                         />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                      </th>
+                      <th className="py-4 px-6">Certificate ID</th>
+                      <th className="py-4 px-6">Candidate</th>
+                      <th className="py-4 px-6">Reg No</th>
+                      <th className="py-4 px-6">Course Stream</th>
+                      <th className="py-4 px-6">Signatures</th>
+                      <th className="py-4 px-6">Left Signature (Suraj)</th>
+                      <th className="py-4 px-6">Right Signature (Kiran)</th>
+                      <th className="py-4 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)]/60">
+                    {pendingCerts.map((cert) => {
+                      const canApproveLeft = isAdmin || (isDirector && directorUsername === 'suraj');
+                      const canApproveRight = isAdmin || (isDirector && directorUsername === 'kiran');
 
-      {/* Pagination */}
-      {total > 10 && (
-        <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-4">
-          <span className="text-[10px] text-[var(--text-muted)] font-semibold">Showing 10 records per page</span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage(p => Math.max(p - 1, 1))}
-              disabled={page === 1}
-              className="px-3 py-1.5 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-lg text-[10px] text-[var(--text-muted)] font-bold hover:text-[var(--text-dark)] transition disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage(p => p + 1)}
-              disabled={certs.length < 10}
-              className="px-3 py-1.5 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-lg text-[10px] text-[var(--text-muted)] font-bold hover:text-[var(--text-dark)] transition disabled:opacity-50"
-            >
-              Next
-            </button>
+                      return (
+                        <tr key={cert._id} className="hover:bg-[var(--bg-cream)]/20 transition-colors">
+                          <td className="py-4 px-6 w-12">
+                            <input
+                              type="checkbox"
+                              checked={selectedPendingIds.includes(cert._id)}
+                              onChange={() => handleSelectPendingRow(cert._id)}
+                              className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
+                          <td className="py-4 px-6 font-mono text-emerald-400 font-bold whitespace-nowrap">{cert.certificateId}</td>
+                          <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{cert.studentId?.name || cert.userId?.name || 'Candidate'}</td>
+                          <td className="py-4 px-6 font-mono text-[var(--text-dark)]">{cert.studentId?.registrationNo || cert.userId?.username || '—'}</td>
+                          <td className="py-4 px-6 text-[var(--text-dark)]">
+                            <h4>{cert.courseDetailId?.technologyId?.name || cert.batchId?.name || 'Course'}</h4>
+                          </td>
+                          <td className="py-4 px-6 font-medium capitalize text-[var(--text-muted)]">
+                            {cert.signatureOption === 'both' ? 'Both' : `${cert.signatureOption} only`}
+                          </td>
+                          <td className="py-4 px-6">
+                            {cert.leftApproval?.status === 'Approved' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                                <Check className="h-3 w-3" /> Approved
+                              </span>
+                            ) : cert.leftApproval?.status === 'Pending' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                <Clock className="h-3 w-3" /> Pending (Suraj)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-[var(--text-muted)]">Not Required</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            {cert.rightApproval?.status === 'Approved' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                                <Check className="h-3 w-3" /> Approved
+                              </span>
+                            ) : cert.rightApproval?.status === 'Pending' ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-500 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                <Clock className="h-3 w-3" /> Pending (Kiran)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-[var(--text-muted)]">Not Required</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex justify-end gap-1.5 items-center">
+                              {/* Download Unsigned Preview */}
+                              <a
+                                href={getPdfUrl(cert.pdfUrlUnsigned || cert.pdfUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1 px-2.5 py-1 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] text-[10px] font-semibold transition"
+                                title="Download / Preview without Signature"
+                              >
+                                <Download className="h-3 w-3" />
+                                Without Sign
+                              </a>
+
+                              {/* Approve Button */}
+                              {canApproveLeft && cert.leftApproval?.status === 'Pending' && (
+                                <button
+                                  onClick={() => handleApproveSignature(cert._id, 'approve', 'left')}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded text-[10px] font-bold shadow-sm"
+                                  title="Approve Suraj's Left Signature"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  Approve (Suraj)
+                                </button>
+                              )}
+
+                              {canApproveRight && cert.rightApproval?.status === 'Pending' && (
+                                <button
+                                  onClick={() => handleApproveSignature(cert._id, 'approve', 'right')}
+                                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-white rounded text-[10px] font-bold shadow-sm"
+                                  title="Approve Kiran's Right Signature"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  Approve (Kiran)
+                                </button>
+                              )}
+
+                              {/* Reject Button */}
+                              <button
+                                onClick={() => handleApproveSignature(cert._id, 'reject')}
+                                className="p-1 hover:bg-rose-500/10 text-rose-500 rounded border border-rose-500/20 transition"
+                                title="Reject Signature"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+        </div>
+      ) : (
+        /* ================= ALL CERTIFICATES TAB ================= */
+        <div className="space-y-6">
+          {/* Toolbar actions */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80">
+              <input
+                type="text"
+                placeholder="Search by student name, cert id..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] transition-colors duration-300 py-1.5 pl-9 pr-3 text-xs text-[var(--text-dark)] placeholder-[var(--text-muted)] opacity-60 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition"
+              />
+              <button type="submit" className="absolute left-3 top-2 text-[var(--text-muted)] hover:text-[var(--text-dark)]">
+                <Search className="h-3.5 w-3.5" />
+              </button>
+            </form>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleBulkToggle(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-500/10 cursor-pointer"
+                title="Bulk toggle status on for selected certificates or all matching records"
+              >
+                <ToggleRight className="h-3.5 w-3.5 text-white" />
+                {selectedIds.length > 0
+                  ? `Bulk Toggle On (${selectedIds.length})`
+                  : `Bulk Toggle On (All ${total})`}
+              </button>
+              <button
+                onClick={() => handleBulkToggle(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition duration-150 border bg-rose-500 hover:bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/10 cursor-pointer"
+                title="Bulk toggle status off for selected certificates or all matching records"
+              >
+                <ToggleLeft className="h-3.5 w-3.5 text-white" />
+                {selectedIds.length > 0
+                  ? `Bulk Toggle Off (${selectedIds.length})`
+                  : `Bulk Toggle Off (All ${total})`}
+              </button>
+              <ExportButtons data={certs.filter(c => c.status === 'Active')} columns={exportColumns} filename="issued_certificates_list" />
+            </div>
+          </div>
+
+          {/* Table view */}
+          <div className="bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+            {loading ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
+                <Loader className="h-8 w-8 animate-spin text-emerald-500" />
+                <span className="text-xs text-[var(--text-muted)]">Querying credentials list...</span>
+              </div>
+            ) : certs.length === 0 ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="h-12 w-12 rounded-full bg-[var(--bg-cream)] flex items-center justify-center text-[var(--text-muted)]">
+                  <Award className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs font-semibold text-[var(--text-dark)]">No certificates generated</h4>
+                  <p className="text-[10px] text-[var(--text-muted)]">Import student sheets to generate verified PDF credentials.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] text-[10px] font-bold text-[var(--text-muted)] uppercase bg-[var(--bg-card)] transition-colors duration-300/40">
+                      <th className="py-4 px-6 w-12">
+                        <input
+                          type="checkbox"
+                          checked={certs.length > 0 && selectedIds.length === certs.length}
+                          onChange={handleSelectAll}
+                          className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 bg-[var(--bg-card)] cursor-pointer"
+                        />
+                      </th>
+                      <th className="py-4 px-6">Certificate ID</th>
+                      <th className="py-4 px-6">Candidate Name</th>
+                      <th className="py-4 px-6">Reg No</th>
+                      <th className="py-4 px-6">Course stream</th>
+                      <th className="py-4 px-6">Issue Date</th>
+                      <th className="py-4 px-6">Signature Status</th>
+                      <th className="py-4 px-6">Status</th>
+                      <th className="py-4 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)]/60">
+                    {certs.map((item) => (
+                      <tr key={item._id} className="hover:bg-[var(--bg-cream)]/20 transition-colors duration-150">
+                        <td className="py-4 px-6 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(item._id)}
+                            onChange={() => handleSelectRow(item._id)}
+                            className="rounded border-[var(--border-color)] text-emerald-500 focus:ring-emerald-500 bg-[var(--bg-card)] cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-4 px-6 font-mono text-emerald-400 font-bold whitespace-nowrap">{item.certificateId}</td>
+                        <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.studentId?.name}</td>
+                        <td className="py-4 px-6 font-mono text-[var(--text-dark)]">{item.studentId?.registrationNo}</td>
+                        <td className="py-4 px-6 text-[var(--text-dark)]">
+                          <h4>{item.courseDetailId?.technologyId?.name}</h4>
+                          <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                            {item.courseDetailId?.durationId?.value} {item.courseDetailId?.durationId?.unit}(s)
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-[var(--text-muted)] font-mono">
+                          {item.issueDate ? new Date(item.issueDate).toLocaleDateString() : '—'}
+                        </td>
+
+                        {/* Signature Status Column */}
+                        <td className="py-4 px-6">
+                          {item.signatureOption === 'none' || item.signatureApprovalStatus === 'NotRequired' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                              Without Signature
+                            </span>
+                          ) : item.signatureApprovalStatus === 'Pending' ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                Pending Approval
+                              </span>
+                              <span className="text-[9px] text-[var(--text-muted)]">
+                                {item.signatureOption === 'both'
+                                  ? (item.leftApproval?.status === 'Approved' ? 'Needs Kiran (Right)' : item.rightApproval?.status === 'Approved' ? 'Needs Suraj (Left)' : 'Needs Suraj & Kiran')
+                                  : item.signatureOption === 'left' ? 'Needs Suraj (Left)' : 'Needs Kiran (Right)'}
+                              </span>
+                            </div>
+                          ) : item.signatureApprovalStatus === 'Approved' ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Signed & Approved
+                              </span>
+                              <span className="text-[9px] text-[var(--text-muted)]">
+                                {item.signatureOption === 'both' ? 'Suraj & Kiran' : item.signatureOption === 'left' ? 'Suraj (Left)' : 'Kiran (Right)'}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                              Signature Rejected
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="py-4 px-6">
+                          <StatusToggle isActive={item.status === 'Active'} onToggle={() => handleStatusToggle(item)} />
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-2 items-center">
+                            {/* Option to download without signature */}
+                            {(item.pdfUrlUnsigned || (item.signatureApprovalStatus === 'Pending' && item.pdfUrl)) && (
+                              <a
+                                href={getPdfUrl(item.pdfUrlUnsigned || item.pdfUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={`Certificate_Unsigned_${item.certificateId}.pdf`}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded border border-amber-500/30 text-[10px] font-semibold transition"
+                                title="Download certificate without signature"
+                              >
+                                <Download className="h-3 w-3" />
+                                Without Sign
+                              </a>
+                            )}
+
+                            {/* Download signed / official certificate */}
+                            {item.status === 'Active' && item.pdfUrl && item.signatureApprovalStatus !== 'Pending' && (
+                              <a
+                                href={getPdfUrl(item.pdfUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={`Certificate_${item.certificateId}.pdf`}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-500/30 text-[10px] font-semibold transition"
+                                title="Download certificate"
+                              >
+                                <Download className="h-3 w-3" />
+                                Download
+                              </a>
+                            )}
+
+                            {item.status === 'Active' && item.pdfUrl && (
+                              <a
+                                href={getPdfUrl(item.pdfUrl)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded border border-[var(--border-color)] transition"
+                                title="Preview PDF"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                            <ActionsDropdown
+                              onEdit={() => handleRegenerateCertificate(item)}
+                              onDelete={() => handleDeleteCertificate(item._id)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {total > 10 && (
+            <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-4">
+              <span className="text-[10px] text-[var(--text-muted)] font-semibold">Showing 10 records per page</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(p - 1, 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-lg text-[10px] text-[var(--text-muted)] font-bold hover:text-[var(--text-dark)] transition disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={certs.length < 10}
+                  className="px-3 py-1.5 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-lg text-[10px] text-[var(--text-muted)] font-bold hover:text-[var(--text-dark)] transition disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -502,7 +971,10 @@ const Certificates = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-cream)] transition-colors duration-300/60 backdrop-blur-sm p-4">
           <div className="bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] rounded-2xl w-full max-w-lg shadow-2xl relative overflow-hidden animate-scale-up">
             <button
-              onClick={() => setIsUploadOpen(false)}
+              onClick={() => {
+                setIsUploadOpen(false);
+                setUploadResults(null);
+              }}
               className="absolute right-4 top-4 text-[var(--text-muted)] hover:text-[var(--text-dark)] z-10"
             >
               <X className="h-4 w-4" />
@@ -555,6 +1027,97 @@ const Certificates = () => {
                       />
                     </label>
                   </div>
+                </div>
+
+                {/* Signature Selection Options */}
+                <div className="space-y-3 p-4 rounded-xl bg-[var(--bg-cream)]/70 border border-[var(--border-color)]">
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">
+                    Signature Option
+                  </label>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                      signatureChoice === 'without'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-bold'
+                        : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-dark)]'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="signatureChoice"
+                        value="without"
+                        checked={signatureChoice === 'without'}
+                        onChange={() => setSignatureChoice('without')}
+                        className="text-emerald-500 focus:ring-emerald-500 h-4 w-4"
+                      />
+                      <span className="text-xs">Without Signature</span>
+                    </label>
+
+                    <label className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                      signatureChoice === 'with'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-bold'
+                        : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-dark)]'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="signatureChoice"
+                        value="with"
+                        checked={signatureChoice === 'with'}
+                        onChange={() => setSignatureChoice('with')}
+                        className="text-emerald-500 focus:ring-emerald-500 h-4 w-4"
+                      />
+                      <span className="text-xs">With Signature</span>
+                    </label>
+                  </div>
+
+                  {signatureChoice === 'with' && (
+                    <div className="pt-2 pl-3 border-l-2 border-emerald-500 space-y-2.5 animate-in">
+                      <span className="text-[10px] font-semibold text-[var(--text-muted)] block uppercase tracking-wider">
+                        Select Signatories Required:
+                      </span>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-dark)]">
+                          <input
+                            type="radio"
+                            name="signatureType"
+                            value="both"
+                            checked={signatureType === 'both'}
+                            onChange={() => setSignatureType('both')}
+                            className="text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5"
+                          />
+                          <span>Both Signatures (Suraj Prasad Singh & Kiran Bisht)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-dark)]">
+                          <input
+                            type="radio"
+                            name="signatureType"
+                            value="left"
+                            checked={signatureType === 'left'}
+                            onChange={() => setSignatureType('left')}
+                            className="text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5"
+                          />
+                          <span>Left Signature Only (Suraj Prasad Singh)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-dark)]">
+                          <input
+                            type="radio"
+                            name="signatureType"
+                            value="right"
+                            checked={signatureType === 'right'}
+                            onChange={() => setSignatureType('right')}
+                            className="text-emerald-500 focus:ring-emerald-500 h-3.5 w-3.5"
+                          />
+                          <span>Right Signature Only (Kiran Bisht)</span>
+                        </label>
+                      </div>
+
+                      <div className="text-[10px] text-amber-500 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed">
+                        ⚠️ <strong>Approval Workflow:</strong> Certificates will remain in <strong>Pending</strong> status until approved by the respective Director(s). Candidates and Staff can download the <em>Without Signature</em> version in the meantime.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <label className="flex items-center gap-2.5 cursor-pointer text-xs text-[var(--text-muted)] select-none">
@@ -651,13 +1214,194 @@ const Certificates = () => {
 
                 <div className="pt-4 border-t border-[var(--border-color)] flex justify-end">
                   <button
-                    onClick={() => setIsUploadOpen(false)}
+                    onClick={() => {
+                      setIsUploadOpen(false);
+                      setUploadResults(null);
+                    }}
                     className="px-4 py-2 bg-[var(--bg-cream)] hover:bg-[var(--bg-cream)] text-[var(--text-dark)] rounded-lg text-xs font-semibold"
                   >
                     Close Results
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Signature Management Modal */}
+      {isSignatureModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-2xl shadow-2xl relative overflow-hidden animate-scale-up">
+            <button
+              onClick={() => setIsSignatureModalOpen(false)}
+              className="absolute right-4 top-4 text-[var(--text-muted)] hover:text-[var(--text-dark)] z-10 p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="p-6 border-b border-[var(--border-color)]">
+              <h3 className="text-base font-bold text-[var(--text-dark)] flex items-center gap-2">
+                <PenTool className="h-5 w-5 text-emerald-500" />
+                Manage Director Signatures & Names
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Upload new digital signature image files and update signatory names for Suraj Prasad Singh (Left) and Kiran Bisht (Right).
+              </p>
+            </div>
+
+            {sigLoading ? (
+              <div className="p-12 flex flex-col items-center justify-center space-y-3">
+                <Loader className="h-7 w-7 text-emerald-500 animate-spin" />
+                <p className="text-xs text-[var(--text-muted)]">Loading signatures...</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveSignatures} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                {sigError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-rose-400">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{sigError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Signatory Card */}
+                  <div className="p-4 rounded-xl bg-[var(--bg-cream)]/70 border border-[var(--border-color)] space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--border-color)]">
+                      <span className="text-xs font-bold text-[var(--text-dark)] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Left Signatory (Suraj)
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Director</span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                        Signatory Name
+                      </label>
+                      <input
+                        type="text"
+                        value={leftSignName}
+                        onChange={(e) => setLeftSignName(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-dark)] focus:outline-none focus:border-emerald-500 transition"
+                        placeholder="e.g. Suraj Prasad Singh"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                        Signature Image Preview
+                      </label>
+                      <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                        {leftSigPreview ? (
+                          <img src={leftSigPreview} alt="Left Signature Preview" className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <div className="text-center text-[10px] text-zinc-400">
+                            No signature image found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Upload New Signature Image
+                        </span>
+                        <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-dashed border-[var(--border-color)] rounded-lg cursor-pointer hover:border-emerald-500 hover:text-emerald-400 text-xs text-[var(--text-muted)] transition">
+                          <Upload className="h-3.5 w-3.5 text-emerald-500" />
+                          <span className="truncate">{leftSigFile ? leftSigFile.name : 'Choose PNG/JPG file'}</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleLeftSigChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </label>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-1">Recommended: Transparent PNG (approx. 300x120px)</p>
+                    </div>
+                  </div>
+
+                  {/* Right Signatory Card */}
+                  <div className="p-4 rounded-xl bg-[var(--bg-cream)]/70 border border-[var(--border-color)] space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-[var(--border-color)]">
+                      <span className="text-xs font-bold text-[var(--text-dark)] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Right Signatory (Kiran)
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Director</span>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                        Signatory Name
+                      </label>
+                      <input
+                        type="text"
+                        value={rightSignName}
+                        onChange={(e) => setRightSignName(e.target.value)}
+                        required
+                        className="w-full px-3 py-2 text-xs rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-dark)] focus:outline-none focus:border-emerald-500 transition"
+                        placeholder="e.g. Kiran Bisht"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                        Signature Image Preview
+                      </label>
+                      <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                        {rightSigPreview ? (
+                          <img src={rightSigPreview} alt="Right Signature Preview" className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <div className="text-center text-[10px] text-zinc-400">
+                            No signature image found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block">
+                        <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                          Upload New Signature Image
+                        </span>
+                        <label className="flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-dashed border-[var(--border-color)] rounded-lg cursor-pointer hover:border-emerald-500 hover:text-emerald-400 text-xs text-[var(--text-muted)] transition">
+                          <Upload className="h-3.5 w-3.5 text-emerald-500" />
+                          <span className="truncate">{rightSigFile ? rightSigFile.name : 'Choose PNG/JPG file'}</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleRightSigChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </label>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-1">Recommended: Transparent PNG (approx. 300x120px)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[var(--border-color)] flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignatureModalOpen(false)}
+                    className="px-4 py-2 border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-dark)] rounded-lg text-xs font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sigSaving}
+                    className="flex items-center gap-1.5 px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10"
+                  >
+                    {sigSaving ? <Loader className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Save Changes
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>

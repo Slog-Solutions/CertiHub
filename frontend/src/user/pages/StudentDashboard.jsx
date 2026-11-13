@@ -29,7 +29,7 @@ const C = {
   borderSoft: 'rgba(15,23,42,0.04)',
   bg: '#FFFFFF',
   page: '#F8FAFC',            // Clean off-white background
-  
+
   // Action Pill & Badge Palette
   purple: '#8B5CF6', purpleSoft: '#F5F3FF', purpleText: '#6D28D9',
   orange: '#F97316', orangeSoft: '#FFF7ED', orangeText: '#C2410C',
@@ -37,7 +37,7 @@ const C = {
   red: '#EF4444', redSoft: '#FEF2F2', redText: '#B91C1C',
   teal: '#14B8A6', tealSoft: '#F0FDFA', tealText: '#0F766E',
   green: '#22C55E', greenSoft: '#F0FDF4', greenText: '#15803D',
-  
+
   // Medals
   gold: '#F59E0B',
   silver: '#94A3B8',
@@ -882,7 +882,7 @@ const StudentDashboard = () => {
 
         {/* Navigation Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          
+
           {/* Main Navigation Group */}
           <div>
             <div style={{ padding: '0 8px 8px', fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1029,7 +1029,7 @@ const StudentDashboard = () => {
 
       {/* ── MAIN DASHBOARD CONTAINER ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        
+
         {/* Top Announcement Bar */}
         <div style={{
           background: 'linear-gradient(90deg, #F3E8FF 0%, #EFF6FF 100%)',
@@ -1069,7 +1069,7 @@ const StudentDashboard = () => {
 
         {/* Main Content Area */}
         <main style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
-          
+
           {/* Header Row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
@@ -1080,7 +1080,7 @@ const StudentDashboard = () => {
                 {batchDetails ? `Syllabus progress and active tasks for ${batchDetails.name}` : 'Select an enrolled batch to view course materials.'}
               </p>
             </div>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <Pill variant="outline" icon={Globe} onClick={() => window.open('/', '_blank')} style={{ boxShadow: C.shadow }}>
                 View Portal
@@ -1120,10 +1120,10 @@ const StudentDashboard = () => {
           {/* OVERVIEW MAIN TAB */}
           {activeTab === 'overview' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }} className="animate-in">
-              
+
               {/* Analytics Section: Responsive 3-Columns Grid */}
               <div className="dashboard-grid-3" style={{ alignItems: 'stretch' }}>
-                
+
                 {/* Left Stack: 3 Real Metric Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <Card onClick={() => setActiveTab('curriculum')} style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1305,7 +1305,7 @@ const StudentDashboard = () => {
                     sub="Topics covered by your instructor"
                     action={<Pill variant="outline" onClick={() => setActiveTab('curriculum')} style={{ fontSize: 11, padding: '5px 12px' }}>View Full Syllabus</Pill>}
                   />
-                  
+
                   <div style={{ marginTop: 14 }}>
                     {curriculum.length === 0 ? (
                       <Empty icon={ListChecks} title="No curriculum topics added" sub="Your instructor will upload the course syllabus soon." />
@@ -1345,7 +1345,7 @@ const StudentDashboard = () => {
                 <Card style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <div>
                     <SectionHeader title="Syllabus Progress Breakdown" sub="Live completion and task metrics" />
-                    
+
                     <div style={{ fontSize: 32, fontWeight: 800, color: C.ink, marginTop: 12, letterSpacing: '-0.8px' }}>
                       {progressPct}%
                       <span style={{ fontSize: 13, fontWeight: 500, color: C.muted, marginLeft: 8 }}>Syllabus Completed</span>
@@ -1728,7 +1728,7 @@ const StudentDashboard = () => {
               />
 
               <div className="dashboard-grid-2" style={{ alignItems: 'flex-start' }}>
-                
+
                 {/* Left Card: Profile Picture & Quick Details */}
                 <Card style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
                   <div style={{ position: 'relative', width: 110, height: 110 }}>
@@ -2291,14 +2291,61 @@ const StudentDashboard = () => {
                           </div>
 
                           {/* Status badge */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: '10px 14px', background: C.greenSoft, borderRadius: RADIUS.sm, border: `1px solid ${C.greenText}20` }}>
-                            <CheckCircle size={15} color={C.greenText} />
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: C.greenText }}>Certificate Status: Active & Verified</span>
-                          </div>
+                          {cert.signatureApprovalStatus === 'Pending' ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20, padding: '12px 14px', background: '#FFFBEB', borderRadius: RADIUS.sm, border: '1px solid #FDE68A' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Clock size={15} color="#D97706" />
+                                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#B45309' }}>Certificate Status: Active (Director Signature Pending Approval)</span>
+                              </div>
+                              <span style={{ fontSize: 11, color: '#92400E', paddingLeft: 23 }}>
+                                Your certificate is active and verified. The official Director signature is awaiting approval. You can view or download the verified unsigned certificate below immediately.
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: '10px 14px', background: C.greenSoft, borderRadius: RADIUS.sm, border: `1px solid ${C.greenText}20` }}>
+                              <CheckCircle size={15} color={C.greenText} />
+                              <span style={{ fontSize: 12.5, fontWeight: 700, color: C.greenText }}>
+                                Certificate Status: Active & Verified {cert.signatureApprovalStatus === 'Approved' ? '(Signed)' : ''}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Action buttons */}
                           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                            {cert.pdfUrl && (
+                            {cert.signatureApprovalStatus === 'Pending' ? (
+                              <>
+                                <a
+                                  href={`${backendBase}${cert.pdfUrlUnsigned || cert.pdfUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 22px', borderRadius: RADIUS.pill,
+                                    background: 'linear-gradient(135deg,#F59E0B,#D97706)', color: '#fff',
+                                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
+                                    boxShadow: '0 4px 14px rgba(245,158,11,0.35)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <ExternalLink size={15} /> View Certificate (Without Signature)
+                                </a>
+                                <a
+                                  href={`${backendBase}${cert.pdfUrlUnsigned || cert.pdfUrl}`}
+                                  download={`Certificate_Unsigned_${stu.name || user?.name}_${cert.certificateId}.pdf`}
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                                    padding: '11px 22px', borderRadius: RADIUS.pill,
+                                    background: '#fff', color: C.ink,
+                                    border: `1.5px solid ${C.border}`,
+                                    fontWeight: 700, fontSize: 13, textDecoration: 'none',
+                                    boxShadow: C.shadow,
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <Download size={15} /> Download (Without Signature)
+                                </a>
+                              </>
+                            ) : cert.pdfUrl && (
                               <>
                                 <a
                                   href={`${backendBase}${cert.pdfUrl}`}

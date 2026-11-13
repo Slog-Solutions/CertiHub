@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Award, CheckCircle, AlertTriangle, XCircle, Calendar, BookOpen, ShieldCheck, Download, Loader, Search } from "lucide-react";
+import { getApiBaseUrl } from "@/admin/config";
 
 type CertificateData = {
   certificateId: string;
@@ -54,15 +55,15 @@ export default function VerifyCertificatePage() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/certificates/verify/${certificateId}`);
+        const res = await fetch(`${getApiBaseUrl()}/certificates/verify/${encodeURIComponent(certificateId)}`);
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "Certificate ID not found or invalid");
+          throw new Error(errData.error || "Certificate ID or Registration No not found or invalid");
         }
         const result = await res.json();
         setData(result);
       } catch (err: any) {
-        setError(err.message || "Verification Failed: Certificate ID not found or invalid");
+        setError(err.message || "Verification Failed: Certificate ID or Registration No not found or invalid");
         setData(null);
       } finally {
         setLoading(false);
@@ -123,7 +124,7 @@ export default function VerifyCertificatePage() {
                     required
                     value={searchId}
                     onChange={(e) => setSearchId(e.target.value)}
-                    placeholder="Enter Registration No (e.g. STP-YYYY-...)"
+                    placeholder="Enter Certificate ID or Registration No"
                     className="w-full rounded-xl border border-teal-500/20 bg-slate-950/80 pl-12 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20 transition-all duration-300"
                   />
                 </div>
@@ -138,7 +139,7 @@ export default function VerifyCertificatePage() {
           ) : loading ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader className="h-10 w-10 animate-spin text-teal-400" />
-              <span className="text-sm text-teal-400/80 font-medium">Verifying credential ID...</span>
+              <span className="text-sm text-teal-400/80 font-medium">Verifying credentials...</span>
             </div>
           ) : error ? (
             <div className="text-center py-6 space-y-6">
@@ -236,7 +237,7 @@ export default function VerifyCertificatePage() {
                 </button>
                 {data.status === "Active" && data.pdfUrl && (
                   <a
-                    href={data.pdfUrl.startsWith('http') ? data.pdfUrl : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001').replace(/\/api$/, '')}${data.pdfUrl.startsWith('/') ? data.pdfUrl : `/${data.pdfUrl}`}`}
+                    href={data.pdfUrl.startsWith('http') ? data.pdfUrl : `${getApiBaseUrl().replace(/\/api$/, '')}${data.pdfUrl.startsWith('/') ? data.pdfUrl : `/${data.pdfUrl}`}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:from-teal-400 hover:to-emerald-400 shadow-lg shadow-teal-900/30 transition-all"
