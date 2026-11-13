@@ -1202,11 +1202,29 @@ router.get('/verify/:identifier', async (req, res) => {
     }
 
     if (!cert) {
-      return res.status(404).json({ verified: false, error: 'No certificate found for this Certificate ID or Registration No' });
+      return res.status(404).json({
+        verified: false,
+        error: 'No matching certificate found for the provided Certificate ID or Registration Number'
+      });
     }
 
     const studentName = cert.userId?.name || cert.studentId?.name || 'N/A';
     const registrationNo = cert.studentId?.registrationNo || cert.userId?.username || cert.certificateId;
+
+    // ── Build absolute PDF URL so the browser opens the correct host ──
+    // In production behind nginx: https://www.slogsolutions.com/uploads/...
+    // Locally: http://localhost:5001/uploads/...
+    let absolutePdfUrl = '';
+    if (cert.status === 'Active' && cert.pdfUrl) {
+      if (cert.pdfUrl.startsWith('http')) {
+        // Already absolute (e.g. Cloudinary CDN URLs)
+        absolutePdfUrl = cert.pdfUrl;
+      } else {
+        const relativePath = cert.pdfUrl.startsWith('/') ? cert.pdfUrl : `/${cert.pdfUrl}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        absolutePdfUrl = `${baseUrl}${relativePath}`;
+      }
+    }
 
     res.json({
       verified: true,
@@ -1214,10 +1232,12 @@ router.get('/verify/:identifier', async (req, res) => {
       studentName,
       registrationNo,
       courseName: cert.courseDetailId?.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
-      duration: cert.courseDetailId?.durationId ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)` : 'N/A',
+      duration: cert.courseDetailId?.durationId
+        ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)`
+        : 'N/A',
       issueDate: cert.issueDate,
       status: cert.status,
-      pdfUrl: cert.status === 'Active' ? cert.pdfUrl : ''
+      pdfUrl: absolutePdfUrl
     });
   } catch (err) {
     res.status(500).json({ verified: false, error: err.message });

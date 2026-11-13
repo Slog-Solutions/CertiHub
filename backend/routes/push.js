@@ -17,7 +17,7 @@ const User = require('../models/User');
 const Batch = require('../models/Batch');
 const DirectNotification = require('../models/DirectNotification');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { sendToToken, sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
+const { sendToToken, sendToTokens, extractUserFcmTokens, getAllTokensForUsers } = require('../utils/fcm');
 const DeviceToken = require('../models/DeviceToken');
 
 const registerFcmTokenHandler = async (req, res) => {
@@ -285,10 +285,29 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
       isActive: true
     }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
 
-    // Collect ALL registered tokens (Web, Android, iOS) for all students
-    const allTokens = students.flatMap(s => extractUserFcmTokens(s));
+    // 1. ALWAYS CREATE DirectNotification FOR ALL ACTIVE STUDENTS IN THE BATCH
+    if (students.length > 0) {
+      try {
+        const directNotifs = students.map(s => ({
+          studentId: s._id,
+          teacherId: req.user._id,
+          teacherName: req.user.name,
+          batchName: batch.name,
+          title: title.trim(),
+          message: message.trim(),
+          read: false
+        }));
+        await DirectNotification.insertMany(directNotifs, { ordered: false });
+      } catch (dnErr) {
+        console.error('[Push] Batch direct notifications error:', dnErr.message);
+      }
+    }
+
+    // 2. Collect ALL registered tokens (Web, Android, iOS) across User and DeviceToken models
+    const allTokens = await getAllTokensForUsers(batch.students);
     let successCount = 0;
     let failureCount = 0;
+    let fcmAuthError = null;
 
     if (allTokens.length > 0) {
       try {
@@ -302,18 +321,24 @@ router.post('/batch/:batchId', requireAuth, requireRole(['Teacher']), async (req
         });
         successCount = fcmResult.successCount || 0;
         failureCount = fcmResult.failureCount || 0;
+        if (fcmResult.authError) fcmAuthError = fcmResult.authError;
       } catch (fcmErr) {
         console.error('[FCM] Batch push error:', fcmErr.message);
+        if (fcmErr.message?.includes('invalid_grant') || fcmErr.message?.includes('Invalid JWT Signature')) {
+          fcmAuthError = 'Firebase Admin Service Account key is invalid or revoked.';
+        }
       }
     }
 
     res.json({
       success: true,
-      message: `Push notification broadcasted to ${batch.students.length} candidate(s) in batch ${batch.name}. (${successCount} push delivered)`,
+      message: `Notification delivered to ${students.length} candidate notification bell(s). (${successCount} push delivered)`,
       totalCandidates: batch.students.length,
+      inAppDeliveredCount: students.length,
       tokensTargeted: allTokens.length,
       successCount,
-      failureCount
+      failureCount,
+      fcmAuthError
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -372,10 +397,11 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
     });
     await newDirectNotif.save();
 
-    // Extract ALL device tokens (Web, Android, iOS) registered for this student
-    const userTokens = extractUserFcmTokens(student);
+    // Extract ALL device tokens (Web, Android, iOS) registered across User and DeviceToken models
+    const userTokens = await getAllTokensForUsers([student._id]);
     let fcmSent = false;
     let successCount = 0;
+    let fcmAuthError = null;
 
     if (userTokens.length > 0) {
       try {
@@ -388,15 +414,19 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
         });
         successCount = fcmResult.successCount || 0;
         fcmSent = successCount > 0;
+        if (fcmResult.authError) fcmAuthError = fcmResult.authError;
       } catch (err) {
         console.error('[FCM] Direct push error:', err.message);
+        if (err.message?.includes('invalid_grant') || err.message?.includes('Invalid JWT Signature')) {
+          fcmAuthError = 'Firebase Admin Service Account key is invalid or revoked.';
+        }
       }
     }
 
     const deliveryDetail = fcmSent
       ? `Push delivered successfully to ${successCount} device(s).`
       : userTokens.length > 0
-        ? `Saved to portal bell (push attempt pending/failed).`
+        ? `Saved to candidate notification bell (push attempt pending key update).`
         : `Saved to candidate notification bell (no active push token).`;
 
     res.json({
@@ -404,9 +434,11 @@ router.post('/student/:studentId', requireAuth, requireRole(['Teacher']), async 
       message: `Notification sent to ${student.name}. ${deliveryDetail}`,
       studentName: student.name,
       studentEmail: student.email,
+      inAppDelivered: true,
       fcmSent,
       successCount,
-      userTokensCount: userTokens.length
+      userTokensCount: userTokens.length,
+      fcmAuthError
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

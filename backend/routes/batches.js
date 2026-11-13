@@ -10,6 +10,8 @@ const qrcode = require('qrcode');
 const Batch = require('../models/Batch');
 const User = require('../models/User');
 const Student = require('../models/Student');
+const DirectNotification = require('../models/DirectNotification');
+const DeviceToken = require('../models/DeviceToken');
 const BulkRegistrationSession = require('../models/BulkRegistrationSession');
 const { normalizeMobile, isValidMobile } = require('../utils/phone');
 const { hashPasswords } = require('../utils/hashPool');
@@ -18,7 +20,7 @@ const CertificateTemplate = require('../models/CertificateTemplate');
 const CourseDetail = require('../models/CourseDetail');
 const SystemSetting = require('../models/SystemSetting');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { sendToTokens, extractUserFcmTokens } = require('../utils/fcm');
+const { sendToTokens, extractUserFcmTokens, getAllTokensForUsers } = require('../utils/fcm');
 const { sendEmail } = require('../utils/mailer');
 const { uploadPdfBuffer, deleteByPublicId } = require('../utils/cloudinary');
 const { generateCertificatePDF } = require('../utils/pdfGenerator');
@@ -520,10 +522,33 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
       isActive: true
     }).select('name email fcmToken fcmTokenWeb fcmTokenAndroid fcmTokenIos fcmTokens');
 
-    const tokens = students.flatMap(s => extractUserFcmTokens(s));
+    // 1. ALWAYS CREATE DirectNotification FOR ALL ENROLLED STUDENTS IN DB
+    // This guarantees that in-app notification bell shows this announcement immediately
+    let inAppDeliveredCount = 0;
+    if (students.length > 0) {
+      try {
+        const directNotifs = students.map(s => ({
+          studentId: s._id,
+          teacherId: req.user._id,
+          teacherName: req.user.name,
+          batchName: batch.name,
+          title: title.trim(),
+          message: message.trim(),
+          read: false
+        }));
+        await DirectNotification.insertMany(directNotifs, { ordered: false });
+        inAppDeliveredCount = directNotifs.length;
+      } catch (dnErr) {
+        console.error('[Batches] Failed to insert DirectNotifications:', dnErr.message);
+      }
+    }
+
+    // 2. Collect ALL device tokens from both User model and DeviceToken collection
+    const tokens = await getAllTokensForUsers(batch.students);
     let successCount = 0;
     let failureCount = 0;
     let deliveryStatus = 'no_tokens';
+    let fcmAuthError = null;
 
     if (tokens.length > 0) {
       try {
@@ -538,10 +563,14 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
         successCount = fcmResult.successCount || 0;
         failureCount = fcmResult.failureCount || 0;
         deliveryStatus = successCount > 0 ? 'delivered' : 'failed';
+        if (fcmResult.authError) fcmAuthError = fcmResult.authError;
         console.log(`[FCM] Announcement push sent: ${successCount}/${tokens.length} delivered for batch "${batch.name}"`);
       } catch (fcmErr) {
         console.error('[FCM] Error sending announcement push:', fcmErr.message);
         deliveryStatus = 'failed';
+        if (fcmErr.message?.includes('invalid_grant') || fcmErr.message?.includes('Invalid JWT Signature')) {
+          fcmAuthError = 'Firebase Admin Service Account key is invalid or revoked.';
+        }
       }
     } else {
       console.log(`[FCM] No FCM tokens registered for batch "${batch.name}" (total candidates in batch: ${totalStudents}) — skipping push.`);
@@ -567,10 +596,13 @@ router.post('/teacher/:id/notifications', requireAuth, requireRole(['Teacher', '
       ...created.toObject(),
       broadcastSuccess: true,
       studentsCount: totalStudents,
+      inAppDeliveredCount,
       sentCount: tokens.length,
+      tokensTargeted: tokens.length,
       successCount,
       failureCount,
-      deliveryStatus
+      deliveryStatus,
+      fcmAuthError
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -440,8 +440,17 @@ const StudentDashboard = () => {
   const fetchMyNotifications = async () => {
     try {
       const res = await api.get('/push/my-notifications');
-      setDirectNotifications(res.data.notifications || []);
+      const list = res.data.notifications || [];
+      setDirectNotifications(list);
       setUnreadDirectCount(res.data.unreadCount || 0);
+      const unreadFirst = list.find(n => !n.read);
+      if (unreadFirst) {
+        triggerToast({
+          title: unreadFirst.title,
+          message: unreadFirst.message,
+          date: unreadFirst.createdAt
+        });
+      }
     } catch (e) {
       // silent fetch
     }
