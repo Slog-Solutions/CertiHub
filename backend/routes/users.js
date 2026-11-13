@@ -8,6 +8,11 @@ const { buildSearchRegex } = require('../utils/regexSafe');
 // Apply Admin restriction to all routes in this file
 router.use(requireAuth, requireRole(['Admin']));
 
+// Helper to verify Super Admin privileges
+const isRequesterSuperAdmin = (req) => {
+  return !!(req.user && (req.user.isSuperAdmin || req.user.username?.toLowerCase() === 'admin'));
+};
+
 // @route   GET /api/users/teachers
 // @desc    Get list of all active teachers
 // @access  Private (Admin only)
@@ -74,6 +79,11 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Please provide all required fields: username, password, name, email, role' });
   }
 
+  // Only Super Admin can create accounts with Director role
+  if (role === 'Director' && !isRequesterSuperAdmin(req)) {
+    return res.status(403).json({ error: 'Permission denied: Only the Super Admin can create Director accounts.' });
+  }
+
   try {
     const exists = await User.findOne({ username });
     if (exists) {
@@ -116,6 +126,17 @@ router.put('/:id', async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Security check: Only Super Admin can edit Director accounts (username, password, etc.)
+    const isDirector = user.role === 'Director' || ['suraj', 'kiran'].includes(user.username.toLowerCase());
+    if (isDirector && !isRequesterSuperAdmin(req)) {
+      return res.status(403).json({ error: 'Permission denied: Only Super Admin can edit Director accounts (Suraj & Kiran).' });
+    }
+
+    // Also prevent assigning Director role unless Super Admin
+    if (role === 'Director' && user.role !== 'Director' && !isRequesterSuperAdmin(req)) {
+      return res.status(403).json({ error: 'Permission denied: Only Super Admin can promote a user to Director.' });
     }
 
     if (username && username !== user.username) {
@@ -162,6 +183,12 @@ router.delete('/:id', async (req, res) => {
     // Prevent deleting self
     if (user._id.toString() === req.user._id.toString()) {
       return res.status(400).json({ error: 'You cannot delete your own admin account' });
+    }
+
+    // Security check: Only Super Admin can delete Director accounts
+    const isDirector = user.role === 'Director' || ['suraj', 'kiran'].includes(user.username.toLowerCase());
+    if (isDirector && !isRequesterSuperAdmin(req)) {
+      return res.status(403).json({ error: 'Permission denied: Only Super Admin can delete Director accounts.' });
     }
 
     await User.findByIdAndDelete(req.params.id);

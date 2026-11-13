@@ -102,7 +102,21 @@ const Sidebar = ({ isOpen, onClose }) => {
     },
   ];
 
-  const menuItems = user?.role === 'Admin' ? adminMenu : staffMenu;
+  const directorMenu = [
+    { name: 'Dashboard',    path: '/dashboard',            icon: LayoutDashboard },
+    { name: 'Certificates', path: '/dashboard/certificates', icon: Award },
+    { name: 'Registration', path: '/dashboard/registration', icon: UserPlus },
+    {
+      name: 'Reports',
+      icon: BarChart3,
+      subItems: [
+        { name: 'Course Report', path: '/dashboard/reports/course' },
+        { name: 'Course wise total candidate Report', path: '/dashboard/reports/course-students' }
+      ]
+    }
+  ];
+
+  const menuItems = user?.role === 'Admin' ? adminMenu : (user?.role === 'Director' ? directorMenu : staffMenu);
 
   return (
     <aside className={`sidebar-certyhub ${!isOpen ? 'collapsed' : ''}`}>

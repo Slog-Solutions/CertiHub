@@ -63,9 +63,19 @@ function toDataUri(filePath) {
  * @param {String}  outputPath     - Absolute file path to write the PDF
  * @param {Date}    completionDate - Completion / issue date
  * @param {String}  [templateFile] - Template filename in backend/templates (e.g. batch.certificateTemplate)
+ * @param {Object}  [signatureConfig] - Options for signatures { signatureOption: 'none'|'both'|'left'|'right', includeLeft: boolean, includeRight: boolean }
  * @returns {Promise<String>}      - Resolves with outputPath
  */
-const generateCertificatePDF = async (student, courseDetail, certificateId, qrCodeBase64, outputPath, completionDate, templateFile) => {
+const generateCertificatePDF = async (
+  student,
+  courseDetail,
+  certificateId,
+  qrCodeBase64,
+  outputPath,
+  completionDate,
+  templateFile,
+  signatureConfig = { signatureOption: 'both', includeLeft: true, includeRight: true }
+) => {
   const backendDir = path.join(__dirname, '..');
 
   // ── 1. Load HTML template (assigned per batch; falls back to default.html) ──
@@ -98,7 +108,41 @@ const generateCertificatePDF = async (student, courseDetail, certificateId, qrCo
     day: '2-digit', month: '2-digit', year: 'numeric'
   });
 
-  const showSignatures = true;
+  // Determine signature inclusion based on signatureConfig
+  const sigOpt = signatureConfig?.signatureOption || 'both';
+  const includeLeft = signatureConfig?.includeLeft !== false;
+  const includeRight = signatureConfig?.includeRight !== false;
+
+  let activeLeftSig = null;
+  let activeRightSig = null;
+
+  if (sigOpt === 'none') {
+    activeLeftSig = null;
+    activeRightSig = null;
+  } else if (sigOpt === 'left') {
+    activeLeftSig = includeLeft ? (leftSigUrl || null) : null;
+    activeRightSig = null;
+  } else if (sigOpt === 'right') {
+    activeLeftSig = null;
+    activeRightSig = includeRight ? (rightSigUrl || null) : null;
+  } else {
+    // 'both'
+    activeLeftSig = includeLeft ? (leftSigUrl || null) : null;
+    activeRightSig = includeRight ? (rightSigUrl || null) : null;
+  }
+
+  const showSignatures = !!(activeLeftSig || activeRightSig);
+
+  // Look up custom director names if saved in SystemSetting
+  let leftSignName = process.env.LEFT_SIGN_NAME || 'Suraj Prasad Singh';
+  let rightSignName = process.env.RIGHT_SIGN_NAME || 'Kiran Bisht';
+  try {
+    const SystemSetting = require('../models/SystemSetting');
+    const leftSetting = await SystemSetting.findOne({ key: 'left_sign_name' });
+    if (leftSetting && leftSetting.value) leftSignName = leftSetting.value;
+    const rightSetting = await SystemSetting.findOne({ key: 'right_sign_name' });
+    if (rightSetting && rightSetting.value) rightSignName = rightSetting.value;
+  } catch (_) {}
 
   const templateData = {
     // These keys EXACTLY match the zip's default.html placeholders
@@ -111,10 +155,10 @@ const generateCertificatePDF = async (student, courseDetail, certificateId, qrCo
     website_url:          websiteUrl,
     bgUrl,
     include_signatures:   showSignatures ? [{}] : [],
-    left_signature_url:   leftSigUrl  || null,
-    right_signature_url:  rightSigUrl || null,
-    left_sign_name:       process.env.LEFT_SIGN_NAME  || 'Suraj Prasad Singh',
-    right_sign_name:      process.env.RIGHT_SIGN_NAME || 'Kiran Bisht',
+    left_signature_url:   activeLeftSig,
+    right_signature_url:  activeRightSig,
+    left_sign_name:       leftSignName,
+    right_sign_name:      rightSignName,
   };
 
   // ── 4. Render Mustache template ───────────────────────────────────────

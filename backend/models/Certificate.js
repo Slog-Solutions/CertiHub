@@ -44,6 +44,52 @@ const certificateSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  pdfUrlUnsigned: {
+    type: String,
+    default: ''
+  },
+  signatureOption: {
+    type: String,
+    enum: ['none', 'both', 'left', 'right'],
+    default: 'none'
+  },
+  signatureApprovalStatus: {
+    type: String,
+    enum: ['NotRequired', 'Pending', 'Approved', 'Rejected'],
+    default: 'NotRequired'
+  },
+  leftApproval: {
+    status: {
+      type: String,
+      enum: ['NotRequired', 'Pending', 'Approved', 'Rejected'],
+      default: 'NotRequired'
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    }
+  },
+  rightApproval: {
+    status: {
+      type: String,
+      enum: ['NotRequired', 'Pending', 'Approved', 'Rejected'],
+      default: 'NotRequired'
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    }
+  },
   qrCodeUrl: {
     type: String,
     default: ''

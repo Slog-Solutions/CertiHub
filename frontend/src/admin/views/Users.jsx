@@ -7,6 +7,9 @@ import ExportButtons from '../components/ExportButtons';
 
 const Users = () => {
   const { api, user: loggedUser } = useAuth();
+  const isSuperAdmin = !!(loggedUser?.isSuperAdmin || loggedUser?.username?.toLowerCase() === 'admin');
+  const isUserDirector = (u) => !!u && (u.role === 'Director' || ['suraj', 'kiran'].includes(u.username?.toLowerCase()));
+
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -72,6 +75,10 @@ const Users = () => {
   };
 
   const handleOpenEditModal = (user) => {
+    if (isUserDirector(user) && !isSuperAdmin) {
+      setError('Permission denied: Only the Super Admin can edit Director accounts (username, password, etc.).');
+      return;
+    }
     setEditingUser(user);
     setFormData({
       username: user.username,
@@ -91,6 +98,10 @@ const Users = () => {
       setError('You cannot deactivate your own admin session.');
       return;
     }
+    if (isUserDirector(userToToggle) && !isSuperAdmin) {
+      setError('Permission denied: Only the Super Admin can toggle status for Director accounts.');
+      return;
+    }
     try {
       setError('');
       setMessage('');
@@ -107,6 +118,11 @@ const Users = () => {
   const handleDeleteUser = async (userId) => {
     if (userId === loggedUser.id) {
       setError('You cannot delete your own admin account.');
+      return;
+    }
+    const target = users.find(u => u._id === userId);
+    if (target && isUserDirector(target) && !isSuperAdmin) {
+      setError('Permission denied: Only the Super Admin can delete Director accounts.');
       return;
     }
     if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
@@ -269,6 +285,7 @@ const Users = () => {
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         item.role === 'Admin' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                        item.role === 'Director' ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 font-bold' :
                         item.role === 'Teacher' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                         item.role === 'Student' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'
@@ -409,6 +426,7 @@ const Users = () => {
                   >
                     <option value="Staff">Staff</option>
                     <option value="Admin">Admin</option>
+                    {isSuperAdmin && <option value="Director">Director</option>}
                     <option value="Teacher">Expert</option>
                     <option value="Student">Candidate</option>
                   </select>
