@@ -63,7 +63,8 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     return res.sendFile(pdfPath);
   }
 
-  const certificateId = filename.slice(0, -4); // Remove .pdf
+  const isUnsignedRequest = filename.endsWith('_unsigned.pdf');
+  const certificateId = isUnsignedRequest ? filename.replace('_unsigned.pdf', '') : filename.slice(0, -4);
 
   try {
     const Certificate = require('./models/Certificate');
@@ -108,7 +109,17 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
       fs.mkdirSync(certsDir, { recursive: true });
     }
 
-    console.log(`Lazy generating certificate PDF for: ${certificateId}`);
+    console.log(`Lazy generating certificate PDF for: ${certificateId} (unsigned: ${isUnsignedRequest})`);
+    
+    const isApproved = cert.signatureApprovalStatus === 'Approved' || cert.signatureOption === 'none';
+    const sigConfig = isUnsignedRequest
+      ? { signatureOption: 'none', includeLeft: false, includeRight: false }
+      : {
+          signatureOption: isApproved ? (cert.signatureOption || 'none') : 'none',
+          includeLeft: isApproved && cert.leftApproval?.status === 'Approved',
+          includeRight: isApproved && cert.rightApproval?.status === 'Approved'
+        };
+
     // Keep the layout the certificate was issued with (older certificates predate per-batch templates)
     await generateCertificatePDF(
       studentData,
@@ -117,7 +128,8 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
       cert.qrCodeUrl,
       pdfPath,
       cert.issueDate,
-      cert.templateFile || 'default.html'
+      cert.templateFile || 'default.html',
+      sigConfig
     );
 
     res.sendFile(pdfPath);
@@ -133,6 +145,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 connectDB().then(() => {
   // Seed admin user
   seedAdmin();
+
+  // Seed director accounts (Suraj & Kiran)
+  seedDirectors();
   
   // Seed initial mentors if empty
   seedMentors();
@@ -149,8 +164,8 @@ const seedAdmin = async () => {
   const User = require('./models/User');
   const bcrypt = require('bcryptjs');
   try {
-    const adminCount = await User.countDocuments({ role: 'Admin' });
-    if (adminCount === 0) {
+    const adminUser = await User.findOne({ username: 'admin' });
+    if (!adminUser) {
       // Generate a strong default password
       const password = 'Admin@' + Math.random().toString(36).substring(2, 10);
       const passwordHash = await bcrypt.hash(password, 10);
@@ -163,6 +178,7 @@ const seedAdmin = async () => {
         mobile: '9999999999',
         address: 'Main Tech Block, Slog Solutions Campus',
         role: 'Admin',
+        isSuperAdmin: true,
         isActive: true
       });
       
@@ -174,9 +190,67 @@ const seedAdmin = async () => {
       console.log(`Password: ${password}`);
       console.log('PLEASE SAVE AND RECORD THESE CREDENTIALS.');
       console.log('=========================================\n');
+    } else if (!adminUser.isSuperAdmin) {
+      adminUser.isSuperAdmin = true;
+      await adminUser.save();
     }
   } catch (err) {
     console.error('Failed to seed default admin:', err.message);
+  }
+};
+
+// Seed Director accounts logic
+const seedDirectors = async () => {
+  const User = require('./models/User');
+  const bcrypt = require('bcryptjs');
+  try {
+    const directors = [
+      {
+        username: 'suraj',
+        name: process.env.LEFT_SIGN_NAME || 'Suraj Prasad Singh',
+        email: 'suraj@slogsolutions.com',
+        mobile: '9876543210',
+        address: 'Head Office, Slog Solutions',
+        role: 'Director',
+        isActive: true,
+        defaultPassword: 'Director@Suraj123'
+      },
+      {
+        username: 'kiran',
+        name: process.env.RIGHT_SIGN_NAME || 'Kiran Bisht',
+        email: 'kiran@slogsolutions.com',
+        mobile: '9876543211',
+        address: 'Head Office, Slog Solutions',
+        role: 'Director',
+        isActive: true,
+        defaultPassword: 'Director@Kiran123'
+      }
+    ];
+
+    for (const dir of directors) {
+      const existing = await User.findOne({ username: dir.username });
+      if (!existing) {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(dir.defaultPassword, salt);
+        const newDirector = new User({
+          username: dir.username,
+          passwordHash,
+          name: dir.name,
+          email: dir.email,
+          mobile: dir.mobile,
+          address: dir.address,
+          role: 'Director',
+          isActive: true
+        });
+        await newDirector.save();
+        console.log(`[SEED] Created Director account: ${dir.username} (Default Password: ${dir.defaultPassword})`);
+      } else if (existing.role !== 'Director') {
+        existing.role = 'Director';
+        await existing.save();
+      }
+    }
+  } catch (err) {
+    console.error('Failed to seed director accounts:', err.message);
   }
 };
 

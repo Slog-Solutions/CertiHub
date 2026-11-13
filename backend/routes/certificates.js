@@ -41,6 +41,21 @@ const upload = multer({
   }
 });
 
+// Multer configuration for signature uploads (PNG, JPG, WEBP)
+const imgUpload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /png|jpg|jpeg|webp/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype || extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only PNG, JPG, or WEBP image files are allowed for signatures!'));
+  }
+});
+
 // Helper for unique ID generation
 // Format: CERT-YYYY-XXXXXX
 const generateCertificateId = () => {
@@ -241,6 +256,10 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
       return undefined;
     };
 
+    const signatureOption = ['none', 'both', 'left', 'right'].includes(req.body.signatureOption)
+      ? req.body.signatureOption
+      : (req.body.includeSignatures === 'true' ? 'both' : 'none');
+
     for (let i = 0; i < sheetData.length; i++) {
       const row = sheetData[i];
       const rowNum = i + 2; // Row number in Excel (1-indexed + header row)
@@ -309,27 +328,46 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
         // Create QR Code base64
         const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
 
-        // Define output PDF file path
+        // Define output PDF file paths
         const filename = `${certificateId}.pdf`;
         const pdfPath = path.join(certsDir, filename);
 
-        // Generate PDF certificate via PDFKit layout helper
+        const unsignedFilename = `${certificateId}_unsigned.pdf`;
+        const unsignedPdfPath = path.join(certsDir, unsignedFilename);
+
+        // Always generate the unsigned version so it is immediately available
         await generateCertificatePDF(
           student,
           courseDetail,
           certificateId,
           qrCodeBase64,
-          pdfPath,
-          completionDate
+          unsignedPdfPath,
+          completionDate,
+          'default.html',
+          { signatureOption: 'none', includeLeft: false, includeRight: false }
         );
 
+        // Initially write the main file as unsigned (if approval is pending, downloading will serve unsigned)
+        fs.copyFileSync(unsignedPdfPath, pdfPath);
+
         const pdfUrl = `/uploads/certificates/${filename}`;
+        const pdfUrlUnsigned = `/uploads/certificates/${unsignedFilename}`;
+
+        const isNone = signatureOption === 'none';
+        const signatureApprovalStatus = isNone ? 'NotRequired' : 'Pending';
+        const leftStatus = isNone ? 'NotRequired' : (signatureOption === 'both' || signatureOption === 'left' ? 'Pending' : 'NotRequired');
+        const rightStatus = isNone ? 'NotRequired' : (signatureOption === 'both' || signatureOption === 'right' ? 'Pending' : 'NotRequired');
 
         if (duplicate) {
           duplicate.templateId = defaultTemplate._id;
           duplicate.pdfUrl = pdfUrl;
+          duplicate.pdfUrlUnsigned = pdfUrlUnsigned;
           duplicate.qrCodeUrl = qrCodeBase64;
           duplicate.issueDate = completionDate;
+          duplicate.signatureOption = signatureOption;
+          duplicate.signatureApprovalStatus = signatureApprovalStatus;
+          duplicate.leftApproval = { status: leftStatus, approvedBy: null, approvedAt: null };
+          duplicate.rightApproval = { status: rightStatus, approvedBy: null, approvedAt: null };
           await duplicate.save();
           successList.push(duplicate);
         } else {
@@ -339,6 +377,11 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
             courseDetailId: courseDetail._id,
             templateId: defaultTemplate._id,
             pdfUrl,
+            pdfUrlUnsigned,
+            signatureOption,
+            signatureApprovalStatus,
+            leftApproval: { status: leftStatus, approvedBy: null, approvedAt: null },
+            rightApproval: { status: rightStatus, approvedBy: null, approvedAt: null },
             qrCodeUrl: qrCodeBase64,
             issueDate: completionDate,
             status: 'Active'
@@ -347,8 +390,10 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
           successList.push(newCert);
         }
 
-        // Send Email automatically if configured
-        await sendCertificateEmail(student, certificateId, pdfPath);
+        // Send Email automatically only if no signature approval is pending
+        if (isNone) {
+          await sendCertificateEmail(student, certificateId, pdfPath);
+        }
 
       } catch (err) {
         console.error('PDF creation error for row', rowNum, err.message);
@@ -385,19 +430,19 @@ router.post('/upload', requireAuth, upload.single('excelFile'), async (req, res)
 
 // @route   GET /api/certificates/batch/:batchId/download-zip
 // @desc    Download all PDFs generated in a batch zipped together
-// @access  Private (Admin & Staff)
+// @access  Private (Admin & Staff & Director)
 router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
   try {
     const batch = await CertificateBatch.findById(req.params.batchId);
     if (!batch) {
-      return res.status(404).json({ error: 'Batch not found' });
+      return res.status(404).json({ error: 'Batch record not found' });
     }
 
     // The batch stores exactly which certificates it produced, so we look those up directly, allowing only Active ones.
     const certs = await Certificate.find({ _id: { $in: batch.certificateIds || [] }, status: 'Active' });
 
     if (certs.length === 0) {
-      return res.status(404).json({ error: 'No certificates found for this batch' });
+      return res.status(404).json({ error: 'No active certificates found for this batch' });
     }
 
     res.setHeader('Content-Type', 'application/zip');
@@ -412,7 +457,13 @@ router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
     archive.pipe(res);
 
     for (const cert of certs) {
-      const pdfPath = path.join(__dirname, '..', cert.pdfUrl);
+      let pdfPath = path.join(__dirname, '..', cert.pdfUrl);
+      if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
+        const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+        if (fs.existsSync(unsignedPath)) {
+          pdfPath = unsignedPath;
+        }
+      }
       if (fs.existsSync(pdfPath)) {
         archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
       }
@@ -430,7 +481,7 @@ router.get('/batch/:batchId/download-zip', requireAuth, async (req, res) => {
 
 // @route   GET /api/certificates/download-all-zip
 // @desc    Download all active certificates packaged as a ZIP
-// @access  Private (Admin & Staff)
+// @access  Private (Admin & Staff & Director)
 router.get('/download-all-zip', requireAuth, async (req, res) => {
   try {
     const certs = await Certificate.find({ status: 'Active' });
@@ -451,7 +502,13 @@ router.get('/download-all-zip', requireAuth, async (req, res) => {
     archive.pipe(res);
 
     for (const cert of certs) {
-      const pdfPath = path.join(__dirname, '..', cert.pdfUrl);
+      let pdfPath = path.join(__dirname, '..', cert.pdfUrl);
+      if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
+        const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+        if (fs.existsSync(unsignedPath)) {
+          pdfPath = unsignedPath;
+        }
+      }
       if (fs.existsSync(pdfPath)) {
         archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
       }
@@ -466,6 +523,96 @@ router.get('/download-all-zip', requireAuth, async (req, res) => {
     }
   }
 });
+
+/* ==========================================
+   SIGNATURE ASSETS MANAGEMENT
+   ========================================== */
+
+// @route   GET /api/certificates/signatures
+// @desc    Get currently configured signatures and director details
+// @access  Private
+router.get('/signatures', requireAuth, async (req, res) => {
+  try {
+    const signaturesDir = path.join(__dirname, '../uploads/signatures');
+    const leftPath = path.join(signaturesDir, 'left_signature.png');
+    const rightPath = path.join(signaturesDir, 'right_signature.png');
+
+    const SystemSetting = require('../models/SystemSetting');
+    const leftNameSetting = await SystemSetting.findOne({ key: 'left_sign_name' });
+    const rightNameSetting = await SystemSetting.findOne({ key: 'right_sign_name' });
+
+    const leftSignName = leftNameSetting?.value || process.env.LEFT_SIGN_NAME || 'Suraj Prasad Singh';
+    const rightSignName = rightNameSetting?.value || process.env.RIGHT_SIGN_NAME || 'Kiran Bisht';
+
+    const toDataUri = (filePath) => {
+      if (!filePath || !fs.existsSync(filePath)) return '';
+      const ext = path.extname(filePath).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : 'image/jpeg';
+      return `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+    };
+
+    res.json({
+      leftSignName,
+      rightSignName,
+      leftSignatureUrl: toDataUri(leftPath),
+      rightSignatureUrl: toDataUri(rightPath),
+      hasLeftSignature: fs.existsSync(leftPath),
+      hasRightSignature: fs.existsSync(rightPath)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/certificates/signatures
+// @desc    Upload new Left/Right signature image files & update director names
+// @access  Private (Admin & Director)
+router.post(
+  '/signatures',
+  requireAuth,
+  requireRole(['Admin', 'Director']),
+  imgUpload.fields([
+    { name: 'leftSignature', maxCount: 1 },
+    { name: 'rightSignature', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const signaturesDir = path.join(__dirname, '../uploads/signatures');
+      if (!fs.existsSync(signaturesDir)) {
+        fs.mkdirSync(signaturesDir, { recursive: true });
+      }
+
+      if (req.files?.leftSignature && req.files.leftSignature[0]) {
+        fs.writeFileSync(path.join(signaturesDir, 'left_signature.png'), req.files.leftSignature[0].buffer);
+      }
+
+      if (req.files?.rightSignature && req.files.rightSignature[0]) {
+        fs.writeFileSync(path.join(signaturesDir, 'right_signature.png'), req.files.rightSignature[0].buffer);
+      }
+
+      const SystemSetting = require('../models/SystemSetting');
+      if (req.body.leftSignName && req.body.leftSignName.trim()) {
+        await SystemSetting.findOneAndUpdate(
+          { key: 'left_sign_name' },
+          { value: req.body.leftSignName.trim() },
+          { upsert: true, new: true }
+        );
+      }
+
+      if (req.body.rightSignName && req.body.rightSignName.trim()) {
+        await SystemSetting.findOneAndUpdate(
+          { key: 'right_sign_name' },
+          { value: req.body.rightSignName.trim() },
+          { upsert: true, new: true }
+        );
+      }
+
+      res.json({ message: 'Director signatures and names updated successfully!' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // @route   POST /api/certificates/bulk-toggle
 // @desc    Bulk toggle status (Active/Revoked) for certificates
@@ -630,6 +777,10 @@ router.get('/', requireAuth, async (req, res) => {
     filter.status = req.query.status;
   }
 
+  if (req.query.signatureApprovalStatus) {
+    filter.signatureApprovalStatus = req.query.signatureApprovalStatus;
+  }
+
   try {
     const total = await Certificate.countDocuments(filter);
     const certs = await Certificate.find(filter)
@@ -642,6 +793,8 @@ router.get('/', requireAuth, async (req, res) => {
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       })
+      .populate('leftApproval.approvedBy', 'name username')
+      .populate('rightApproval.approvedBy', 'name username')
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit);
@@ -747,15 +900,284 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 /* ==========================================
+   4. DIRECTOR SIGNATURE APPROVAL WORKFLOW
+   ========================================== */
+
+// @route   GET /api/certificates/pending-approvals
+// @desc    Get certificates with pending signature approvals
+// @access  Private (Director & Admin)
+router.get('/pending-approvals', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+  try {
+    const filter = { signatureApprovalStatus: 'Pending', status: 'Active' };
+
+    // If a Director is logged in, show requests where their signature is still Pending
+    if (req.user.role === 'Director') {
+      const uname = req.user.username.toLowerCase();
+      if (uname === 'suraj') {
+        filter['leftApproval.status'] = 'Pending';
+      } else if (uname === 'kiran') {
+        filter['rightApproval.status'] = 'Pending';
+      }
+    }
+
+    const certs = await Certificate.find(filter)
+      .populate({
+        path: 'studentId',
+        select: 'name registrationNo phone email',
+        populate: { path: 'collegeId', select: 'collegeName cityName' }
+      })
+      .populate({
+        path: 'courseDetailId',
+        populate: [{ path: 'technologyId' }, { path: 'durationId' }]
+      })
+      .populate('userId', 'name username')
+      .populate('batchId', 'name')
+      .populate('leftApproval.approvedBy', 'name username')
+      .populate('rightApproval.approvedBy', 'name username')
+      .sort({ createdAt: -1 });
+
+    res.json(certs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/certificates/:id/approve-signature
+// @desc    Approve or reject signature for a certificate
+// @access  Private (Director & Admin)
+router.post('/:id/approve-signature', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+  const { action = 'approve', side } = req.body; // action: 'approve' | 'reject', side: 'left' | 'right' | 'both'
+  try {
+    const cert = await Certificate.findById(req.params.id)
+      .populate({
+        path: 'studentId',
+        populate: [{ path: 'collegeId' }, { path: 'branchId' }]
+      })
+      .populate({
+        path: 'courseDetailId',
+        populate: [{ path: 'technologyId' }, { path: 'durationId' }]
+      });
+
+    if (!cert) return res.status(404).json({ error: 'Certificate not found' });
+
+    // Determine target side:
+    // Suraj can approve left signature
+    // Kiran can approve right signature
+    // Admin can approve either or both
+    let targetSide = side;
+    if (req.user.role === 'Director') {
+      const uname = req.user.username.toLowerCase();
+      if (uname === 'suraj') targetSide = 'left';
+      else if (uname === 'kiran') targetSide = 'right';
+    }
+
+    const newStatus = action === 'reject' ? 'Rejected' : 'Approved';
+
+    if (targetSide === 'left' || targetSide === 'both' || !targetSide) {
+      if (cert.leftApproval && cert.leftApproval.status === 'Pending') {
+        cert.leftApproval.status = newStatus;
+        cert.leftApproval.approvedBy = req.user._id;
+        cert.leftApproval.approvedAt = new Date();
+      }
+    }
+
+    if (targetSide === 'right' || targetSide === 'both' || !targetSide) {
+      if (cert.rightApproval && cert.rightApproval.status === 'Pending') {
+        cert.rightApproval.status = newStatus;
+        cert.rightApproval.approvedBy = req.user._id;
+        cert.rightApproval.approvedAt = new Date();
+      }
+    }
+
+    // Determine overall signatureApprovalStatus:
+    if (cert.leftApproval.status === 'Rejected' || cert.rightApproval.status === 'Rejected') {
+      cert.signatureApprovalStatus = 'Rejected';
+    } else {
+      if (cert.signatureOption === 'both') {
+        if (cert.leftApproval.status === 'Approved' && cert.rightApproval.status === 'Approved') {
+          cert.signatureApprovalStatus = 'Approved';
+        } else {
+          cert.signatureApprovalStatus = 'Pending';
+        }
+      } else if (cert.signatureOption === 'left') {
+        if (cert.leftApproval.status === 'Approved') {
+          cert.signatureApprovalStatus = 'Approved';
+        }
+      } else if (cert.signatureOption === 'right') {
+        if (cert.rightApproval.status === 'Approved') {
+          cert.signatureApprovalStatus = 'Approved';
+        }
+      }
+    }
+
+    // If fully approved, regenerate the main certificate PDF with the approved signatures!
+    if (cert.signatureApprovalStatus === 'Approved') {
+      let studentData = cert.studentId;
+      let courseDetailData = cert.courseDetailId;
+      if (!studentData || !courseDetailData) {
+        const User = require('../models/User');
+        const user = cert.userId ? await User.findById(cert.userId) : null;
+        const batch = cert.batchId ? await Batch.findById(cert.batchId) : null;
+        const { buildBatchCertificateData } = require('../utils/certificateData');
+        ({ studentData, courseDetailData } = buildBatchCertificateData({ user, student: studentData, courseDetail: courseDetailData, batch }));
+      }
+
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+      const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
+      const qrCodeBase64 = cert.qrCodeUrl || (await qrcode.toDataURL(verificationUrl));
+      const filename = `${cert.certificateId}.pdf`;
+      const pdfPath = path.join(certsDir, filename);
+
+      await generateCertificatePDF(
+        studentData,
+        courseDetailData,
+        cert.certificateId,
+        qrCodeBase64,
+        pdfPath,
+        cert.issueDate,
+        cert.templateFile || 'default.html',
+        {
+          signatureOption: cert.signatureOption,
+          includeLeft: cert.leftApproval?.status === 'Approved',
+          includeRight: cert.rightApproval?.status === 'Approved'
+        }
+      );
+
+      // Send email now that certificate is officially signed & approved!
+      if (studentData && studentData.email) {
+        await sendCertificateEmail(studentData, cert.certificateId, pdfPath);
+      }
+    }
+
+    await cert.save();
+    res.json({ message: `Certificate signature ${newStatus.toLowerCase()} successfully`, certificate: cert });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// @route   POST /api/certificates/bulk-approve-signatures
+// @desc    Bulk approve or reject signatures
+// @access  Private (Director & Admin)
+router.post('/bulk-approve-signatures', requireAuth, requireRole(['Director', 'Admin']), async (req, res) => {
+  const { ids, action = 'approve' } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Please provide certificate IDs' });
+  }
+
+  try {
+    const certs = await Certificate.find({ _id: { $in: ids } })
+      .populate({
+        path: 'studentId',
+        populate: [{ path: 'collegeId' }, { path: 'branchId' }]
+      })
+      .populate({
+        path: 'courseDetailId',
+        populate: [{ path: 'technologyId' }, { path: 'durationId' }]
+      });
+
+    let approvedCount = 0;
+    const newStatus = action === 'reject' ? 'Rejected' : 'Approved';
+
+    for (const cert of certs) {
+      let targetSide = 'both';
+      if (req.user.role === 'Director') {
+        const uname = req.user.username.toLowerCase();
+        if (uname === 'suraj') targetSide = 'left';
+        else if (uname === 'kiran') targetSide = 'right';
+      }
+
+      if (targetSide === 'left' || targetSide === 'both') {
+        if (cert.leftApproval && cert.leftApproval.status === 'Pending') {
+          cert.leftApproval.status = newStatus;
+          cert.leftApproval.approvedBy = req.user._id;
+          cert.leftApproval.approvedAt = new Date();
+        }
+      }
+
+      if (targetSide === 'right' || targetSide === 'both') {
+        if (cert.rightApproval && cert.rightApproval.status === 'Pending') {
+          cert.rightApproval.status = newStatus;
+          cert.rightApproval.approvedBy = req.user._id;
+          cert.rightApproval.approvedAt = new Date();
+        }
+      }
+
+      if (cert.leftApproval.status === 'Rejected' || cert.rightApproval.status === 'Rejected') {
+        cert.signatureApprovalStatus = 'Rejected';
+      } else {
+        if (cert.signatureOption === 'both') {
+          if (cert.leftApproval.status === 'Approved' && cert.rightApproval.status === 'Approved') {
+            cert.signatureApprovalStatus = 'Approved';
+          }
+        } else if (cert.signatureOption === 'left' && cert.leftApproval.status === 'Approved') {
+          cert.signatureApprovalStatus = 'Approved';
+        } else if (cert.signatureOption === 'right' && cert.rightApproval.status === 'Approved') {
+          cert.signatureApprovalStatus = 'Approved';
+        }
+      }
+
+      if (cert.signatureApprovalStatus === 'Approved') {
+        let studentData = cert.studentId;
+        let courseDetailData = cert.courseDetailId;
+        if (!studentData || !courseDetailData) {
+          const User = require('../models/User');
+          const user = cert.userId ? await User.findById(cert.userId) : null;
+          const batch = cert.batchId ? await Batch.findById(cert.batchId) : null;
+          const { buildBatchCertificateData } = require('../utils/certificateData');
+          ({ studentData, courseDetailData } = buildBatchCertificateData({ user, student: studentData, courseDetail: courseDetailData, batch }));
+        }
+
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+        const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
+        const qrCodeBase64 = cert.qrCodeUrl || (await qrcode.toDataURL(verificationUrl));
+        const filename = `${cert.certificateId}.pdf`;
+        const pdfPath = path.join(certsDir, filename);
+
+        try {
+          await generateCertificatePDF(
+            studentData,
+            courseDetailData,
+            cert.certificateId,
+            qrCodeBase64,
+            pdfPath,
+            cert.issueDate,
+            cert.templateFile || 'default.html',
+            {
+              signatureOption: cert.signatureOption,
+              includeLeft: cert.leftApproval?.status === 'Approved',
+              includeRight: cert.rightApproval?.status === 'Approved'
+            }
+          );
+        } catch (e) {
+          console.error(`Failed to generate signed PDF for ${cert.certificateId}:`, e.message);
+        }
+      }
+
+      await cert.save();
+      approvedCount++;
+    }
+
+    res.json({ message: `Processed ${approvedCount} certificate signature approvals successfully` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ==========================================
    4. PUBLIC CERTIFICATE VERIFICATION
    ========================================== */
 
-// @route   GET /api/certificates/verify/:certificateId
-// @desc    Public verification of a certificate
+// @route   GET /api/certificates/verify/:identifier
+// @desc    Public verification of a certificate by Certificate ID or student Registration No
 // @access  Public
-router.get('/verify/:certificateId', async (req, res) => {
+router.get('/verify/:identifier', async (req, res) => {
   try {
-    const cert = await Certificate.findOne({ certificateId: req.params.certificateId })
+    const identifier = String(req.params.identifier || '').trim();
+    // IDs are stored uppercase; also try the uppercased input so lowercase entry still matches.
+    const candidates = [...new Set([identifier, identifier.toUpperCase()])];
+
+    const withDetails = (query) => query
       .populate({
         path: 'studentId',
         select: 'name registrationNo candidateInfo'
@@ -769,8 +1191,18 @@ router.get('/verify/:certificateId', async (req, res) => {
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       });
 
+    let cert = await withDetails(Certificate.findOne({ certificateId: { $in: candidates } }));
+
     if (!cert) {
-      return res.status(404).json({ verified: false, error: 'Invalid Certificate ID: No matching certificate found' });
+      const student = await Student.findOne({ registrationNo: { $in: candidates } }).select('_id');
+      if (student) {
+        // A student can hold several certificates: prefer Active ('Active' sorts before 'Revoked'), then newest.
+        cert = await withDetails(Certificate.findOne({ studentId: student._id }).sort({ status: 1, issueDate: -1 }));
+      }
+    }
+
+    if (!cert) {
+      return res.status(404).json({ verified: false, error: 'No certificate found for this Certificate ID or Registration No' });
     }
 
     const studentName = cert.userId?.name || cert.studentId?.name || 'N/A';
@@ -781,8 +1213,8 @@ router.get('/verify/:certificateId', async (req, res) => {
       certificateId: cert.certificateId,
       studentName,
       registrationNo,
-      courseName: cert.courseDetailId.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
-      duration: cert.courseDetailId.durationId ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)` : 'N/A',
+      courseName: cert.courseDetailId?.technologyId ? cert.courseDetailId.technologyId.name : 'N/A',
+      duration: cert.courseDetailId?.durationId ? `${cert.courseDetailId.durationId.value} ${cert.courseDetailId.durationId.unit}(s)` : 'N/A',
       issueDate: cert.issueDate,
       status: cert.status,
       pdfUrl: cert.status === 'Active' ? cert.pdfUrl : ''

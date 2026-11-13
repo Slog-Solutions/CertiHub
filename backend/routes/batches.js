@@ -112,11 +112,26 @@ const triggerAutoCertificates = async (batch) => {
 
         const filename = `${certId}.pdf`;
         const pdfPath = path.join(certsDir, filename);
+        const unsignedFilename = `${certId}_unsigned.pdf`;
+        const unsignedPdfPath = path.join(certsDir, unsignedFilename);
         const completionDate = new Date();
 
-        await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate, batch.certificateTemplate);
+        // Generate unsigned PDF version
+        await generateCertificatePDF(
+          studentData,
+          courseDetailData,
+          certId,
+          qrCodeBase64,
+          unsignedPdfPath,
+          completionDate,
+          batch.certificateTemplate,
+          { signatureOption: 'none', includeLeft: false, includeRight: false }
+        );
+
+        fs.copyFileSync(unsignedPdfPath, pdfPath);
 
         const pdfUrl = `/uploads/certificates/${filename}`;
+        const pdfUrlUnsigned = `/uploads/certificates/${unsignedFilename}`;
 
         const newCert = new Certificate({
           certificateId: certId,
@@ -127,6 +142,11 @@ const triggerAutoCertificates = async (batch) => {
           ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
           templateFile: resolveTemplateFile(batch.certificateTemplate),
           pdfUrl,
+          pdfUrlUnsigned,
+          signatureOption: 'both',
+          signatureApprovalStatus: 'Pending',
+          leftApproval: { status: 'Pending', approvedBy: null, approvedAt: null },
+          rightApproval: { status: 'Pending', approvedBy: null, approvedAt: null },
           qrCodeUrl: qrCodeBase64,
           issueDate: completionDate,
           status: 'Active'
@@ -1530,11 +1550,26 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
     const qrCodeBase64 = await qrcode.toDataURL(verificationUrl);
     const filename = `${certId}.pdf`;
     const pdfPath = path.join(certsDir, filename);
+    const unsignedFilename = `${certId}_unsigned.pdf`;
+    const unsignedPdfPath = path.join(certsDir, unsignedFilename);
     const completionDate = new Date();
 
-    await generateCertificatePDF(studentData, courseDetailData, certId, qrCodeBase64, pdfPath, completionDate, batch.certificateTemplate);
+    // Generate unsigned PDF version
+    await generateCertificatePDF(
+      studentData,
+      courseDetailData,
+      certId,
+      qrCodeBase64,
+      unsignedPdfPath,
+      completionDate,
+      batch.certificateTemplate,
+      { signatureOption: 'none', includeLeft: false, includeRight: false }
+    );
+
+    fs.copyFileSync(unsignedPdfPath, pdfPath);
 
     const pdfUrl = `/uploads/certificates/${filename}`;
+    const pdfUrlUnsigned = `/uploads/certificates/${unsignedFilename}`;
     const defaultTemplate = await CertificateTemplate.findOne({ isDefault: true });
 
     const newCert = new Certificate({
@@ -1546,6 +1581,11 @@ router.post('/student/:id/request-certificate', requireAuth, requireRole(['Stude
       ...(defaultTemplate ? { templateId: defaultTemplate._id } : {}),
       templateFile: resolveTemplateFile(batch.certificateTemplate),
       pdfUrl,
+      pdfUrlUnsigned,
+      signatureOption: 'both',
+      signatureApprovalStatus: 'Pending',
+      leftApproval: { status: 'Pending', approvedBy: null, approvedAt: null },
+      rightApproval: { status: 'Pending', approvedBy: null, approvedAt: null },
       qrCodeUrl: qrCodeBase64,
       issueDate: completionDate,
       status: 'Active'
