@@ -64,22 +64,35 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
   const { getLatestSignatureMtime } = require('./utils/signatureProcessor');
   const latestSigMtime = getLatestSignatureMtime();
 
-  const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
-  if (fs.existsSync(pdfPath)) {
-    const pdfMtime = fs.statSync(pdfPath).mtimeMs;
-    // Unsigned certificates do not depend on signatures.
-    // Signed certificates are served only if they were generated after the latest signature.
-    if (isUnsignedRequest || pdfMtime >= latestSigMtime) {
-      return res.sendFile(pdfPath);
-    }
-    console.log(`[Certificates] Regenerating ${filename} because signatures were updated at ${new Date(latestSigMtime).toISOString()}`);
-  }
-
   try {
     const Certificate = require('./models/Certificate');
     const cert = await Certificate.findOne({ certificateId });
     if (!cert) {
+      if (fs.existsSync(pdfPath)) {
+        return res.sendFile(pdfPath);
+      }
       return res.status(404).send('Certificate record not found');
+    }
+
+    const isApproved = cert.signatureApprovalStatus === 'Approved';
+    const isNotRequired = cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
+    const isApprovedOrNotRequired = isApproved || isNotRequired;
+
+    if (fs.existsSync(pdfPath)) {
+      const pdfMtime = fs.statSync(pdfPath).mtimeMs;
+      const approvedAtTime = Math.max(
+        cert.leftApproval?.approvedAt ? new Date(cert.leftApproval.approvedAt).getTime() : 0,
+        cert.rightApproval?.approvedAt ? new Date(cert.rightApproval.approvedAt).getTime() : 0
+      );
+
+      // If certificate was approved AFTER pdfPath was written, pdfPath is an unsigned placeholder!
+      const needsRegenForApproval = isApproved && approvedAtTime > 0 && pdfMtime < approvedAtTime;
+      const isStaleFromSigUpdate = !isUnsignedRequest && pdfMtime < latestSigMtime;
+
+      if (!needsRegenForApproval && !isStaleFromSigUpdate) {
+        return res.sendFile(pdfPath);
+      }
+      console.log(`[Certificates] Regenerating ${filename} (approved: ${isApproved}, needsRegenForApproval: ${needsRegenForApproval}, staleSig: ${isStaleFromSigUpdate})`);
     }
 
     const Student = require('./models/Student');
@@ -119,14 +132,13 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     }
 
     console.log(`Lazy generating certificate PDF for: ${certificateId} (unsigned: ${isUnsignedRequest})`);
-    
-    const isApproved = cert.signatureApprovalStatus === 'Approved' || cert.signatureOption === 'none';
+
     const sigConfig = isUnsignedRequest
       ? { signatureOption: 'none', includeLeft: false, includeRight: false }
       : {
-          signatureOption: isApproved ? (cert.signatureOption || 'none') : 'none',
-          includeLeft: isApproved && cert.leftApproval?.status === 'Approved',
-          includeRight: isApproved && cert.rightApproval?.status === 'Approved'
+          signatureOption: isApprovedOrNotRequired ? (cert.signatureOption || 'both') : 'none',
+          includeLeft: isApprovedOrNotRequired && (isNotRequired || cert.leftApproval?.status === 'Approved'),
+          includeRight: isApprovedOrNotRequired && (isNotRequired || cert.rightApproval?.status === 'Approved')
         };
 
     // Keep the layout the certificate was issued with (older certificates predate per-batch templates)
