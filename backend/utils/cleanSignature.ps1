@@ -36,6 +36,13 @@ $minX = $width; $maxX = 0; $minY = $height; $maxY = 0
 for ($y = 0; $y -lt $height; $y++) {
     for ($x = 0; $x -lt $width; $x++) {
         $c = $bmp.GetPixel($x, $y)
+
+        # CRITICAL: Keep already-transparent pixels transparent!
+        if ($c.A -lt 20) {
+            $outBmp.SetPixel($x, $y, [System.Drawing.Color]::FromArgb(0, 0, 0, 0))
+            continue
+        }
+
         $lum = 0.299 * $c.R + 0.587 * $c.G + 0.114 * $c.B
 
         if ($lum -ge $inkThreshold) {

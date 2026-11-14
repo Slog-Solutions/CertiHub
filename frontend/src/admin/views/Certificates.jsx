@@ -329,10 +329,19 @@ const Certificates = () => {
             const imgData = ctx.getImageData(0, 0, width, height);
             const data = imgData.data;
 
-            // 1. Find darkest ink luminance in the image
+            // Check if the image ALREADY has transparent background
+            let transparentPixels = 0;
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i + 3] < 20) {
+                transparentPixels++;
+              }
+            }
+            const isAlreadyTransparent = transparentPixels > ((width * height) * 0.05);
+
+            // 1. Find darkest ink luminance in the image (among opaque pixels)
             let minLum = 255;
             for (let i = 0; i < data.length; i += 4) {
-              if (data[i + 3] > 10) {
+              if (data[i + 3] > 80) {
                 const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
                 if (lum < minLum) minLum = lum;
               }
@@ -346,6 +355,14 @@ const Certificates = () => {
             let inkCount = 0;
 
             for (let i = 0; i < data.length; i += 4) {
+              const a = data[i + 3];
+
+              // CRITICAL: NEVER turn a transparent pixel into opaque!
+              if (a < 20) {
+                data[i + 3] = 0;
+                continue;
+              }
+
               const r = data[i];
               const g = data[i + 1];
               const b = data[i + 2];
@@ -353,6 +370,22 @@ const Certificates = () => {
               const pixelIdx = i / 4;
               const px = pixelIdx % width;
               const py = Math.floor(pixelIdx / width);
+
+              // If the image is ALREADY transparent, preserve the clean transparent signature
+              if (isAlreadyTransparent) {
+                data[i] = Math.min(r, 40);
+                data[i + 1] = Math.min(g, 40);
+                data[i + 2] = Math.min(b, 55);
+
+                if (a > 40) {
+                  if (px < minX) minX = px;
+                  if (px > maxX) maxX = px;
+                  if (py < minY) minY = py;
+                  if (py > maxY) maxY = py;
+                  inkCount++;
+                }
+                continue;
+              }
 
               if (lum >= inkCutoff) {
                 // Completely transparent paper and shadow

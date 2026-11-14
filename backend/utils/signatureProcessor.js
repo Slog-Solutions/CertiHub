@@ -32,10 +32,19 @@ function cleanPngBuffer(inputBuf) {
     const width = png.width;
     const height = png.height;
 
-    // 1. Find the darkest luminance in the image (the core ink)
+    // Check if the image ALREADY has transparent background
+    let transparentPixels = 0;
+    for (let i = 0; i < png.data.length; i += 4) {
+      if (png.data[i + 3] < 20) {
+        transparentPixels++;
+      }
+    }
+    const isAlreadyTransparent = transparentPixels > (width * height * 0.05);
+
+    // 1. Find the darkest luminance among opaque ink pixels
     let minLum = 255;
     for (let i = 0; i < png.data.length; i += 4) {
-      if (png.data[i + 3] > 10) {
+      if (png.data[i + 3] > 80) {
         const lum = 0.299 * png.data[i] + 0.587 * png.data[i + 1] + 0.114 * png.data[i + 2];
         if (lum < minLum) minLum = lum;
       }
@@ -51,11 +60,36 @@ function cleanPngBuffer(inputBuf) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
+        const a = png.data[idx + 3];
+
+        // CRITICAL: NEVER turn a transparent pixel into opaque!
+        if (a < 20) {
+          png.data[idx + 3] = 0;
+          continue;
+        }
+
         const r = png.data[idx];
         const g = png.data[idx + 1];
         const b = png.data[idx + 2];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
+        // If the image is ALREADY transparent, preserve the clean transparent signature
+        if (isAlreadyTransparent) {
+          png.data[idx] = Math.min(r, 40);
+          png.data[idx + 1] = Math.min(g, 40);
+          png.data[idx + 2] = Math.min(b, 55);
+
+          if (a > 40) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            inkCount++;
+          }
+          continue;
+        }
+
+        // For non-transparent images (photos of paper):
         if (lum >= inkCutoff) {
           // Transparent paper and shadow
           png.data[idx + 3] = 0;
