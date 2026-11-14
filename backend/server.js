@@ -63,6 +63,7 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
 
   const { getLatestSignatureMtime } = require('./utils/signatureProcessor');
   const latestSigMtime = getLatestSignatureMtime();
+  const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
 
   try {
     const Certificate = require('./models/Certificate');
