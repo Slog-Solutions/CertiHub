@@ -50,23 +50,23 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const adminMenu = [
-    { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
-    { name: 'Masters',         path: '/dashboard/masters', icon: Settings },
-    { name: 'Mentors',         path: '/dashboard/masters?tab=mentor', icon: ShieldCheck },
-    { name: 'Users',           path: '/dashboard/users', icon: Users },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Masters', path: '/dashboard/masters', icon: Settings },
+    { name: 'Mentors', path: '/dashboard/masters?tab=mentor', icon: ShieldCheck },
+    { name: 'Users', path: '/dashboard/users', icon: Users },
     { name: 'Delete Requests', path: '/dashboard/delete-requests', icon: Trash2 },
-    { name: 'Batches',         path: '/dashboard/batches', icon: BookOpen },
-    { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
-    { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
-    { name: "Candidate's Fee",   path: '/dashboard/fees', icon: CreditCard },
-    { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
-    { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
-    { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Batches', path: '/dashboard/batches', icon: BookOpen },
+    { name: 'Registration', path: '/dashboard/registration', icon: UserPlus },
+    { name: 'Course Links', path: '/dashboard/course-links', icon: Link },
+    { name: "Candidate's Fee", path: '/dashboard/fees', icon: CreditCard },
+    { name: 'Fee Discount', path: '/dashboard/discounts', icon: Percent },
+    { name: 'Enquiry CRM', path: '/dashboard/enquiries', icon: MessageSquare },
+    { name: 'Certificates', path: '/dashboard/certificates', icon: Award },
     { name: 'Digital Signatures', path: '/dashboard/certificates?tab=signature', icon: PenTool },
-    { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
-    { name: 'App Versions',    path: '/dashboard/app-versions', icon: Smartphone },
-    { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
-    { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
+    { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
+    { name: 'App Versions', path: '/dashboard/app-versions', icon: Smartphone },
+    { name: 'Marketing', path: '/dashboard/marketing', icon: Megaphone },
+    { name: 'Courses', path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',
       icon: BarChart3,
@@ -77,22 +77,22 @@ const Sidebar = ({ isOpen, onClose }) => {
         { name: 'Course wise total candidate Report', path: '/dashboard/reports/course-students' }
       ]
     },
-    { name: 'Daily Backup',    path: '/dashboard/backup', icon: Database },
+    { name: 'Daily Backup', path: '/dashboard/backup', icon: Database },
   ];
 
   const staffMenu = [
-    { name: 'Dashboard',       path: '/dashboard',   icon: LayoutDashboard },
-    { name: 'Registration',    path: '/dashboard/registration', icon: UserPlus },
-    { name: 'Course Links',    path: '/dashboard/course-links', icon: Link },
-    { name: "Candidate's Fee",   path: '/dashboard/fees', icon: CreditCard },
-    { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
-    { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
-    { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Registration', path: '/dashboard/registration', icon: UserPlus },
+    { name: 'Course Links', path: '/dashboard/course-links', icon: Link },
+    { name: "Candidate's Fee", path: '/dashboard/fees', icon: CreditCard },
+    { name: 'Fee Discount', path: '/dashboard/discounts', icon: Percent },
+    { name: 'Enquiry CRM', path: '/dashboard/enquiries', icon: MessageSquare },
+    { name: 'Certificates', path: '/dashboard/certificates', icon: Award },
     { name: 'Digital Signatures', path: '/dashboard/certificates?tab=signature', icon: PenTool },
-    { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
-    { name: 'App Versions',    path: '/dashboard/app-versions', icon: Smartphone },
-    { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
-    { name: 'Courses',         path: '/dashboard/courses', icon: BookMarked },
+    { name: 'Notifications', path: '/dashboard/notifications', icon: Bell },
+    { name: 'App Versions', path: '/dashboard/app-versions', icon: Smartphone },
+    { name: 'Marketing', path: '/dashboard/marketing', icon: Megaphone },
+    { name: 'Courses', path: '/dashboard/courses', icon: BookMarked },
     {
       name: 'Reports',
       icon: BarChart3,
@@ -106,7 +106,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   ];
 
   const directorMenu = [
-    { name: 'Dashboard',    path: '/dashboard',            icon: LayoutDashboard },
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Certificates', path: '/dashboard/certificates', icon: Award },
     { name: 'My Signature', path: '/dashboard/certificates?tab=signature', icon: PenTool },
     { name: 'Registration', path: '/dashboard/registration', icon: UserPlus },
@@ -146,7 +146,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        <button 
+        <button
           onClick={onClose}
           className="sidebar-close-btn"
           title="Close Sidebar"
@@ -199,7 +199,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   </div>
                   {reportsOpen ? <ChevronUp size={14} style={{ opacity: 0.8 }} /> : <ChevronDown size={14} style={{ opacity: 0.8 }} />}
                 </button>
-                
+
                 {reportsOpen && (
                   <div className="sidebar-submenu">
                     {item.subItems.map((sub) => (

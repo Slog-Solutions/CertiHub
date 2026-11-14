@@ -58,13 +58,22 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     return next();
   }
 
-  const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
-  if (fs.existsSync(pdfPath)) {
-    return res.sendFile(pdfPath);
-  }
-
   const isUnsignedRequest = filename.endsWith('_unsigned.pdf');
   const certificateId = isUnsignedRequest ? filename.replace('_unsigned.pdf', '') : filename.slice(0, -4);
+
+  const { getLatestSignatureMtime } = require('./utils/signatureProcessor');
+  const latestSigMtime = getLatestSignatureMtime();
+
+  const pdfPath = path.join(__dirname, 'uploads/certificates', filename);
+  if (fs.existsSync(pdfPath)) {
+    const pdfMtime = fs.statSync(pdfPath).mtimeMs;
+    // Unsigned certificates do not depend on signatures.
+    // Signed certificates are served only if they were generated after the latest signature.
+    if (isUnsignedRequest || pdfMtime >= latestSigMtime) {
+      return res.sendFile(pdfPath);
+    }
+    console.log(`[Certificates] Regenerating ${filename} because signatures were updated at ${new Date(latestSigMtime).toISOString()}`);
+  }
 
   try {
     const Certificate = require('./models/Certificate');

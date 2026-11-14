@@ -59,6 +59,8 @@ const Certificates = () => {
   const [rightSigPreview, setRightSigPreview] = useState('');
   const [leftSigFile, setLeftSigFile] = useState(null);
   const [rightSigFile, setRightSigFile] = useState(null);
+  const [cleaningLeft, setCleaningLeft] = useState(false);
+  const [cleaningRight, setCleaningRight] = useState(false);
 
   const getPdfUrl = (url) => {
     if (!url) return '#';
@@ -300,19 +302,178 @@ const Certificates = () => {
     fetchSignatures();
   };
 
-  const handleLeftSigChange = (e) => {
+  /**
+   * Automatically removes paper background from signature image,
+   * extracts crisp textual ink strokes, and returns a transparent PNG File.
+   */
+  const removeSignatureBackground = (file) => {
+    return new Promise((resolve) => {
+      if (!file || !file.type.startsWith('image/')) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const width = img.naturalWidth || img.width;
+            const height = img.naturalHeight || img.height;
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx.drawImage(img, 0, 0);
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+
+            // Sample borders to detect paper background luminance
+            let bgSum = 0;
+            let count = 0;
+            let bgMax = 0;
+            const step = Math.max(1, Math.floor(Math.min(width, height) / 25));
+
+            for (let x = 0; x < width; x += step) {
+              let i = (0 * width + x) * 4;
+              let lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
+
+              i = ((height - 1) * width + x) * 4;
+              lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
+            }
+
+            for (let y = 0; y < height; y += step) {
+              let i = (y * width + 0) * 4;
+              let lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
+
+              i = (y * width + (width - 1)) * 4;
+              lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
+            }
+
+            const bgAvg = count > 0 ? bgSum / count : 220;
+            const bgThreshold = Math.max(145, Math.min(bgMax - 12, bgAvg - 5));
+            const inkThreshold = Math.max(40, bgThreshold - 50);
+
+            let minX = width, maxX = 0, minY = height, maxY = 0;
+
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i];
+              const g = data[i + 1];
+              const b = data[i + 2];
+              const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+              const pixelIdx = i / 4;
+              const px = pixelIdx % width;
+              const py = Math.floor(pixelIdx / width);
+
+              if (lum >= bgThreshold) {
+                // Transparent paper
+                data[i + 3] = 0;
+              } else if (lum <= inkThreshold) {
+                // Pure ink stroke: preserve pen color tone (blue/black), darken slightly for crisp contrast
+                data[i] = Math.max(0, Math.round(r * 0.75));
+                data[i + 1] = Math.max(0, Math.round(g * 0.75));
+                data[i + 2] = Math.max(0, Math.round(b * 0.75));
+                data[i + 3] = 255;
+                if (px < minX) minX = px;
+                if (px > maxX) maxX = px;
+                if (py < minY) minY = py;
+                if (py > maxY) maxY = py;
+              } else {
+                // Smooth anti-aliased edge
+                const alphaRatio = (bgThreshold - lum) / (bgThreshold - inkThreshold);
+                const alpha = Math.round(255 * Math.max(0, Math.min(1, alphaRatio)));
+                data[i] = Math.max(0, Math.round(r * 0.8));
+                data[i + 1] = Math.max(0, Math.round(g * 0.8));
+                data[i + 2] = Math.max(0, Math.round(b * 0.8));
+                data[i + 3] = alpha;
+                if (alpha > 40) {
+                  if (px < minX) minX = px;
+                  if (px > maxX) maxX = px;
+                  if (py < minY) minY = py;
+                  if (py > maxY) maxY = py;
+                }
+              }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+
+            // Auto-crop to content bounding box with comfortable padding
+            let finalCanvas = canvas;
+            if (maxX > minX && maxY > minY) {
+              const pad = 24;
+              const cropX = Math.max(0, minX - pad);
+              const cropY = Math.max(0, minY - pad);
+              const cropW = Math.min(width - cropX, (maxX - minX) + (pad * 2));
+              const cropH = Math.min(height - cropY, (maxY - minY) + (pad * 2));
+
+              const cropCanvas = document.createElement('canvas');
+              cropCanvas.width = cropW;
+              cropCanvas.height = cropH;
+              const cropCtx = cropCanvas.getContext('2d');
+              cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+              finalCanvas = cropCanvas;
+            }
+
+            finalCanvas.toBlob((blob) => {
+              if (!blob) {
+                resolve(file);
+                return;
+              }
+              const cleanFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_transparent.png", {
+                type: 'image/png',
+                lastModified: Date.now()
+              });
+              resolve(cleanFile);
+            }, 'image/png');
+          } catch (procErr) {
+            console.warn('Canvas background removal fallback:', procErr);
+            resolve(file);
+          }
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleLeftSigChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setLeftSigFile(file);
-      setLeftSigPreview(URL.createObjectURL(file));
+      setCleaningLeft(true);
+      try {
+        const cleanedFile = await removeSignatureBackground(file);
+        setLeftSigFile(cleanedFile);
+        setLeftSigPreview(URL.createObjectURL(cleanedFile));
+      } catch (_) {
+        setLeftSigFile(file);
+        setLeftSigPreview(URL.createObjectURL(file));
+      } finally {
+        setCleaningLeft(false);
+      }
     }
   };
 
-  const handleRightSigChange = (e) => {
+  const handleRightSigChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setRightSigFile(file);
-      setRightSigPreview(URL.createObjectURL(file));
+      setCleaningRight(true);
+      try {
+        const cleanedFile = await removeSignatureBackground(file);
+        setRightSigFile(cleanedFile);
+        setRightSigPreview(URL.createObjectURL(cleanedFile));
+      } catch (_) {
+        setRightSigFile(file);
+        setRightSigPreview(URL.createObjectURL(file));
+      } finally {
+        setCleaningRight(false);
+      }
     }
   };
 
@@ -946,7 +1107,13 @@ const Certificates = () => {
                     </span>
                   </div>
                   <div className="h-36 rounded-xl border border-[var(--border-color)] bg-white/95 flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-inner group">
-                    {sanitizeImageSrc(leftSigPreview) ? (
+                    {cleaningLeft ? (
+                      <div className="flex flex-col items-center justify-center gap-2 text-center p-4">
+                        <Loader className="h-6 w-6 text-emerald-500 animate-spin" />
+                        <span className="text-xs font-semibold text-emerald-600">Extracting signature strokes & removing background...</span>
+                        <span className="text-[10px] text-zinc-500">Creating transparent digital signature</span>
+                      </div>
+                    ) : sanitizeImageSrc(leftSigPreview) ? (
                       <>
                         <img
                           src={sanitizeImageSrc(leftSigPreview)}
@@ -954,7 +1121,7 @@ const Certificates = () => {
                           className="max-h-full max-w-full object-contain filter drop-shadow"
                         />
                         <span className="absolute bottom-2 right-2 text-[9px] font-bold bg-slate-900/80 text-white px-2 py-0.5 rounded backdrop-blur-sm">
-                          {leftSigFile ? 'New Preview' : 'Saved Signature'}
+                          {leftSigFile ? '✨ Clean Transparent Preview' : 'Saved Signature'}
                         </span>
                       </>
                     ) : (
@@ -987,7 +1154,7 @@ const Certificates = () => {
                         />
                       </label>
                       <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
-                        💡 Transparent PNG recommended (approx. 300 × 120 px) with clean, dark signature.
+                        ✨ <strong>Auto-Ink Extraction:</strong> Paper background is automatically removed to produce a clean, transparent digital signature.
                       </p>
                     </div>
 
@@ -1059,7 +1226,13 @@ const Certificates = () => {
                     </span>
                   </div>
                   <div className="h-36 rounded-xl border border-[var(--border-color)] bg-white/95 flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-inner group">
-                    {sanitizeImageSrc(rightSigPreview) ? (
+                    {cleaningRight ? (
+                      <div className="flex flex-col items-center justify-center gap-2 text-center p-4">
+                        <Loader className="h-6 w-6 text-emerald-500 animate-spin" />
+                        <span className="text-xs font-semibold text-emerald-600">Extracting signature strokes & removing background...</span>
+                        <span className="text-[10px] text-zinc-500">Creating transparent digital signature</span>
+                      </div>
+                    ) : sanitizeImageSrc(rightSigPreview) ? (
                       <>
                         <img
                           src={sanitizeImageSrc(rightSigPreview)}
@@ -1067,7 +1240,7 @@ const Certificates = () => {
                           className="max-h-full max-w-full object-contain filter drop-shadow"
                         />
                         <span className="absolute bottom-2 right-2 text-[9px] font-bold bg-slate-900/80 text-white px-2 py-0.5 rounded backdrop-blur-sm">
-                          {rightSigFile ? 'New Preview' : 'Saved Signature'}
+                          {rightSigFile ? '✨ Clean Transparent Preview' : 'Saved Signature'}
                         </span>
                       </>
                     ) : (
@@ -1100,7 +1273,7 @@ const Certificates = () => {
                         />
                       </label>
                       <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
-                        💡 Transparent PNG recommended (approx. 300 × 120 px) with clean, dark signature.
+                        ✨ <strong>Auto-Ink Extraction:</strong> Paper background is automatically removed to produce a clean, transparent digital signature.
                       </p>
                     </div>
 
@@ -1678,7 +1851,12 @@ const Certificates = () => {
                         Signature Image Preview
                       </label>
                       <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
-                        {sanitizeImageSrc(leftSigPreview) ? (
+                        {cleaningLeft ? (
+                          <div className="flex flex-col items-center justify-center gap-1 text-center">
+                            <Loader className="h-4 w-4 text-emerald-500 animate-spin" />
+                            <span className="text-[10px] font-semibold text-emerald-600">Removing background...</span>
+                          </div>
+                        ) : sanitizeImageSrc(leftSigPreview) ? (
                           <img src={sanitizeImageSrc(leftSigPreview)} alt="Left Signature Preview" className="max-h-full max-w-full object-contain" />
                         ) : (
                           <div className="text-center text-[10px] text-zinc-400">
@@ -1704,7 +1882,7 @@ const Certificates = () => {
                           />
                         </label>
                       </label>
-                      <p className="text-[9px] text-[var(--text-muted)] mt-1">Recommended: Transparent PNG (approx. 300x120px)</p>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-1">✨ Auto-clean: Paper background is automatically made transparent</p>
                     </div>
                   </div>
 
@@ -1737,7 +1915,12 @@ const Certificates = () => {
                         Signature Image Preview
                       </label>
                       <div className="h-28 rounded-lg border border-[var(--border-color)] bg-white/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
-                        {sanitizeImageSrc(rightSigPreview) ? (
+                        {cleaningRight ? (
+                          <div className="flex flex-col items-center justify-center gap-1 text-center">
+                            <Loader className="h-4 w-4 text-emerald-500 animate-spin" />
+                            <span className="text-[10px] font-semibold text-emerald-600">Removing background...</span>
+                          </div>
+                        ) : sanitizeImageSrc(rightSigPreview) ? (
                           <img src={sanitizeImageSrc(rightSigPreview)} alt="Right Signature Preview" className="max-h-full max-w-full object-contain" />
                         ) : (
                           <div className="text-center text-[10px] text-zinc-400">
@@ -1763,7 +1946,7 @@ const Certificates = () => {
                           />
                         </label>
                       </label>
-                      <p className="text-[9px] text-[var(--text-muted)] mt-1">Recommended: Transparent PNG (approx. 300x120px)</p>
+                      <p className="text-[9px] text-[var(--text-muted)] mt-1">✨ Auto-clean: Paper background is automatically made transparent</p>
                     </div>
                   </div>
                 </div>
