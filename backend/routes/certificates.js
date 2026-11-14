@@ -457,6 +457,74 @@ router.post('/upload', certRateLimiter, requireAuth, upload.single('excelFile'),
   }
 });
 
+/**
+ * Ensures that a certificate PDF exists on disk and is up to date with respect
+ * to the latest uploaded signatures. If missing or stale, it regenerates the PDF.
+ */
+const ensureCertificatePdfOnDisk = async (cert) => {
+  const { getLatestSignatureMtime } = require('../utils/signatureProcessor');
+  const latestSigTime = getLatestSignatureMtime();
+  const filename = `${cert.certificateId}.pdf`;
+  const pdfPath = path.join(certsDir, filename);
+
+  const isApproved = cert.signatureApprovalStatus === 'Approved' || cert.signatureOption === 'none';
+  const shouldHaveSignatures = isApproved && cert.signatureOption !== 'none';
+
+  const fileExists = fs.existsSync(pdfPath);
+  const isStale = fileExists && shouldHaveSignatures && fs.statSync(pdfPath).mtimeMs < latestSigTime;
+
+  if (!fileExists || isStale) {
+    let studentData = cert.studentId;
+    let courseDetailData = cert.courseDetailId;
+
+    if (!studentData || !courseDetailData || !studentData.collegeId) {
+      if (cert.studentId?._id || cert.studentId) {
+        studentData = await Student.findById(cert.studentId._id || cert.studentId)
+          .populate('collegeId')
+          .populate('branchId');
+      }
+      if (cert.courseDetailId?._id || cert.courseDetailId) {
+        courseDetailData = await CourseDetail.findById(cert.courseDetailId._id || cert.courseDetailId)
+          .populate('technologyId')
+          .populate('durationId');
+      }
+    }
+
+    if (!studentData || !courseDetailData) {
+      const User = require('../models/User');
+      const user = cert.userId ? await User.findById(cert.userId) : null;
+      const batch = cert.batchId ? await Batch.findById(cert.batchId) : null;
+      const { buildBatchCertificateData } = require('../utils/certificateData');
+      ({ studentData, courseDetailData } = buildBatchCertificateData({ user, student: studentData, courseDetail: courseDetailData, batch }));
+    }
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
+    const qrCodeBase64 = cert.qrCodeUrl || (await qrcode.toDataURL(verificationUrl));
+
+    const sigConfig = isApproved
+      ? {
+          signatureOption: cert.signatureOption || 'none',
+          includeLeft: cert.leftApproval?.status === 'Approved',
+          includeRight: cert.rightApproval?.status === 'Approved'
+        }
+      : { signatureOption: 'none', includeLeft: false, includeRight: false };
+
+    await generateCertificatePDF(
+      studentData,
+      courseDetailData,
+      cert.certificateId,
+      qrCodeBase64,
+      pdfPath,
+      cert.issueDate || new Date(),
+      cert.templateFile || 'default.html',
+      sigConfig
+    );
+  }
+
+  return pdfPath;
+};
+
 // @route   GET /api/certificates/batch/:batchId/download-zip
 // @desc    Download all PDFs generated in a batch zipped together
 // @access  Private (Admin & Staff & Director)
@@ -486,15 +554,25 @@ router.get('/batch/:batchId/download-zip', certDownloadLimiter, requireAuth, asy
     archive.pipe(res);
 
     for (const cert of certs) {
-      let pdfPath = path.join(__dirname, '..', cert.pdfUrl);
-      if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
-        const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
-        if (fs.existsSync(unsignedPath)) {
-          pdfPath = unsignedPath;
+      try {
+        let pdfPath = await ensureCertificatePdfOnDisk(cert);
+        if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
+          const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+          if (fs.existsSync(unsignedPath)) {
+            pdfPath = unsignedPath;
+          }
         }
-      }
-      if (fs.existsSync(pdfPath)) {
-        archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
+        if (fs.existsSync(pdfPath)) {
+          archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
+        }
+      } catch (certErr) {
+        console.error(`Error processing cert ${cert.certificateId} for batch ZIP:`, certErr.message);
+        if (cert.pdfUrlUnsigned) {
+          const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+          if (fs.existsSync(unsignedPath)) {
+            archive.file(unsignedPath, { name: `${cert.certificateId}.pdf` });
+          }
+        }
       }
     }
 
@@ -531,15 +609,25 @@ router.get('/download-all-zip', certDownloadLimiter, requireAuth, async (req, re
     archive.pipe(res);
 
     for (const cert of certs) {
-      let pdfPath = path.join(__dirname, '..', cert.pdfUrl);
-      if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
-        const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
-        if (fs.existsSync(unsignedPath)) {
-          pdfPath = unsignedPath;
+      try {
+        let pdfPath = await ensureCertificatePdfOnDisk(cert);
+        if (!fs.existsSync(pdfPath) && cert.pdfUrlUnsigned) {
+          const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+          if (fs.existsSync(unsignedPath)) {
+            pdfPath = unsignedPath;
+          }
         }
-      }
-      if (fs.existsSync(pdfPath)) {
-        archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
+        if (fs.existsSync(pdfPath)) {
+          archive.file(pdfPath, { name: `${cert.certificateId}.pdf` });
+        }
+      } catch (certErr) {
+        console.error(`Error processing cert ${cert.certificateId} for all ZIP:`, certErr.message);
+        if (cert.pdfUrlUnsigned) {
+          const unsignedPath = path.join(__dirname, '..', cert.pdfUrlUnsigned);
+          if (fs.existsSync(unsignedPath)) {
+            archive.file(unsignedPath, { name: `${cert.certificateId}.pdf` });
+          }
+        }
       }
     }
 
@@ -612,13 +700,32 @@ router.post(
         fs.mkdirSync(signaturesDir, { recursive: true });
       }
 
+      const { cleanSignatureImage, invalidateStaleSignedCertificates } = require('../utils/signatureProcessor');
+
       if (req.files?.leftSignature && req.files.leftSignature[0]) {
-        fs.writeFileSync(path.join(signaturesDir, 'left_signature.png'), req.files.leftSignature[0].buffer);
+        const leftTarget = path.join(signaturesDir, 'left_signature.png');
+        const tempRaw = path.join(signaturesDir, `left_raw_${Date.now()}.png`);
+        fs.writeFileSync(tempRaw, req.files.leftSignature[0].buffer);
+        const cleaned = cleanSignatureImage(tempRaw, leftTarget);
+        if (!cleaned) {
+          fs.writeFileSync(leftTarget, req.files.leftSignature[0].buffer);
+        }
+        try { if (fs.existsSync(tempRaw)) fs.unlinkSync(tempRaw); } catch (_) {}
       }
 
       if (req.files?.rightSignature && req.files.rightSignature[0]) {
-        fs.writeFileSync(path.join(signaturesDir, 'right_signature.png'), req.files.rightSignature[0].buffer);
+        const rightTarget = path.join(signaturesDir, 'right_signature.png');
+        const tempRaw = path.join(signaturesDir, `right_raw_${Date.now()}.png`);
+        fs.writeFileSync(tempRaw, req.files.rightSignature[0].buffer);
+        const cleaned = cleanSignatureImage(tempRaw, rightTarget);
+        if (!cleaned) {
+          fs.writeFileSync(rightTarget, req.files.rightSignature[0].buffer);
+        }
+        try { if (fs.existsSync(tempRaw)) fs.unlinkSync(tempRaw); } catch (_) {}
       }
+
+      // Invalidate existing signed certificates so they automatically take the new signature
+      invalidateStaleSignedCertificates();
 
       const SystemSetting = require('../models/SystemSetting');
       if (req.body.leftSignName && req.body.leftSignName.trim()) {
