@@ -329,37 +329,21 @@ const Certificates = () => {
             const imgData = ctx.getImageData(0, 0, width, height);
             const data = imgData.data;
 
-            // Sample borders to detect paper background luminance
-            let bgSum = 0;
-            let count = 0;
-            let bgMax = 0;
-            const step = Math.max(1, Math.floor(Math.min(width, height) / 25));
-
-            for (let x = 0; x < width; x += step) {
-              let i = (0 * width + x) * 4;
-              let lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
-
-              i = ((height - 1) * width + x) * 4;
-              lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
+            // 1. Find darkest ink luminance in the image
+            let minLum = 255;
+            for (let i = 0; i < data.length; i += 4) {
+              if (data[i + 3] > 10) {
+                const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                if (lum < minLum) minLum = lum;
+              }
             }
 
-            for (let y = 0; y < height; y += step) {
-              let i = (y * width + 0) * 4;
-              let lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
-
-              i = (y * width + (width - 1)) * 4;
-              lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-              bgSum += lum; count++; if (lum > bgMax) bgMax = lum;
-            }
-
-            const bgAvg = count > 0 ? bgSum / count : 220;
-            const bgThreshold = Math.max(145, Math.min(bgMax - 12, bgAvg - 5));
-            const inkThreshold = Math.max(40, bgThreshold - 50);
+            // 2. Ink threshold strictly capped at 80 to eliminate paper shadows (>=90)
+            const inkCutoff = Math.max(35, Math.min(80, minLum + 45));
+            const edgeBand = 15;
 
             let minX = width, maxX = 0, minY = height, maxY = 0;
+            let inkCount = 0;
 
             for (let i = 0; i < data.length; i += 4) {
               const r = data[i];
@@ -370,32 +354,29 @@ const Certificates = () => {
               const px = pixelIdx % width;
               const py = Math.floor(pixelIdx / width);
 
-              if (lum >= bgThreshold) {
-                // Transparent paper
+              if (lum >= inkCutoff) {
+                // Completely transparent paper and shadow
                 data[i + 3] = 0;
-              } else if (lum <= inkThreshold) {
-                // Pure ink stroke: preserve pen color tone (blue/black), darken slightly for crisp contrast
-                data[i] = Math.max(0, Math.round(r * 0.75));
-                data[i + 1] = Math.max(0, Math.round(g * 0.75));
-                data[i + 2] = Math.max(0, Math.round(b * 0.75));
-                data[i + 3] = 255;
-                if (px < minX) minX = px;
-                if (px > maxX) maxX = px;
-                if (py < minY) minY = py;
-                if (py > maxY) maxY = py;
               } else {
                 // Smooth anti-aliased edge
-                const alphaRatio = (bgThreshold - lum) / (bgThreshold - inkThreshold);
-                const alpha = Math.round(255 * Math.max(0, Math.min(1, alphaRatio)));
-                data[i] = Math.max(0, Math.round(r * 0.8));
-                data[i + 1] = Math.max(0, Math.round(g * 0.8));
-                data[i + 2] = Math.max(0, Math.round(b * 0.8));
+                let alpha = 255;
+                if (lum > inkCutoff - edgeBand) {
+                  const factor = (inkCutoff - lum) / edgeBand;
+                  alpha = Math.round(255 * Math.max(0, Math.min(1, factor)));
+                }
                 data[i + 3] = alpha;
+
+                // Crisp authentic pen ink color (deep blue-black)
+                data[i] = Math.min(r, 40);
+                data[i + 1] = Math.min(g, 40);
+                data[i + 2] = Math.min(b, 55);
+
                 if (alpha > 40) {
                   if (px < minX) minX = px;
                   if (px > maxX) maxX = px;
                   if (py < minY) minY = py;
                   if (py > maxY) maxY = py;
+                  inkCount++;
                 }
               }
             }
