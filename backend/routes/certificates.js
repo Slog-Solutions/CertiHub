@@ -467,13 +467,20 @@ const ensureCertificatePdfOnDisk = async (cert) => {
   const filename = `${cert.certificateId}.pdf`;
   const pdfPath = path.join(certsDir, filename);
 
-  const isApproved = cert.signatureApprovalStatus === 'Approved' || cert.signatureOption === 'none';
-  const shouldHaveSignatures = isApproved && cert.signatureOption !== 'none';
+  const isApprovedOrNotRequired = cert.signatureApprovalStatus === 'Approved' || cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
+  const isNotRequired = cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
+  const shouldHaveSignatures = isApprovedOrNotRequired && cert.signatureOption !== 'none';
 
   const fileExists = fs.existsSync(pdfPath);
-  const isStale = fileExists && shouldHaveSignatures && fs.statSync(pdfPath).mtimeMs < latestSigTime;
+  const approvedAtTime = Math.max(
+    cert.leftApproval?.approvedAt ? new Date(cert.leftApproval.approvedAt).getTime() : 0,
+    cert.rightApproval?.approvedAt ? new Date(cert.rightApproval.approvedAt).getTime() : 0
+  );
+  const pdfMtime = fileExists ? fs.statSync(pdfPath).mtimeMs : 0;
+  const isStale = fileExists && shouldHaveSignatures && pdfMtime < latestSigTime;
+  const needsRegenForApproval = fileExists && cert.signatureApprovalStatus === 'Approved' && approvedAtTime > 0 && pdfMtime < approvedAtTime;
 
-  if (!fileExists || isStale) {
+  if (!fileExists || isStale || needsRegenForApproval) {
     let studentData = cert.studentId;
     let courseDetailData = cert.courseDetailId;
 
@@ -502,11 +509,11 @@ const ensureCertificatePdfOnDisk = async (cert) => {
     const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
     const qrCodeBase64 = cert.qrCodeUrl || (await qrcode.toDataURL(verificationUrl));
 
-    const sigConfig = isApproved
+    const sigConfig = isApprovedOrNotRequired
       ? {
-          signatureOption: cert.signatureOption || 'none',
-          includeLeft: cert.leftApproval?.status === 'Approved',
-          includeRight: cert.rightApproval?.status === 'Approved'
+          signatureOption: cert.signatureOption || 'both',
+          includeLeft: isNotRequired || cert.leftApproval?.status === 'Approved',
+          includeRight: isNotRequired || cert.rightApproval?.status === 'Approved'
         }
       : { signatureOption: 'none', includeLeft: false, includeRight: false };
 
