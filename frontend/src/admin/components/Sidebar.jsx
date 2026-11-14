@@ -25,7 +25,8 @@ import {
   BookMarked,
   Trash2,
   Megaphone,
-  Smartphone
+  Smartphone,
+  PenTool
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -61,6 +62,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Digital Signatures', path: '/dashboard/certificates?tab=signature', icon: PenTool },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
     { name: 'App Versions',    path: '/dashboard/app-versions', icon: Smartphone },
     { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
@@ -86,6 +88,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Fee Discount',    path: '/dashboard/discounts', icon: Percent },
     { name: 'Enquiry CRM',     path: '/dashboard/enquiries', icon: MessageSquare },
     { name: 'Certificates',    path: '/dashboard/certificates', icon: Award },
+    { name: 'Digital Signatures', path: '/dashboard/certificates?tab=signature', icon: PenTool },
     { name: 'Notifications',   path: '/dashboard/notifications', icon: Bell },
     { name: 'App Versions',    path: '/dashboard/app-versions', icon: Smartphone },
     { name: 'Marketing',       path: '/dashboard/marketing', icon: Megaphone },
@@ -105,6 +108,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const directorMenu = [
     { name: 'Dashboard',    path: '/dashboard',            icon: LayoutDashboard },
     { name: 'Certificates', path: '/dashboard/certificates', icon: Award },
+    { name: 'My Signature', path: '/dashboard/certificates?tab=signature', icon: PenTool },
     { name: 'Registration', path: '/dashboard/registration', icon: UserPlus },
     {
       name: 'Reports',
@@ -221,9 +225,16 @@ const Sidebar = ({ isOpen, onClose }) => {
               key={item.name}
               to={item.path}
               end={item.path === '/dashboard'}
-              className={({ isActive }) =>
-                `sidebar-link ${isActive ? 'sidebar-link--active' : ''}`
-              }
+              className={({ isActive }) => {
+                const itemHasSearch = item.path.includes('?');
+                let active = isActive;
+                if (itemHasSearch) {
+                  active = (location.pathname + location.search) === item.path;
+                } else if (location.pathname === '/dashboard/certificates' && location.search.includes('tab=signature')) {
+                  active = false;
+                }
+                return `sidebar-link ${active ? 'sidebar-link--active' : ''}`;
+              }}
             >
               <item.icon size={16} style={{ flexShrink: 0 }} />
               <span>{item.name}</span>

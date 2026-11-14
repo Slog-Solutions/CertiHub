@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Archive, FileSpreadsheet, Loader, ShieldCheck, RefreshCw, Eye, ToggleRight, ToggleLeft, Trash2, Clock, Check, XCircle, FileCheck, PenTool } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
@@ -12,8 +13,15 @@ const Certificates = () => {
   const isAdmin = user?.role === 'Admin';
   const directorUsername = user?.username?.toLowerCase();
 
-  // Tabs: 'all' or 'approvals'
-  const [activeTab, setActiveTab] = useState(isDirector ? 'approvals' : 'all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
+  // Tabs: 'all', 'approvals', 'signatures'
+  const [activeTab, setActiveTab] = useState(
+    tabParam === 'signature' || tabParam === 'signatures'
+      ? 'signatures'
+      : (isDirector ? 'approvals' : 'all')
+  );
   
   // Lists
   const [certs, setCerts] = useState([]);
@@ -112,8 +120,20 @@ const Certificates = () => {
     if (activeTab === 'approvals') {
       setSelectedPendingIds([]);
       fetchPendingApprovals();
+    } else if (activeTab === 'signatures') {
+      fetchSignatures();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (tabParam === 'signature' || tabParam === 'signatures') {
+      setActiveTab('signatures');
+    } else if (tabParam === 'approvals') {
+      setActiveTab('approvals');
+    } else if (tabParam === 'all') {
+      setActiveTab('all');
+    }
+  }, [tabParam]);
 
   const handleApproveSignature = async (certId, action = 'approve', side) => {
     try {
@@ -297,23 +317,72 @@ const Certificates = () => {
   };
 
   const handleSaveSignatures = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       setSigSaving(true);
       setSigError('');
       const formData = new FormData();
       if (leftSigFile) formData.append('leftSignature', leftSigFile);
       if (rightSigFile) formData.append('rightSignature', rightSigFile);
-      formData.append('leftSignName', leftSignName);
-      formData.append('rightSignName', rightSignName);
+      if (leftSignName) formData.append('leftSignName', leftSignName.trim());
+      if (rightSignName) formData.append('rightSignName', rightSignName.trim());
 
       await api.post('/certificates/signatures', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setMessage('Director signatures and names updated successfully!');
+      setLeftSigFile(null);
+      setRightSigFile(null);
+      fetchSignatures();
       setIsSignatureModalOpen(false);
     } catch (err) {
       setSigError(err.response?.data?.error || 'Failed to save signature changes');
+    } finally {
+      setSigSaving(false);
+    }
+  };
+
+  const handleSaveLeftSignature = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setSigSaving(true);
+      setSigError('');
+      const formData = new FormData();
+      if (leftSigFile) formData.append('leftSignature', leftSigFile);
+      if (leftSignName) formData.append('leftSignName', leftSignName.trim());
+
+      await api.post('/certificates/signatures', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMessage('Suraj Prasad Singh (Left) signature and profile updated successfully!');
+      setLeftSigFile(null);
+      fetchSignatures();
+      setIsSignatureModalOpen(false);
+    } catch (err) {
+      setSigError(err.response?.data?.error || 'Failed to save left signature');
+    } finally {
+      setSigSaving(false);
+    }
+  };
+
+  const handleSaveRightSignature = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setSigSaving(true);
+      setSigError('');
+      const formData = new FormData();
+      if (rightSigFile) formData.append('rightSignature', rightSigFile);
+      if (rightSignName) formData.append('rightSignName', rightSignName.trim());
+
+      await api.post('/certificates/signatures', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMessage('Kiran Bisht (Right) signature and profile updated successfully!');
+      setRightSigFile(null);
+      fetchSignatures();
+      setIsSignatureModalOpen(false);
+    } catch (err) {
+      setSigError(err.response?.data?.error || 'Failed to save right signature');
     } finally {
       setSigSaving(false);
     }
@@ -463,13 +532,15 @@ const Certificates = () => {
         </div>
         
         <div className="flex gap-3">
-          <button
-            onClick={handleDownloadExcelTemplate}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] text-[var(--text-dark)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-cream)] hover:text-[var(--text-dark)] transition"
-          >
-            <Download className="h-4 w-4 text-emerald-400" />
-            Download Excel Template
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleDownloadExcelTemplate}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] text-[var(--text-dark)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-cream)] hover:text-[var(--text-dark)] transition"
+            >
+              <Download className="h-4 w-4 text-emerald-400" />
+              Download Excel Template
+            </button>
+          )}
           
           <button
             onClick={handleDownloadAllZip}
@@ -481,37 +552,49 @@ const Certificates = () => {
           
           {(isAdmin || isDirector) && (
             <button
-              onClick={handleOpenSignatureModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-[var(--bg-card)] transition-colors duration-300 border border-[var(--border-color)] text-[var(--text-dark)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-cream)] hover:text-[var(--text-dark)] transition"
+              onClick={() => {
+                setActiveTab('signatures');
+                setSearchParams({ tab: 'signature' });
+                fetchSignatures();
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-sm ${
+                activeTab === 'signatures'
+                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                  : 'bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-dark)] hover:bg-[var(--bg-cream)]'
+              }`}
               title="Upload new signature images and update director names"
             >
               <PenTool className="h-4 w-4 text-emerald-400" />
-              Update Signatures
+              {isDirector ? 'My Digital Signature' : 'Digital Signatures'}
             </button>
           )}
           
-          <button
-            onClick={() => {
-              setUploadResults(null);
-              setExcelFile(null);
-              setIsUploadOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Excel & Issue
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setUploadResults(null);
+                setExcelFile(null);
+                setIsUploadOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10"
+            >
+              <Upload className="h-4 w-4" />
+              Upload Excel & Issue
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={handleBulkDelete}
-            disabled={selectedIds.length === 0}
-            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition shadow-md shadow-rose-600/10"
-            title="Select checkboxes in the table below to delete certificate records"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Selected {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedIds.length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition shadow-md shadow-rose-600/10"
+              title="Select checkboxes in the table below to delete certificate records"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Selected {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+            </button>
+          )}
         </div>
       </div>
 
@@ -534,7 +617,7 @@ const Certificates = () => {
       <div className="flex border-b border-[var(--border-color)] gap-6">
         <button
           type="button"
-          onClick={() => setActiveTab('all')}
+          onClick={() => { setActiveTab('all'); setSearchParams({}); }}
           className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === 'all'
               ? 'border-emerald-500 text-emerald-500'
@@ -547,7 +630,7 @@ const Certificates = () => {
 
         <button
           type="button"
-          onClick={() => setActiveTab('approvals')}
+          onClick={() => { setActiveTab('approvals'); setSearchParams({ tab: 'approvals' }); }}
           className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
             activeTab === 'approvals'
               ? 'border-emerald-500 text-emerald-500'
@@ -562,6 +645,21 @@ const Certificates = () => {
             </span>
           )}
         </button>
+
+        {(isAdmin || isDirector) && (
+          <button
+            type="button"
+            onClick={() => { setActiveTab('signatures'); setSearchParams({ tab: 'signature' }); }}
+            className={`pb-3 text-xs font-bold transition flex items-center gap-2 border-b-2 cursor-pointer ${
+              activeTab === 'signatures'
+                ? 'border-emerald-500 text-emerald-500'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-dark)]'
+            }`}
+          >
+            <PenTool className="h-4 w-4" />
+            {isDirector ? 'My Digital Signature' : 'Digital Signatures'}
+          </button>
+        )}
       </div>
 
       {activeTab === 'approvals' ? (
@@ -753,6 +851,277 @@ const Certificates = () => {
               </div>
             )}
           </div>
+        </div>
+      ) : activeTab === 'signatures' ? (
+        /* ================= DIGITAL SIGNATURES MANAGEMENT TAB ================= */
+        <div className="space-y-6 animate-in">
+          {/* Header banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+                  <PenTool className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-[var(--text-dark)]">
+                    {isDirector ? 'My Digital Signature & Signatory Profile' : 'Director Digital Signatures & Signatory Profiles'}
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5 max-w-2xl">
+                    {isDirector
+                      ? `Logged in as Director (${user?.name || user?.username}). Upload your signature file below so it is officially embedded on student certificates upon approval.`
+                      : 'Manage digital signature assets and titles for Directors Suraj Prasad Singh (Left) and Kiran Bisht (Right).'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={fetchSignatures}
+                disabled={sigLoading}
+                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-cream)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-dark)] rounded-xl text-xs font-semibold transition"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${sigLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {sigLoading ? (
+            <div className="p-16 flex flex-col items-center justify-center space-y-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl">
+              <Loader className="h-8 w-8 text-emerald-500 animate-spin" />
+              <p className="text-xs text-[var(--text-muted)] font-semibold">Loading signature profiles...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* SURAJ PRASAD SINGH (LEFT SIGNATORY) */}
+              <div className={`p-6 rounded-2xl bg-[var(--bg-card)] border transition shadow-sm space-y-5 ${
+                directorUsername === 'suraj'
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                  : 'border-[var(--border-color)]'
+              }`}>
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                      <h4 className="text-sm font-bold text-[var(--text-dark)]">Suraj Prasad Singh</h4>
+                    </div>
+                    <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">Left Signatory on Certificates</span>
+                  </div>
+                  {directorUsername === 'suraj' ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Your Profile (Logged in)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] bg-[var(--bg-cream)] px-2.5 py-1 rounded-full border border-[var(--border-color)]">
+                      Director
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                    Signatory Name (Printed on Certificate)
+                  </label>
+                  <input
+                    type="text"
+                    value={leftSignName}
+                    onChange={(e) => setLeftSignName(e.target.value)}
+                    disabled={directorUsername === 'kiran'}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[var(--text-dark)] focus:outline-none focus:border-emerald-500 disabled:opacity-60 transition font-medium"
+                    placeholder="Suraj Prasad Singh"
+                  />
+                  <span className="text-[10px] text-[var(--text-muted)] block mt-1">Title: <strong>Director, SLOG Solutions Private Limited</strong></span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">
+                      Active Signature Preview
+                    </label>
+                    <span className="text-[10px] text-emerald-400 font-semibold">
+                      {leftSigFile ? '● New file selected' : (leftSigPreview ? '● Currently deployed' : '○ Not configured')}
+                    </span>
+                  </div>
+                  <div className="h-36 rounded-xl border border-[var(--border-color)] bg-white/95 flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-inner group">
+                    {sanitizeImageSrc(leftSigPreview) ? (
+                      <>
+                        <img
+                          src={sanitizeImageSrc(leftSigPreview)}
+                          alt="Suraj Prasad Singh Signature"
+                          className="max-h-full max-w-full object-contain filter drop-shadow"
+                        />
+                        <span className="absolute bottom-2 right-2 text-[9px] font-bold bg-slate-900/80 text-white px-2 py-0.5 rounded backdrop-blur-sm">
+                          {leftSigFile ? 'New Preview' : 'Saved Signature'}
+                        </span>
+                      </>
+                    ) : (
+                      <div className="text-center p-4">
+                        <PenTool className="h-6 w-6 text-zinc-300 mx-auto mb-1" />
+                        <span className="text-xs text-zinc-400 font-semibold block">No signature file uploaded yet</span>
+                        <span className="text-[10px] text-zinc-400">Upload a PNG or JPG file below</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upload & Save Section */}
+                {(isAdmin || directorUsername === 'suraj') ? (
+                  <div className="space-y-3 pt-3 border-t border-[var(--border-color)]">
+                    <div>
+                      <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                        Upload New Signature File
+                      </span>
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 bg-[var(--bg-cream)] border border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:border-emerald-500 hover:text-emerald-400 text-xs text-[var(--text-muted)] transition">
+                        <Upload className="h-4 w-4 text-emerald-500" />
+                        <span className="truncate font-semibold">
+                          {leftSigFile ? `Selected: ${leftSigFile.name}` : 'Click to choose signature image (PNG, JPG)'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleLeftSigChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
+                        💡 Transparent PNG recommended (approx. 300 × 120 px) with clean, dark signature.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveLeftSignature}
+                      disabled={sigSaving}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/10 cursor-pointer"
+                    >
+                      {sigSaving ? <Loader className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {directorUsername === 'suraj' ? 'Save My Signature' : "Save Suraj's Signature"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
+                    🔒 Managed by Director Suraj Prasad Singh or Super Admin.
+                  </div>
+                )}
+              </div>
+
+              {/* KIRAN BISHT (RIGHT SIGNATORY) */}
+              <div className={`p-6 rounded-2xl bg-[var(--bg-card)] border transition shadow-sm space-y-5 ${
+                directorUsername === 'kiran'
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                  : 'border-[var(--border-color)]'
+              }`}>
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                      <h4 className="text-sm font-bold text-[var(--text-dark)]">Kiran Bisht</h4>
+                    </div>
+                    <span className="text-[10px] text-[var(--text-muted)] block mt-0.5">Right Signatory on Certificates</span>
+                  </div>
+                  {directorUsername === 'kiran' ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Your Profile (Logged in)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] bg-[var(--bg-cream)] px-2.5 py-1 rounded-full border border-[var(--border-color)]">
+                      Director
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                    Signatory Name (Printed on Certificate)
+                  </label>
+                  <input
+                    type="text"
+                    value={rightSignName}
+                    onChange={(e) => setRightSignName(e.target.value)}
+                    disabled={directorUsername === 'suraj'}
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[var(--text-dark)] focus:outline-none focus:border-emerald-500 disabled:opacity-60 transition font-medium"
+                    placeholder="Kiran Bisht"
+                  />
+                  <span className="text-[10px] text-[var(--text-muted)] block mt-1">Title: <strong>Director, SLOG Solutions Private Limited</strong></span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">
+                      Active Signature Preview
+                    </label>
+                    <span className="text-[10px] text-emerald-400 font-semibold">
+                      {rightSigFile ? '● New file selected' : (rightSigPreview ? '● Currently deployed' : '○ Not configured')}
+                    </span>
+                  </div>
+                  <div className="h-36 rounded-xl border border-[var(--border-color)] bg-white/95 flex flex-col items-center justify-center p-3 relative overflow-hidden shadow-inner group">
+                    {sanitizeImageSrc(rightSigPreview) ? (
+                      <>
+                        <img
+                          src={sanitizeImageSrc(rightSigPreview)}
+                          alt="Kiran Bisht Signature"
+                          className="max-h-full max-w-full object-contain filter drop-shadow"
+                        />
+                        <span className="absolute bottom-2 right-2 text-[9px] font-bold bg-slate-900/80 text-white px-2 py-0.5 rounded backdrop-blur-sm">
+                          {rightSigFile ? 'New Preview' : 'Saved Signature'}
+                        </span>
+                      </>
+                    ) : (
+                      <div className="text-center p-4">
+                        <PenTool className="h-6 w-6 text-zinc-300 mx-auto mb-1" />
+                        <span className="text-xs text-zinc-400 font-semibold block">No signature file uploaded yet</span>
+                        <span className="text-[10px] text-zinc-400">Upload a PNG or JPG file below</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Upload & Save Section */}
+                {(isAdmin || directorUsername === 'kiran') ? (
+                  <div className="space-y-3 pt-3 border-t border-[var(--border-color)]">
+                    <div>
+                      <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1.5">
+                        Upload New Signature File
+                      </span>
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 bg-[var(--bg-cream)] border border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:border-emerald-500 hover:text-emerald-400 text-xs text-[var(--text-muted)] transition">
+                        <Upload className="h-4 w-4 text-emerald-500" />
+                        <span className="truncate font-semibold">
+                          {rightSigFile ? `Selected: ${rightSigFile.name}` : 'Click to choose signature image (PNG, JPG)'}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={handleRightSigChange}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
+                        💡 Transparent PNG recommended (approx. 300 × 120 px) with clean, dark signature.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveRightSignature}
+                      disabled={sigSaving}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-500/10 cursor-pointer"
+                    >
+                      {sigSaving ? <Loader className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {directorUsername === 'kiran' ? 'Save My Signature' : "Save Kiran's Signature"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
+                    🔒 Managed by Director Kiran Bisht or Super Admin.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* ================= ALL CERTIFICATES TAB ================= */
@@ -1410,10 +1779,10 @@ const Certificates = () => {
                   <button
                     type="submit"
                     disabled={sigSaving}
-                    className="flex items-center gap-1.5 px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10"
+                    className="flex items-center gap-1.5 px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-500/10 cursor-pointer"
                   >
                     {sigSaving ? <Loader className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Save Changes
+                    {isDirector ? 'Save My Signature' : 'Save Changes'}
                   </button>
                 </div>
               </form>
