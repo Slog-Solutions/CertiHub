@@ -62,11 +62,16 @@ const Certificates = () => {
   const [cleaningLeft, setCleaningLeft] = useState(false);
   const [cleaningRight, setCleaningRight] = useState(false);
 
-  const getPdfUrl = (url) => {
+  const getPdfUrl = (url, cacheBust = true) => {
     if (!url) return '#';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
     const cleanPath = url.startsWith('/') ? url : `/${url}`;
-    return `${API_BASE_URL.replace(/\/api$/, '')}${cleanPath}`;
+    const baseUrl = API_BASE_URL.replace(/\/api$/, '');
+    let fullUrl = (url.startsWith('http://') || url.startsWith('https://')) ? url : `${baseUrl}${cleanPath}`;
+    if (cacheBust && !fullUrl.startsWith('data:')) {
+      const sep = fullUrl.includes('?') ? '&' : '?';
+      fullUrl = `${fullUrl}${sep}t=${Date.now()}`;
+    }
+    return fullUrl;
   };
 
   const sanitizeImageSrc = (src) => {
@@ -689,9 +694,9 @@ const Certificates = () => {
 
   const exportColumns = [
     { header: 'Cert ID', accessor: c => c.certificateId },
-    { header: 'Reg No', accessor: c => c.studentId?.registrationNo },
-    { header: 'Candidate Name', accessor: c => c.studentId?.name },
-    { header: 'Course Stream', accessor: c => c.courseDetailId?.technologyId?.name },
+    { header: 'Reg No', accessor: c => c.studentId?.registrationNo || c.userId?.username || '—' },
+    { header: 'Candidate Name', accessor: c => c.studentId?.name || c.userId?.name || 'Candidate' },
+    { header: 'Course Stream', accessor: c => c.courseDetailId?.technologyId?.name || c.batchId?.name || 'Course' },
     { header: 'Issue Date', accessor: c => c.issueDate ? new Date(c.issueDate).toLocaleDateString() : '' },
     { header: 'Signature Status', accessor: c => c.signatureApprovalStatus || 'NotRequired' },
     { header: 'Status', accessor: c => c.status }
@@ -1405,13 +1410,15 @@ const Certificates = () => {
                           />
                         </td>
                         <td className="py-4 px-6 font-mono text-emerald-400 font-bold whitespace-nowrap">{item.certificateId}</td>
-                        <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.studentId?.name}</td>
-                        <td className="py-4 px-6 font-mono text-[var(--text-dark)]">{item.studentId?.registrationNo}</td>
+                        <td className="py-4 px-6 font-semibold text-[var(--text-dark)]">{item.studentId?.name || item.userId?.name || 'Candidate'}</td>
+                        <td className="py-4 px-6 font-mono text-[var(--text-dark)]">{item.studentId?.registrationNo || item.userId?.username || '—'}</td>
                         <td className="py-4 px-6 text-[var(--text-dark)]">
-                          <h4>{item.courseDetailId?.technologyId?.name}</h4>
-                          <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                            {item.courseDetailId?.durationId?.value} {item.courseDetailId?.durationId?.unit}(s)
-                          </span>
+                          <h4>{item.courseDetailId?.technologyId?.name || item.batchId?.name || 'Course'}</h4>
+                          {(item.courseDetailId?.durationId?.value || item.batchId) && (
+                            <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                              {item.courseDetailId?.durationId ? `${item.courseDetailId.durationId.value} ${item.courseDetailId.durationId.unit}(s)` : 'Batch Program'}
+                            </span>
+                          )}
                         </td>
                         <td className="py-4 px-6 text-[var(--text-muted)] font-mono">
                           {item.issueDate ? new Date(item.issueDate).toLocaleDateString() : '—'}
@@ -1423,18 +1430,6 @@ const Certificates = () => {
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/20">
                               Without Signature
                             </span>
-                          ) : item.signatureApprovalStatus === 'Pending' ? (
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                Pending Approval
-                              </span>
-                              <span className="text-[9px] text-[var(--text-muted)]">
-                                {item.signatureOption === 'both'
-                                  ? (item.leftApproval?.status === 'Approved' ? 'Needs Kiran (Right)' : item.rightApproval?.status === 'Approved' ? 'Needs Suraj (Left)' : 'Needs Suraj & Kiran')
-                                  : item.signatureOption === 'left' ? 'Needs Suraj (Left)' : 'Needs Kiran (Right)'}
-                              </span>
-                            </div>
                           ) : item.signatureApprovalStatus === 'Approved' ? (
                             <div className="flex flex-col gap-1 items-start">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1443,6 +1438,30 @@ const Certificates = () => {
                               </span>
                               <span className="text-[9px] text-[var(--text-muted)]">
                                 {item.signatureOption === 'both' ? 'Suraj & Kiran' : item.signatureOption === 'left' ? 'Suraj (Left)' : 'Kiran (Right)'}
+                              </span>
+                            </div>
+                          ) : item.signatureApprovalStatus === 'PartiallyApproved' || (item.signatureOption === 'both' && (item.leftApproval?.status === 'Approved' || item.rightApproval?.status === 'Approved')) ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/15 text-teal-400 border border-teal-500/30">
+                                <Check className="h-3 w-3" />
+                                Partially Approved
+                              </span>
+                              <span className="text-[9px] text-teal-300/80 font-medium">
+                                {item.leftApproval?.status === 'Approved'
+                                  ? 'Approved by Suraj (Left) • Waiting for Kiran (Right)'
+                                  : 'Approved by Kiran (Right) • Waiting for Suraj (Left)'}
+                              </span>
+                            </div>
+                          ) : item.signatureApprovalStatus === 'Pending' ? (
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                Pending Approval
+                              </span>
+                              <span className="text-[9px] text-[var(--text-muted)]">
+                                {item.signatureOption === 'both'
+                                  ? 'Needs Suraj & Kiran'
+                                  : item.signatureOption === 'left' ? 'Needs Suraj (Left)' : 'Needs Kiran (Right)'}
                               </span>
                             </div>
                           ) : (
@@ -1458,7 +1477,7 @@ const Certificates = () => {
                         <td className="py-4 px-6 text-right">
                           <div className="flex justify-end gap-2 items-center">
                             {/* Option to download without signature */}
-                            {(item.pdfUrlUnsigned || (item.signatureApprovalStatus === 'Pending' && item.pdfUrl)) && (
+                            {(item.pdfUrlUnsigned || item.pdfUrl) && (
                               <a
                                 href={getPdfUrl(item.pdfUrlUnsigned || item.pdfUrl)}
                                 target="_blank"
@@ -1472,15 +1491,25 @@ const Certificates = () => {
                               </a>
                             )}
 
-                            {/* Download signed / official certificate */}
-                            {item.status === 'Active' && item.pdfUrl && item.signatureApprovalStatus !== 'Pending' && (
+                            {/* Download certificate with approved signatures */}
+                            {item.status === 'Active' && item.pdfUrl && (
+                              item.signatureApprovalStatus === 'Approved' ||
+                              item.signatureApprovalStatus === 'PartiallyApproved' ||
+                              item.signatureApprovalStatus === 'NotRequired' ||
+                              item.leftApproval?.status === 'Approved' ||
+                              item.rightApproval?.status === 'Approved'
+                            ) && (
                               <a
                                 href={getPdfUrl(item.pdfUrl)}
                                 target="_blank"
                                 rel="noreferrer"
                                 download={`Certificate_${item.certificateId}.pdf`}
                                 className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-500/30 text-[10px] font-semibold transition"
-                                title="Download certificate"
+                                title={
+                                  item.signatureApprovalStatus === 'Approved'
+                                    ? 'Download fully signed certificate'
+                                    : 'Download certificate with approved signature'
+                                }
                               >
                                 <Download className="h-3 w-3" />
                                 Download
