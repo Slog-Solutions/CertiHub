@@ -467,9 +467,12 @@ const ensureCertificatePdfOnDisk = async (cert) => {
   const filename = `${cert.certificateId}.pdf`;
   const pdfPath = path.join(certsDir, filename);
 
-  const isApprovedOrNotRequired = cert.signatureApprovalStatus === 'Approved' || cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
+  const isApproved = cert.signatureApprovalStatus === 'Approved';
+  const isPartiallyApproved = cert.signatureApprovalStatus === 'PartiallyApproved' ||
+    (cert.leftApproval?.status === 'Approved' || cert.rightApproval?.status === 'Approved');
   const isNotRequired = cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
-  const shouldHaveSignatures = isApprovedOrNotRequired && cert.signatureOption !== 'none';
+  const hasApprovedSignatures = isApproved || isPartiallyApproved || isNotRequired;
+  const shouldHaveSignatures = hasApprovedSignatures && cert.signatureOption !== 'none';
 
   const fileExists = fs.existsSync(pdfPath);
   const approvedAtTime = Math.max(
@@ -478,7 +481,7 @@ const ensureCertificatePdfOnDisk = async (cert) => {
   );
   const pdfMtime = fileExists ? fs.statSync(pdfPath).mtimeMs : 0;
   const isStale = fileExists && shouldHaveSignatures && pdfMtime < latestSigTime;
-  const needsRegenForApproval = fileExists && cert.signatureApprovalStatus === 'Approved' && approvedAtTime > 0 && pdfMtime < approvedAtTime;
+  const needsRegenForApproval = fileExists && approvedAtTime > 0 && pdfMtime < approvedAtTime;
 
   if (!fileExists || isStale || needsRegenForApproval) {
     let studentData = cert.studentId;
@@ -509,13 +512,21 @@ const ensureCertificatePdfOnDisk = async (cert) => {
     const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
     const qrCodeBase64 = cert.qrCodeUrl || (await qrcode.toDataURL(verificationUrl));
 
-    const sigConfig = isApprovedOrNotRequired
-      ? {
+    const includeLeft = cert.signatureOption !== 'none' && cert.signatureOption !== 'right' && (
+      isNotRequired || cert.leftApproval?.status === 'Approved'
+    );
+    const includeRight = cert.signatureOption !== 'none' && cert.signatureOption !== 'left' && (
+      isNotRequired || cert.rightApproval?.status === 'Approved'
+    );
+    const hasAnySig = includeLeft || includeRight;
+
+    const sigConfig = !hasAnySig || cert.signatureOption === 'none'
+      ? { signatureOption: 'none', includeLeft: false, includeRight: false }
+      : {
           signatureOption: cert.signatureOption || 'both',
-          includeLeft: isNotRequired || cert.leftApproval?.status === 'Approved',
-          includeRight: isNotRequired || cert.rightApproval?.status === 'Approved'
-        }
-      : { signatureOption: 'none', includeLeft: false, includeRight: false };
+          includeLeft,
+          includeRight
+        };
 
     await generateCertificatePDF(
       studentData,
@@ -897,19 +908,30 @@ router.get('/', certRateLimiter, requireAuth, async (req, res) => {
   let filter = {};
   if (req.query.search) {
     const searchRegex = buildSearchRegex(req.query.search);
+    const User = require('../models/User');
 
-    // Find students matching search to filter certificates
-    const students = await Student.find({
-      $or: [
-        { name: searchRegex },
-        { registrationNo: searchRegex }
-      ]
-    }).select('_id');
+    const [students, users] = await Promise.all([
+      Student.find({
+        $or: [
+          { name: searchRegex },
+          { registrationNo: searchRegex }
+        ]
+      }).select('_id'),
+      User.find({
+        $or: [
+          { name: searchRegex },
+          { username: searchRegex }
+        ]
+      }).select('_id')
+    ]);
+
     const studentIds = students.map(s => s._id);
+    const userIds = users.map(u => u._id);
 
     filter.$or = [
       { certificateId: searchRegex },
-      { studentId: { $in: studentIds } }
+      { studentId: { $in: studentIds } },
+      { userId: { $in: userIds } }
     ];
   }
 
@@ -941,6 +963,8 @@ router.get('/', certRateLimiter, requireAuth, async (req, res) => {
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
       })
+      .populate('userId', 'name username')
+      .populate('batchId', 'name')
       .populate('leftApproval.approvedBy', 'name username')
       .populate('rightApproval.approvedBy', 'name username')
       .sort({ createdAt: -1, _id: -1 })
@@ -976,13 +1000,31 @@ router.put('/:id', certRateLimiter, requireAuth, async (req, res) => {
 
     if (regenerate) {
       // Re-run PDF generation
-      const student = await Student.findById(cert.studentId._id)
-        .populate('collegeId')
-        .populate('branchId');
+      let student = null;
+      if (cert.studentId) {
+        const sId = cert.studentId._id || cert.studentId;
+        student = await Student.findById(sId)
+          .populate('collegeId')
+          .populate('branchId');
+      }
 
-      const courseDetail = await CourseDetail.findById(cert.courseDetailId._id)
-        .populate('technologyId')
-        .populate('durationId');
+      let courseDetail = null;
+      if (cert.courseDetailId) {
+        const cId = cert.courseDetailId._id || cert.courseDetailId;
+        courseDetail = await CourseDetail.findById(cId)
+          .populate('technologyId')
+          .populate('durationId');
+      }
+
+      let studentData = student;
+      let courseDetailData = courseDetail;
+      if (!student || !courseDetail) {
+        const User = require('../models/User');
+        const user = cert.userId ? await User.findById(cert.userId) : null;
+        const batch = cert.batchId ? await Batch.findById(cert.batchId) : null;
+        const { buildBatchCertificateData } = require('../utils/certificateData');
+        ({ studentData, courseDetailData } = buildBatchCertificateData({ user, student, courseDetail, batch }));
+      }
 
       const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
       const verificationUrl = `${clientUrl}/verify/${cert.certificateId}`;
@@ -993,19 +1035,36 @@ router.put('/:id', certRateLimiter, requireAuth, async (req, res) => {
 
       const batch = cert.batchId ? await Batch.findById(cert.batchId).select('certificateTemplate') : null;
 
+      const isNotRequired = cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
+      const includeLeft = cert.signatureOption !== 'none' && cert.signatureOption !== 'right' && (
+        isNotRequired || cert.leftApproval?.status === 'Approved'
+      );
+      const includeRight = cert.signatureOption !== 'none' && cert.signatureOption !== 'left' && (
+        isNotRequired || cert.rightApproval?.status === 'Approved'
+      );
+      const hasAnySig = includeLeft || includeRight;
+
+      const sigConfig = !hasAnySig || cert.signatureOption === 'none'
+        ? { signatureOption: 'none', includeLeft: false, includeRight: false }
+        : {
+            signatureOption: cert.signatureOption || 'both',
+            includeLeft,
+            includeRight
+          };
+
       // Overwrite the existing PDF file
       await generateCertificatePDF(
-        student,
-        courseDetail,
+        studentData,
+        courseDetailData,
         cert.certificateId,
         qrCodeBase64,
         pdfPath,
-        new Date(), // current completion or date issued
-        batch?.certificateTemplate
+        cert.issueDate || new Date(),
+        cert.templateFile || resolveTemplateFile(batch?.certificateTemplate),
+        sigConfig
       );
 
       cert.qrCodeUrl = qrCodeBase64;
-      cert.templateFile = resolveTemplateFile(batch?.certificateTemplate);
     }
 
     await cert.save();
@@ -1018,7 +1077,11 @@ router.put('/:id', certRateLimiter, requireAuth, async (req, res) => {
       .populate({
         path: 'courseDetailId',
         populate: [{ path: 'technologyId' }, { path: 'durationId' }]
-      });
+      })
+      .populate('userId', 'name username')
+      .populate('batchId', 'name')
+      .populate('leftApproval.approvedBy', 'name username')
+      .populate('rightApproval.approvedBy', 'name username');
 
     res.json(populated);
   } catch (err) {

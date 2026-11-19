@@ -76,8 +76,10 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
     }
 
     const isApproved = cert.signatureApprovalStatus === 'Approved';
+    const isPartiallyApproved = cert.signatureApprovalStatus === 'PartiallyApproved' ||
+      (cert.leftApproval?.status === 'Approved' || cert.rightApproval?.status === 'Approved');
     const isNotRequired = cert.signatureApprovalStatus === 'NotRequired' || !cert.signatureApprovalStatus;
-    const isApprovedOrNotRequired = isApproved || isNotRequired;
+    const hasApprovedSignatures = isApproved || isPartiallyApproved || isNotRequired;
 
     if (fs.existsSync(pdfPath)) {
       const pdfMtime = fs.statSync(pdfPath).mtimeMs;
@@ -86,19 +88,22 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
         cert.rightApproval?.approvedAt ? new Date(cert.rightApproval.approvedAt).getTime() : 0
       );
 
-      // If certificate was approved AFTER pdfPath was written, pdfPath is an unsigned placeholder!
-      const needsRegenForApproval = isApproved && approvedAtTime > 0 && pdfMtime < approvedAtTime;
-      const isStaleFromSigUpdate = !isUnsignedRequest && pdfMtime < latestSigMtime;
+      // If certificate was approved (or partially approved) AFTER pdfPath was written, pdfPath is outdated!
+      const needsRegenForApproval = approvedAtTime > 0 && pdfMtime < approvedAtTime;
+      const isStaleFromSigUpdate = !isUnsignedRequest && hasApprovedSignatures && pdfMtime < latestSigMtime;
 
       if (!needsRegenForApproval && !isStaleFromSigUpdate) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         return res.sendFile(pdfPath);
       }
-      console.log(`[Certificates] Regenerating ${filename} (approved: ${isApproved}, needsRegenForApproval: ${needsRegenForApproval}, staleSig: ${isStaleFromSigUpdate})`);
+      console.log(`[Certificates] Regenerating ${filename} (approved: ${isApproved}, partially: ${isPartiallyApproved}, needsRegenForApproval: ${needsRegenForApproval}, staleSig: ${isStaleFromSigUpdate})`);
     }
 
     const Student = require('./models/Student');
     const CourseDetail = require('./models/CourseDetail');
-    
+
     const User = require('./models/User');
     const Batch = require('./models/Batch');
     const { buildBatchCertificateData } = require('./utils/certificateData');
@@ -134,12 +139,20 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
 
     console.log(`Lazy generating certificate PDF for: ${certificateId} (unsigned: ${isUnsignedRequest})`);
 
-    const sigConfig = isUnsignedRequest
+    const includeLeft = !isUnsignedRequest && cert.signatureOption !== 'none' && cert.signatureOption !== 'right' && (
+      isNotRequired || cert.leftApproval?.status === 'Approved'
+    );
+    const includeRight = !isUnsignedRequest && cert.signatureOption !== 'none' && cert.signatureOption !== 'left' && (
+      isNotRequired || cert.rightApproval?.status === 'Approved'
+    );
+    const hasAnySig = includeLeft || includeRight;
+
+    const sigConfig = isUnsignedRequest || !hasAnySig || cert.signatureOption === 'none'
       ? { signatureOption: 'none', includeLeft: false, includeRight: false }
       : {
-          signatureOption: isApprovedOrNotRequired ? (cert.signatureOption || 'both') : 'none',
-          includeLeft: isApprovedOrNotRequired && (isNotRequired || cert.leftApproval?.status === 'Approved'),
-          includeRight: isApprovedOrNotRequired && (isNotRequired || cert.rightApproval?.status === 'Approved')
+          signatureOption: cert.signatureOption || 'both',
+          includeLeft,
+          includeRight
         };
 
     // Keep the layout the certificate was issued with (older certificates predate per-batch templates)
@@ -154,6 +167,9 @@ app.get('/uploads/certificates/:filename', async (req, res, next) => {
       sigConfig
     );
 
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(pdfPath);
   } catch (error) {
     console.error('Lazy PDF generation failed:', error);
@@ -170,13 +186,13 @@ connectDB().then(() => {
 
   // Seed director accounts (Suraj & Kiran)
   seedDirectors();
-  
+
   // Seed initial mentors if empty
   seedMentors();
-  
+
   // Seed app versions
   seedAppVersions();
-  
+
   // Start backup cron scheduler
   initBackupScheduler();
 });
@@ -191,7 +207,7 @@ const seedAdmin = async () => {
       // Generate a strong default password
       const password = 'Admin@' + Math.random().toString(36).substring(2, 10);
       const passwordHash = await bcrypt.hash(password, 10);
-      
+
       const defaultAdmin = new User({
         username: 'admin',
         passwordHash,
@@ -203,9 +219,9 @@ const seedAdmin = async () => {
         isSuperAdmin: true,
         isActive: true
       });
-      
+
       await defaultAdmin.save();
-      
+
       console.log('\n=========================================');
       console.log('SEED: Default Admin Account Seeded!');
       console.log('Username: admin');
