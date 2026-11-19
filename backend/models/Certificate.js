@@ -55,7 +55,7 @@ const certificateSchema = new mongoose.Schema({
   },
   signatureApprovalStatus: {
     type: String,
-    enum: ['NotRequired', 'Pending', 'Approved', 'Rejected'],
+    enum: ['NotRequired', 'Pending', 'PartiallyApproved', 'Approved', 'Rejected'],
     default: 'NotRequired'
   },
   leftApproval: {

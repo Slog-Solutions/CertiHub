@@ -221,31 +221,36 @@ const credentials = [
     label: "ISO Certified",
     sub: "Quality Standards",
     desc: "ISO Certified Technical & Skill Training Protocols",
-    icon: "📜",
+    icon: FileCheck,
+    color: "text-teal-600 bg-teal-50",
   },
   {
     label: "Award Winning",
     sub: "Quality Innovation",
     desc: "Quality Innovation Award 2022 Winner",
-    icon: "🏆",
+    icon: Award,
+    color: "text-amber-600 bg-amber-50",
   },
   {
     label: "Government Projects",
     sub: "Empaneled Vendor",
     desc: "Technology solutions and training for institutional & government environments.",
-    icon: "🏛️",
+    icon: Building2,
+    color: "text-cyan-600 bg-cyan-50",
   },
   {
     label: "Defence Sector Experience",
     sub: "High Security",
     desc: "Specialized technology and training initiatives for defence-oriented environments.",
-    icon: "🛡️",
+    icon: ShieldCheck,
+    color: "text-indigo-600 bg-indigo-50",
   },
   {
     label: "Data Security & Compliance",
     sub: "Zero Trust",
     desc: "Security-conscious technology solutions designed with responsible data handling.",
-    icon: "🔒",
+    icon: Lock,
+    color: "text-emerald-600 bg-emerald-50",
   },
 ];
 
@@ -705,14 +710,19 @@ export default function AboutPage() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {credentials.map((cred, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-all border border-gray-100 text-center space-y-2 hover:border-teal-300">
-                <div className="text-4xl mb-1">{cred.icon}</div>
-                <h3 className="font-bold text-gray-900 text-base">{cred.label}</h3>
-                <span className="text-[10px] font-bold text-teal-600 uppercase block">{cred.sub}</span>
-                <p className="text-xs text-gray-600 leading-relaxed">{cred.desc}</p>
-              </div>
-            ))}
+            {credentials.map((cred, idx) => {
+              const IconComp = cred.icon;
+              return (
+                <div key={idx} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-all border border-gray-100 text-center space-y-2 hover:border-teal-300 flex flex-col items-center">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-1 ${cred.color || 'text-teal-600 bg-teal-50'}`}>
+                    <IconComp className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-base">{cred.label}</h3>
+                  <span className="text-[10px] font-bold text-teal-600 uppercase block">{cred.sub}</span>
+                  <p className="text-xs text-gray-600 leading-relaxed">{cred.desc}</p>
+                </div>
+              );
+            })}
           </div>
 
         </div>
