@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Archive, FileSpreadsheet, Loader, ShieldCheck, RefreshCw, Eye, ToggleRight, ToggleLeft, Trash2, Clock, Check, XCircle, FileCheck, PenTool } from 'lucide-react';
+import { Award, Plus, Upload, Download, Search, AlertCircle, CheckCircle2, X, Archive, FileSpreadsheet, Loader, ShieldCheck, RefreshCw, Eye, ToggleRight, ToggleLeft, Trash2, Clock, Check, XCircle, FileCheck, PenTool, Lock } from 'lucide-react';
 import StatusToggle from '../components/StatusToggle';
 import ActionsDropdown from '../components/ActionsDropdown';
 import ExportButtons from '../components/ExportButtons';
@@ -1188,8 +1188,9 @@ const Certificates = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
-                    🔒 Managed by Director Suraj Prasad Singh or Super Admin.
+                  <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
+                    <Lock className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
+                    <span>Managed by Director Suraj Prasad Singh or Super Admin.</span>
                   </div>
                 )}
               </div>
@@ -1307,8 +1308,9 @@ const Certificates = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
-                    🔒 Managed by Director Kiran Bisht or Super Admin.
+                  <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[var(--bg-cream)] border border-[var(--border-color)] text-[11px] text-[var(--text-muted)] text-center">
+                    <Lock className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
+                    <span>Managed by Director Kiran Bisht or Super Admin.</span>
                   </div>
                 )}
               </div>
