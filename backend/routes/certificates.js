@@ -1201,28 +1201,30 @@ router.post('/:id/approve-signature', certRateLimiter, requireAuth, requireRole(
     }
 
     // Determine overall signatureApprovalStatus:
-    if (cert.leftApproval.status === 'Rejected' || cert.rightApproval.status === 'Rejected') {
+    if (cert.leftApproval?.status === 'Rejected' || cert.rightApproval?.status === 'Rejected') {
       cert.signatureApprovalStatus = 'Rejected';
     } else {
       if (cert.signatureOption === 'both') {
-        if (cert.leftApproval.status === 'Approved' && cert.rightApproval.status === 'Approved') {
+        if (cert.leftApproval?.status === 'Approved' && cert.rightApproval?.status === 'Approved') {
           cert.signatureApprovalStatus = 'Approved';
+        } else if (cert.leftApproval?.status === 'Approved' || cert.rightApproval?.status === 'Approved') {
+          cert.signatureApprovalStatus = 'PartiallyApproved';
         } else {
           cert.signatureApprovalStatus = 'Pending';
         }
       } else if (cert.signatureOption === 'left') {
-        if (cert.leftApproval.status === 'Approved') {
-          cert.signatureApprovalStatus = 'Approved';
-        }
+        cert.signatureApprovalStatus = cert.leftApproval?.status === 'Approved' ? 'Approved' : 'Pending';
       } else if (cert.signatureOption === 'right') {
-        if (cert.rightApproval.status === 'Approved') {
-          cert.signatureApprovalStatus = 'Approved';
-        }
+        cert.signatureApprovalStatus = cert.rightApproval?.status === 'Approved' ? 'Approved' : 'Pending';
       }
     }
 
-    // If fully approved, regenerate the main certificate PDF with the approved signatures!
-    if (cert.signatureApprovalStatus === 'Approved') {
+    // Regenerate the certificate PDF immediately when ANY signature is approved!
+    const hasApprovedSignatures =
+      (cert.leftApproval?.status === 'Approved') ||
+      (cert.rightApproval?.status === 'Approved');
+
+    if (hasApprovedSignatures || cert.signatureApprovalStatus === 'Approved') {
       let studentData = cert.studentId;
       let courseDetailData = cert.courseDetailId;
       if (!studentData || !courseDetailData) {
@@ -1248,14 +1250,14 @@ router.post('/:id/approve-signature', certRateLimiter, requireAuth, requireRole(
         cert.issueDate,
         cert.templateFile || 'default.html',
         {
-          signatureOption: cert.signatureOption,
+          signatureOption: cert.signatureOption || 'both',
           includeLeft: cert.leftApproval?.status === 'Approved',
           includeRight: cert.rightApproval?.status === 'Approved'
         }
       );
 
-      // Send email now that certificate is officially signed & approved!
-      if (studentData && studentData.email) {
+      // Send email now that certificate is officially signed & fully approved!
+      if (cert.signatureApprovalStatus === 'Approved' && studentData && studentData.email) {
         await sendCertificateEmail(studentData, cert.certificateId, pdfPath);
       }
     }
@@ -1314,21 +1316,29 @@ router.post('/bulk-approve-signatures', certRateLimiter, requireAuth, requireRol
         }
       }
 
-      if (cert.leftApproval.status === 'Rejected' || cert.rightApproval.status === 'Rejected') {
+      if (cert.leftApproval?.status === 'Rejected' || cert.rightApproval?.status === 'Rejected') {
         cert.signatureApprovalStatus = 'Rejected';
       } else {
         if (cert.signatureOption === 'both') {
-          if (cert.leftApproval.status === 'Approved' && cert.rightApproval.status === 'Approved') {
+          if (cert.leftApproval?.status === 'Approved' && cert.rightApproval?.status === 'Approved') {
             cert.signatureApprovalStatus = 'Approved';
+          } else if (cert.leftApproval?.status === 'Approved' || cert.rightApproval?.status === 'Approved') {
+            cert.signatureApprovalStatus = 'PartiallyApproved';
+          } else {
+            cert.signatureApprovalStatus = 'Pending';
           }
-        } else if (cert.signatureOption === 'left' && cert.leftApproval.status === 'Approved') {
+        } else if (cert.signatureOption === 'left' && cert.leftApproval?.status === 'Approved') {
           cert.signatureApprovalStatus = 'Approved';
-        } else if (cert.signatureOption === 'right' && cert.rightApproval.status === 'Approved') {
+        } else if (cert.signatureOption === 'right' && cert.rightApproval?.status === 'Approved') {
           cert.signatureApprovalStatus = 'Approved';
         }
       }
 
-      if (cert.signatureApprovalStatus === 'Approved') {
+      const hasApprovedSignatures =
+        (cert.leftApproval?.status === 'Approved') ||
+        (cert.rightApproval?.status === 'Approved');
+
+      if (hasApprovedSignatures || cert.signatureApprovalStatus === 'Approved') {
         let studentData = cert.studentId;
         let courseDetailData = cert.courseDetailId;
         if (!studentData || !courseDetailData) {
@@ -1355,7 +1365,7 @@ router.post('/bulk-approve-signatures', certRateLimiter, requireAuth, requireRol
             cert.issueDate,
             cert.templateFile || 'default.html',
             {
-              signatureOption: cert.signatureOption,
+              signatureOption: cert.signatureOption || 'both',
               includeLeft: cert.leftApproval?.status === 'Approved',
               includeRight: cert.rightApproval?.status === 'Approved'
             }
